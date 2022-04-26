@@ -9,5 +9,10 @@ print_string:
     add bx, 1       ; increment bx pointer by one
     jmp .work       ; loop back
 .done:
+    mov al,0x0d     ;carriage return
+    int 0x10
+    mov al,0x0a     ;line feed
+    int 0x10
+
     popa            ; pop our preserved register values back from stack
     ret

@@ -4,7 +4,7 @@ org 0x7c00
 KERNEL_OFFSET equ 0x1000
 
 ;something is fucked up with the kernel offset ld throws a warning and after concatting
-;it gets the address of 0x200h instead of 0x1000h
+;it gets the address of 0x200h (continues right after the magic number at 511-512) instead of 0x1000h
 
 mov [BOOT_DRIVE],dl ;stores dl in boot drive
 
@@ -53,10 +53,13 @@ BEGIN_PM:
 ;global variables
 
 BOOT_DRIVE		db 0
-MSG_REAL_MODE	db "Started in 16-bit Real mode",0
-MSG_PROT_MODE	db "Landed in 32-bit Protected mode",0
-MSG_LOAD_KERNEL	db "Loading kernel into memory",0
+MSG_REAL_MODE	db "1. Started in 16-bit Real mode", 0
+MSG_LOAD_KERNEL	db "2. Loading kernel into memory", 0
+MSG_PROT_MODE	db "3. Landed in 32-bit Protected mode", 0
 
 ;bootsector padding
 times 510-($-$$) db 0
 dw 0xaa55
+
+;fill to 4096 0x1000 where the kernel begins
+times 4096-($-$$) db 0
