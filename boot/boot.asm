@@ -20,11 +20,11 @@ call switch_to_pm
 
 jmp $
 
-%include "print/print_string.asm"
-%include "disk/disk_load.asm" ;no problems 1:1
-%include "pm/gdt.asm" ;fixed now 1:1
-%include "pm/print_string_pm.asm"
-%include "pm/switch_to_pm.asm" ;fixed now 1:1
+%include "boot/print_string.asm"
+%include "boot/disk_load.asm"
+%include "boot/pm/gdt.asm"
+%include "boot/pm/print_string_pm.asm"
+%include "boot/pm/switch_to_pm.asm"
 
 BITS 16
 
@@ -55,7 +55,7 @@ BEGIN_PM:
 BOOT_DRIVE		db 0
 MSG_REAL_MODE	db "1. Started in 16-bit Real mode", 0
 MSG_LOAD_KERNEL	db "2. Loading kernel into memory", 0
-MSG_PROT_MODE	db "3. Landed in 32-bit Protected mode", 0
+MSG_PROT_MODE	db "3. Landed in 32-bit Protected mode!", 0
 
 ;bootsector padding
 times 510-($-$$) db 0

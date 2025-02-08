@@ -1,6 +1,7 @@
+BUILD_DIR = build
 C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
 HEADERS = $(wildcard kernel/*.h drivers/*.h)
-OBJ = ${C_SOURCES:.c=.o}
+OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES))
 
 all: os-image
 
@@ -8,29 +9,34 @@ run: all
 	qemu-system-x86_64 os-image
 
 clean:
-	rm -fr *.bin *.o *.dis os-image
-	rm -fr kernel/*.o boot/*.bin drivers/*.o
+	rm -fr $(BUILD_DIR) os-image kernel.dis
 
-#build os image for qemu
-os-image: boot/boot.bin kernel.bin
+# Create the build directory if it doesn't exist
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/boot
+
+# Build OS image for QEMU
+os-image: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/kernel.bin
 	cat $^ > $@
 
-#build kernel bin
-# _entry that jumps 
-# and c kernel with main() that it jumps to
-kernel.bin: kernel/kernel_entry.o ${OBJ}
+# Build kernel binary
+$(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/kernel/kernel_entry.o $(OBJ)
 	ld -m elf_i386 -o $@ -Ttext 0x1000 $^ --oformat binary
 
-#generic rule for .c to .o
-%.o : %.c
+# Generic rule for .c to .o (compiled objects go to build/)
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	gcc -m32 -fno-pie -ffreestanding -c $< -o $@
 
-#assemble kernel_entry
-%.o : %.asm
+# Assemble kernel_entry
+$(BUILD_DIR)/%.o: %.asm | $(BUILD_DIR)
 	nasm $< -f elf -o $@
 
-%.bin: %.asm
+# Assemble bootloader
+$(BUILD_DIR)/boot.bin: boot/boot.asm | $(BUILD_DIR)
 	nasm -f bin $< -o $@
 
-kernel.dis: kernel/kernel.bin
+kernel.dis: $(BUILD_DIR)/kernel.bin
 	ndisasm -b 32 $< > $@
+
+format:
+	find kernel drivers -name '*.h' -o -name '*.c' | xargs clang-format -i
