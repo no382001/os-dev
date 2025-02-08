@@ -1,14 +1,10 @@
-#define VIDEO_ADDRESS 0xb8000
-#define MAX_ROWS 25
-#define MAX_COLS 80
-
-#define WHITE_ON_BLACK 0x0f
-
-// screen device I/O ports
-#define REG_SCREEN_CTRL 0x3D4
-#define REG_SCREEN_DATA 0x3D5
+#include "screen.h"
 
 void main() {
-  char *video_memory = (char *)0xb8000;
-  *video_memory = 'X';
+  kernel_clear_screen();
+  char s[] = "hello kernel!\n .rodata is misaligned -> ";
+  // .rodata is mapped incorrectly so dont use ptrs
+  char* s1 = "hello .rodata!";
+  kernel_puts(s);
+  kernel_puth(s1);
 }

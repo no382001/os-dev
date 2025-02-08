@@ -11,27 +11,27 @@ run: all
 clean:
 	rm -fr $(BUILD_DIR) os-image kernel.dis
 
-# Create the build directory if it doesn't exist
+# create the build directory if it doesn't exist
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/boot
 
-# Build OS image for QEMU
+# build OS image for QEMU
 os-image: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/kernel.bin
 	cat $^ > $@
 
-# Build kernel binary
+# build kernel binary
 $(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/kernel/kernel_entry.o $(OBJ)
 	ld -m elf_i386 -o $@ -Ttext 0x1000 $^ --oformat binary
 
-# Generic rule for .c to .o (compiled objects go to build/)
+# generic rule for .c to .o (compiled objects go to build/)
 $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	gcc -m32 -fno-pie -ffreestanding -c $< -o $@
 
-# Assemble kernel_entry
+# assemble kernel_entry
 $(BUILD_DIR)/%.o: %.asm | $(BUILD_DIR)
 	nasm $< -f elf -o $@
 
-# Assemble bootloader
+# assemble bootloader
 $(BUILD_DIR)/boot.bin: boot/boot.asm | $(BUILD_DIR)
 	nasm -f bin $< -o $@
 
@@ -39,4 +39,4 @@ kernel.dis: $(BUILD_DIR)/kernel.bin
 	ndisasm -b 32 $< > $@
 
 format:
-	find kernel drivers -name '*.h' -o -name '*.c' | xargs clang-format -i
+	find kernel -name '*.h' -o -name '*.c' | xargs clang-format -i
