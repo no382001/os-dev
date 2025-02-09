@@ -29,7 +29,7 @@ kernel.elf: $(KERNEL_BUILD_DIR)/kernel_entry.o ${OBJ}
 	ld -m elf_i386 -o $@ -Ttext 0x1000 $^
 
 run: $(BUILD_DIR)/os-image.bin
-	qemu-system-x86_64 -fda $(BUILD_DIR)/os-image.bin
+	qemu-system-i386 -fda $(BUILD_DIR)/os-image.bin
 
 $(KERNEL_BUILD_DIR)/%.o: kernel/%.c ${HEADERS} | $(BUILD_DIR)
 	${CC} ${CFLAGS} -c $< -o $@
