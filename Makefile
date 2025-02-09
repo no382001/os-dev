@@ -1,42 +1,51 @@
-BUILD_DIR = build
 C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
 HEADERS = $(wildcard kernel/*.h drivers/*.h)
-OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES))
 
-all: os-image
+BUILD_DIR = build
+KERNEL_BUILD_DIR = $(BUILD_DIR)/kernel
+DRIVERS_BUILD_DIR = $(BUILD_DIR)/drivers
+BOOT_BUILD_DIR = $(BUILD_DIR)/boot
 
-run: all
-	qemu-system-x86_64 os-image
+OBJ = $(patsubst kernel/%.c, $(KERNEL_BUILD_DIR)/%.o, $(wildcard kernel/*.c))
+OBJ += $(patsubst drivers/%.c, $(DRIVERS_BUILD_DIR)/%.o, $(wildcard drivers/*.c))
 
-clean:
-	rm -fr $(BUILD_DIR) os-image kernel.dis
+CC = gcc
+GDB = gdb
+CFLAGS = -g -m32 -fno-pie -ffreestanding -nostdlib -nodefaultlibs -I$(shell pwd)
 
-# create the build directory if it doesn't exist
+os-image.bin: $(BOOT_BUILD_DIR)/boot.bin $(KERNEL_BUILD_DIR)/kernel.bin
+	cat $^ > $(BUILD_DIR)/os-image.bin
+
 $(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/boot
+	mkdir -p $(KERNEL_BUILD_DIR) $(DRIVERS_BUILD_DIR) $(BOOT_BUILD_DIR)
 
-# build OS image for QEMU
-os-image: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/kernel.bin
-	cat $^ > $@
+$(BOOT_BUILD_DIR)/boot.bin: boot/boot.asm | $(BUILD_DIR)
+	nasm $< -f bin -o $@
 
-# build kernel binary
-$(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/kernel/kernel_entry.o $(OBJ)
+$(KERNEL_BUILD_DIR)/kernel.bin: $(KERNEL_BUILD_DIR)/kernel_entry.o ${OBJ}
 	ld -m elf_i386 -o $@ -Ttext 0x1000 $^ --oformat binary
 
-# generic rule for .c to .o (compiled objects go to build/)
-$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
-	gcc -m32 -fno-pie -ffreestanding -c $< -o $@
+kernel.elf: $(KERNEL_BUILD_DIR)/kernel_entry.o ${OBJ}
+	ld -m elf_i386 -o $@ -Ttext 0x1000 $^
 
-# assemble kernel_entry
-$(BUILD_DIR)/%.o: %.asm | $(BUILD_DIR)
+run: $(BUILD_DIR)/os-image.bin
+	qemu-system-x86_64 -fda $(BUILD_DIR)/os-image.bin
+
+$(KERNEL_BUILD_DIR)/%.o: kernel/%.c ${HEADERS} | $(BUILD_DIR)
+	${CC} ${CFLAGS} -c $< -o $@
+
+$(DRIVERS_BUILD_DIR)/%.o: drivers/%.c ${HEADERS} | $(BUILD_DIR)
+	${CC} ${CFLAGS} -c $< -o $@
+
+$(KERNEL_BUILD_DIR)/%.o: kernel/%.asm | $(BUILD_DIR)
 	nasm $< -f elf -o $@
 
-# assemble bootloader
-$(BUILD_DIR)/boot.bin: boot/boot.asm | $(BUILD_DIR)
-	nasm -f bin $< -o $@
+$(BOOT_BUILD_DIR)/%.bin: boot/%.asm | $(BUILD_DIR)
+	nasm $< -f bin -o $@
 
-kernel.dis: $(BUILD_DIR)/kernel.bin
-	ndisasm -b 32 $< > $@
+clean:
+	rm -fr $(BUILD_DIR)
+
 
 format:
 	find kernel -name '*.h' -o -name '*.c' | xargs clang-format -i

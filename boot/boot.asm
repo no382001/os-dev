@@ -26,11 +26,11 @@ jmp $
 BITS 16
 
 load_kernel:
-	mov bx,MSG_LOAD_KERNEL ;print msg to say we are loading the kernel
+	mov bx,MSG_LOAD_KERNEL
 	call print_string
 
 	mov bx,KERNEL_OFFSET
-	mov dh,15
+	mov dh,16 ; hmm?
 	mov dl,[BOOT_DRIVE]
 	
 	call disk_load
@@ -51,7 +51,7 @@ BEGIN_PM:
 ;global variables
 
 BOOT_DRIVE		db 0
-MSG_BOOT_DRIVE db "Boot drive detected", 0
+MSG_BOOT_DRIVE  db "Boot drive detected", 0
 MSG_REAL_MODE	db "1. Started in 16-bit Real mode", 0
 MSG_LOAD_KERNEL	db "2. Loading kernel into memory", 0
 MSG_PROT_MODE	db "3. Landed in 32-bit Protected mode!", 0
@@ -60,5 +60,6 @@ MSG_PROT_MODE	db "3. Landed in 32-bit Protected mode!", 0
 times 510-($-$$) db 0
 dw 0xaa55
 
+; im not sure why we need this?
 ;fill to 4096 0x1000 where the kernel begins
-times 4096-($-$$) db 0
+;times 4096-($-$$) db 0

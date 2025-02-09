@@ -1,1 +1,11 @@
 - fix .rodata misalignment
+- interrupts, fs
+- forth shell?
+	- its easy to do, extensible but im not really familiar with it tbh.
+	- maybe prolog? i'd need hooks and the whole interpreter
+	- tcc can do interpretation
+- vi, tmux
+- maybe some networking so i can snapshot easily
+- it can bootstrap
+
+- clean up makefile

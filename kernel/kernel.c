@@ -1,4 +1,4 @@
-#include "screen.h"
+#include "drivers/screen.h"
 
 void main() {
   kernel_clear_screen();
@@ -7,4 +7,5 @@ void main() {
   char* s1 = "hello .rodata!";
   kernel_puts(s);
   kernel_puth(s1);
+  kernel_puts(s1);
 }
