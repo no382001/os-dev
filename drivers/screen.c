@@ -1,32 +1,26 @@
 #include "screen.h"
+#include "kernel/utils.h"
 #include "low_level.h"
 
-static int get_screen_offset(int col, int row) { return 2 * (row * MAX_COLS + col); }
-
-static void memory_copy(char *source, char *dest, int no_bytes) {
-  int i;
-  for (i = 0; i < no_bytes; i++) {
-    *(dest + i) = *(source + i);
-  }
+static int get_screen_offset(int col, int row) {
+  return 2 * (row * MAX_COLS + col);
 }
 
 static int handle_scrolling(int offset) {
-    if (offset < MAX_ROWS * MAX_COLS * 2) {
-        return offset;
-    }
+  if (offset < MAX_ROWS * MAX_COLS * 2) {
+    return offset;
+  }
 
-    memory_copy(
-        (char *)(VIDEO_ADDRESS + MAX_COLS * 2),
-        (char *)VIDEO_ADDRESS,
-        (MAX_ROWS - 1) * MAX_COLS * 2
-    );
+  memory_copy((char *)(VIDEO_ADDRESS + MAX_COLS * 2), (char *)VIDEO_ADDRESS,
+              (MAX_ROWS - 1) * MAX_COLS * 2);
 
-    for (int j = 0; j < MAX_COLS; j++) {
-        *((char *)VIDEO_ADDRESS + (MAX_ROWS - 1) * MAX_COLS * 2 + j * 2) = ' ';
-        *((char *)VIDEO_ADDRESS + (MAX_ROWS - 1) * MAX_COLS * 2 + j * 2 + 1) = WHITE_ON_BLACK;
-    }
+  for (int j = 0; j < MAX_COLS; j++) {
+    *((char *)VIDEO_ADDRESS + (MAX_ROWS - 1) * MAX_COLS * 2 + j * 2) = ' ';
+    *((char *)VIDEO_ADDRESS + (MAX_ROWS - 1) * MAX_COLS * 2 + j * 2 + 1) =
+        WHITE_ON_BLACK;
+  }
 
-    return get_screen_offset(0, MAX_ROWS - 1);
+  return get_screen_offset(0, MAX_ROWS - 1);
 }
 
 static void set_cursor(int offset) {
@@ -90,8 +84,8 @@ void kernel_puth(int value) {
   kernel_print_c_at('x', -1, -1, WHITE_ON_BLACK);
 
   for (int i = 7; i >= 0; i--) {
-      unsigned char nibble = (value >> (i * 4)) & 0xF;
-      kernel_print_c_at(hex_chars[nibble], -1, -1, WHITE_ON_BLACK);
+    unsigned char nibble = (value >> (i * 4)) & 0xF;
+    kernel_print_c_at(hex_chars[nibble], -1, -1, WHITE_ON_BLACK);
   }
 }
 
@@ -99,23 +93,19 @@ void kernel_print_string_at(char *message, int col, int row) {
   int offset;
 
   if (col >= 0 && row >= 0) {
-      offset = get_screen_offset(col, row);
-      set_cursor(offset);
+    offset = get_screen_offset(col, row);
+    set_cursor(offset);
   } else {
-      offset = get_cursor();
+    offset = get_cursor();
   }
 
   int i = 0;
   while (message[i] != 0) {
-      kernel_print_c_at(message[i], -1, -1, WHITE_ON_BLACK);
-      i++;
+    kernel_print_c_at(message[i], -1, -1, WHITE_ON_BLACK);
+    i++;
   }
 }
 
-void kernel_puts(char* message) {
-  kernel_print_string_at(message,-1,-1);
-}
+void kernel_puts(char *message) { kernel_print_string_at(message, -1, -1); }
 
-void kernel_putc(char c) {
-  kernel_print_c_at(c,-1,-1,0);
-}
+void kernel_putc(char c) { kernel_print_c_at(c, -1, -1, 0); }
