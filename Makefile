@@ -7,8 +7,7 @@ OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt
 CC = gcc
 GDB = gdb
 LD = ld -m elf_i386
-# -Werror -Wpedantic -Wall
-CFLAGS = -m32 -fno-pie -ffreestanding -nostdlib -nodefaultlibs -I$(shell pwd)
+CFLAGS = -m32 -fno-pie -ffreestanding -nostdlib -nodefaultlibs -Werror -Wpedantic -Wall -I$(shell pwd)
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu)
 

@@ -1,7 +1,7 @@
 extern isr_handler
 extern irq_handler
 
-isr_common_stub:
+isr_common_stub: ; this is a bad idea
 	pusha
 	mov ax, ds
 	push eax
@@ -32,7 +32,6 @@ irq_common_stub:
 	mov gs, ax
     call irq_handler
     pop ebx
-	pop eax 
 	mov ds, ax
 	mov es, ax
 	mov fs, ax
