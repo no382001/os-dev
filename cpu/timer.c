@@ -2,18 +2,12 @@
 #include "drivers/low_level.h"
 #include "drivers/screen.h"
 #include "isr.h"
-#include "kernel/utils.h"
 
 u32 tick = 0;
 
-static void timer_callback(registers_t regs) {
+static void timer_callback(registers_t *regs) {
+  (void)regs;
   tick++;
-  kernel_puts("tick: ");
-
-  char tick_ascii[256];
-  int_to_ascii(tick, tick_ascii);
-  kernel_puts(tick_ascii);
-  kernel_puts("\n");
 }
 
 void init_timer(u32 freq) {

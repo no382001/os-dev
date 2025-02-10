@@ -1,5 +1,5 @@
 #include "screen.h"
-#include "kernel/utils.h"
+#include "libc/mem.h"
 #include "low_level.h"
 
 static int get_screen_offset(int col, int row) {
@@ -11,8 +11,8 @@ static int handle_scrolling(int offset) {
     return offset;
   }
 
-  memory_copy((char *)(VIDEO_ADDRESS + MAX_COLS * 2), (char *)VIDEO_ADDRESS,
-              (MAX_ROWS - 1) * MAX_COLS * 2);
+  memcpy((char *)(VIDEO_ADDRESS + MAX_COLS * 2), (char *)VIDEO_ADDRESS,
+         (MAX_ROWS - 1) * MAX_COLS * 2);
 
   for (int j = 0; j < MAX_COLS; j++) {
     *((char *)VIDEO_ADDRESS + (MAX_ROWS - 1) * MAX_COLS * 2 + j * 2) = ' ';
@@ -109,3 +109,16 @@ void kernel_print_string_at(char *message, int col, int row) {
 void kernel_puts(char *message) { kernel_print_string_at(message, -1, -1); }
 
 void kernel_putc(char c) { kernel_print_c_at(c, -1, -1, 0); }
+
+int get_offset_row(int offset) { return offset / (2 * MAX_COLS); }
+int get_offset_col(int offset) {
+  return (offset - (get_offset_row(offset) * 2 * MAX_COLS)) / 2;
+}
+
+void kernel_put_backspace() {
+  int offset = get_cursor() - 2;
+  int row = get_offset_row(offset);
+  int col = get_offset_col(offset);
+  kernel_print_c_at(' ', col, row, WHITE_ON_BLACK);
+  set_cursor(offset);
+}

@@ -1,5 +1,5 @@
 #include "serial.h"
-#include "kernel/utils.h"
+#include "libc/string.h"
 #include "low_level.h"
 
 void serial_init() {

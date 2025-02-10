@@ -1,44 +1,60 @@
 #include "keyboard.h"
-#include "low_level.h"
 #include "cpu/isr.h"
+#include "libc/string.h"
+#include "low_level.h"
 #include "screen.h"
-#include "kernel/utils.h"
 
-void print_letter(u8 scancode);
+#define BACKSPACE 0x0E
+#define ENTER 0x1C
 
-static void keyboard_callback(registers_t regs) {
-    u8 scancode = port_byte_in(0x60);
-    char *sc_ascii = 0;
-    int_to_ascii(scancode, sc_ascii);
-    kernel_puts("keyboard scancode: ");
-    kernel_puts(sc_ascii);
-    kernel_puts(", ");
-    print_letter(scancode);
+static char key_buffer[256];
+
+#define SC_MAX 57
+const char *sc_name[] = {
+    "ERROR",     "Esc",     "1", "2", "3", "4",      "5",
+    "6",         "7",       "8", "9", "0", "-",      "=",
+    "Backspace", "Tab",     "Q", "W", "E", "R",      "T",
+    "Y",         "U",       "I", "O", "P", "[",      "]",
+    "Enter",     "Lctrl",   "A", "S", "D", "F",      "G",
+    "H",         "J",       "K", "L", ";", "'",      "`",
+    "LShift",    "\\",      "Z", "X", "C", "V",      "B",
+    "N",         "M",       ",", ".", "/", "RShift", "Keypad *",
+    "LAlt",      "Spacebar"};
+const char sc_ascii[] = {
+    '?', '?', '1', '2', '3', '4', '5', '6', '7', '8', '9',  '0', '-', '=',  '?',
+    '?', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',  '[', ']', '?',  '?',
+    'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', '\'', '`', '?', '\\', 'Z',
+    'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '/', '?', '?',  '?', ' '};
+
+void user_input(char *input) {
+  if (strcmp(input, "END") == 0) {
+    kernel_puts("stopping the CPU. bye!\n");
+    asm volatile("hlt");
+  }
+  kernel_puts("you said: ");
+  kernel_puts(input);
+  kernel_puts("\n> ");
+}
+
+static void keyboard_callback(registers_t *regs) {
+  (void)regs;
+  u8 scancode = port_byte_in(0x60);
+
+  if (scancode > SC_MAX)
+    return;
+  if (scancode == BACKSPACE) {
+    backspace(key_buffer);
+    kernel_put_backspace();
+  } else if (scancode == ENTER) {
     kernel_puts("\n");
+    user_input(key_buffer);
+    key_buffer[0] = '\0';
+  } else {
+    char letter = sc_ascii[(int)scancode];
+    char str[2] = {letter, '\0'};
+    append(key_buffer, letter);
+    kernel_puts(str);
+  }
 }
 
-void init_keyboard() {
-   register_interrupt_handler(IRQ1, keyboard_callback); 
-}
-
-void print_letter(u8 scancode) {
-    static char *keymap[] = {
-        "ERROR", "ESC", "1", "2", "3", "4", "5", "6", "7", "8",
-        "9", "0", "-", "+", "Backspace", "Tab", "Q", "W", "E", "R",
-        "T", "Y", "U", "I", "O", "P", "[", "]", "ENTER", "LCtrl",
-        "A", "S", "D", "F", "G", "H", "J", "K", "L", ";",
-        "'", "`", "LShift", "\\", "Z", "X", "C", "V", "B", "N",
-        "M", ",", ".", "/", "RShift", "Keypad *", "LAlt", "Spc"
-    };
-    
-    if (scancode <= 0x39) {
-        kernel_puts(keymap[scancode]);
-    } else if (scancode <= 0x39 + 0x80) {
-        kernel_puts("key up ");
-        print_letter(scancode - 0x80);
-    } else {
-        kernel_puts("unknown key");
-    }
-}
-
-
+void init_keyboard() { register_interrupt_handler(IRQ1, keyboard_callback); }

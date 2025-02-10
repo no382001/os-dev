@@ -1,10 +1,4 @@
-#include "isr.h"
-#include "drivers/low_level.h"
-#include "drivers/screen.h"
-#include "drivers/serial.h"
-#include "idt.h"
-#include "kernel/types.h"
-#include "kernel/utils.h"
+#include "bits.h"
 
 void isr_install() {
   set_idt_gate(0, (u32)isr0);
@@ -39,7 +33,7 @@ void isr_install() {
   set_idt_gate(29, (u32)isr29);
   set_idt_gate(30, (u32)isr30);
   set_idt_gate(31, (u32)isr31);
-  
+
   // remap pic https://wiki.osdev.org/8259_PIC
   port_byte_out(0x20, 0x11);
   port_byte_out(0xA0, 0x11);
@@ -50,7 +44,7 @@ void isr_install() {
   port_byte_out(0x21, 0x01);
   port_byte_out(0xA1, 0x01);
   port_byte_out(0x21, 0x0);
-  port_byte_out(0xA1, 0x0); 
+  port_byte_out(0xA1, 0x0);
 
   set_idt_gate(32, (u32)irq0);
   set_idt_gate(33, (u32)irq1);
@@ -108,38 +102,45 @@ static char *exception_messages[] = {"division by zero",
                                      "reserved",
                                      "reserved"};
 
-void isr_handler(registers_t r) {
+void isr_handler(registers_t *r) {
   serial_debug("received interrupt: ");
   char s[3];
-  int_to_ascii(r.int_no, s);
+  int_to_ascii(r->int_no, s);
   serial_puts(s);
   serial_puts(" -> ");
-  serial_puts(exception_messages[r.int_no]);
+  serial_puts(exception_messages[r->int_no]);
   serial_puts("\n");
+  asm volatile("hlt");
 }
 
-isr_t interrupt_handlers[256];
+isr_t interrupt_handlers[256] = {0};
 
 void register_interrupt_handler(u8 n, isr_t handler) {
   interrupt_handlers[n] = handler;
 }
 
-#define PIC1		0x20		/* IO base address for master PIC */
-#define PIC2		0xA0		/* IO base address for slave PIC */
-#define PIC1_COMMAND	PIC1
-#define PIC1_DATA	(PIC1+1)
-#define PIC2_COMMAND	PIC2
-#define PIC2_DATA	(PIC2+1)
+#define PIC1 0x20 /* IO base address for master PIC */
+#define PIC2 0xA0 /* IO base address for slave PIC */
+#define PIC1_COMMAND PIC1
+#define PIC1_DATA (PIC1 + 1)
+#define PIC2_COMMAND PIC2
+#define PIC2_DATA (PIC2 + 1)
 
-#define PIC_EOI		0x20		/* end-of-interrupt command code */
+#define PIC_EOI 0x20 /* end-of-interrupt command code */
 
-void irq_handler(registers_t r) {
-  if (r.int_no >= 40) // why 40?
+void irq_handler(registers_t *r) {
+  if (r->int_no >= 40) // why 40?
     port_byte_out(PIC2, PIC_EOI);
   port_byte_out(PIC1, PIC_EOI);
 
-  if (interrupt_handlers[r.int_no] != 0) {
-    isr_t handler = interrupt_handlers[r.int_no];
+  if (interrupt_handlers[r->int_no] != 0) {
+    isr_t handler = interrupt_handlers[r->int_no];
     handler(r);
   }
+}
+
+void irq_install() {
+  asm volatile("sti");
+  init_timer(50);
+  init_keyboard();
 }

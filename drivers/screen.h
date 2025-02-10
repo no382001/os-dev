@@ -16,3 +16,4 @@ void kernel_print_string_at(char *message, int col, int row);
 void kernel_putc(char c);
 void kernel_puts(char *message);
 void kernel_puth(int value);
+void kernel_put_backspace();

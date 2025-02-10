@@ -1,3 +1,3 @@
-#include "kernel/types.h"
+#include "libc/types.h"
 
 void init_keyboard();
