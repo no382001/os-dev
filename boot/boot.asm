@@ -30,7 +30,7 @@ load_kernel:
 	call print_string
 
 	mov bx,KERNEL_OFFSET
-	mov dh,16 ; hmm?
+	mov dh,32 ; yeah... look out for this, if the kernel gets bigger it could get cut off
 	mov dl,[BOOT_DRIVE]
 	
 	call disk_load

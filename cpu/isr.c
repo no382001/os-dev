@@ -1,9 +1,10 @@
 #include "isr.h"
+#include "drivers/low_level.h"
 #include "drivers/screen.h"
+#include "drivers/serial.h"
 #include "idt.h"
 #include "kernel/types.h"
 #include "kernel/utils.h"
-#include "drivers/low_level.h"
 
 void isr_install() {
   set_idt_gate(0, (u32)isr0);
@@ -42,51 +43,50 @@ void isr_install() {
   set_idt(); //
 }
 
+static char *exception_messages[] = {"division by zero",
+                                     "debug",
+                                     "non maskable interrupt",
+                                     "breakpoint",
+                                     "into detected overflow",
+                                     "out of bounds",
+                                     "invalid opcode",
+                                     "no coprocessor",
+
+                                     "double fault",
+                                     "coprocessor segment overrun",
+                                     "bad tss",
+                                     "segment not present",
+                                     "stack fault",
+                                     "general protection fault",
+                                     "page fault",
+                                     "unknown interrupt",
+
+                                     "coprocessor fault",
+                                     "alignment check",
+                                     "machine check",
+                                     "reserved",
+                                     "reserved",
+                                     "reserved",
+                                     "reserved",
+                                     "reserved",
+
+                                     "reserved",
+                                     "reserved",
+                                     "reserved",
+                                     "reserved",
+                                     "reserved",
+                                     "reserved",
+                                     "reserved",
+                                     "reserved"};
+
 void isr_handler(registers_t r) {
-
-  char *exception_messages[] = {"division by zero",
-                                "debug",
-                                "non maskable interrupt",
-                                "breakpoint",
-                                "into detected overflow",
-                                "out of bounds",
-                                "invalid opcode",
-                                "no coprocessor",
-
-                                "double fault",
-                                "coprocessor segment overrun",
-                                "bad tss",
-                                "segment not present",
-                                "stack fault",
-                                "general protection fault",
-                                "page fault",
-                                "unknown interrupt",
-
-                                "coprocessor fault",
-                                "alignment check",
-                                "machine check",
-                                "reserved",
-                                "reserved",
-                                "reserved",
-                                "reserved",
-                                "reserved",
-
-                                "reserved",
-                                "reserved",
-                                "reserved",
-                                "reserved",
-                                "reserved",
-                                "reserved",
-                                "reserved",
-                                "reserved"};
-
-  kernel_puts("received interrupt: ");
+  serial_debug("received interrupt: ");
   char s[3];
   int_to_ascii(r.int_no, s);
-  kernel_puts(s);
-  kernel_puts(" -> ");
-  kernel_puts(exception_messages[r.int_no]);
-  kernel_puts("\n");
+  serial_puts(s);
+  serial_puts(" -> ");
+  serial_puts(exception_messages[r.int_no]);
+  serial_puts("\n");
 }
 
 isr_t interrupt_handlers[256];
@@ -96,11 +96,12 @@ void register_interrupt_handler(u8 n, isr_t handler) {
 }
 
 void irq_handler(registers_t r) {
-  if (r.int_no >= 40) port_byte_out(0xA0, 0x20); /* slave */
-  port_byte_out(0x20, 0x20); /* master */
+  if (r.int_no >= 40)
+    port_byte_out(0xA0, 0x20); /* slave */
+  port_byte_out(0x20, 0x20);   /* master */
 
   if (interrupt_handlers[r.int_no] != 0) {
-      isr_t handler = interrupt_handlers[r.int_no];
-      handler(r);
+    isr_t handler = interrupt_handlers[r.int_no];
+    handler(r);
   }
 }

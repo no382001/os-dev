@@ -79,7 +79,7 @@ void kernel_clear_screen() {
 }
 
 void kernel_puth(int value) {
-  char hex_chars[] = "0123456789ABCDEF";
+  static char hex_chars[] = "0123456789ABCDEF";
   kernel_print_c_at('0', -1, -1, WHITE_ON_BLACK);
   kernel_print_c_at('x', -1, -1, WHITE_ON_BLACK);
 
