@@ -1,6 +1,30 @@
 #include "serial.h"
+#include "bits.h"
 #include "libc/string.h"
 #include "low_level.h"
+
+static char serial_buffer[256];
+
+void user_input(char *input);
+static void serial_irq_handler(registers_t *regs) {
+  (void)regs;
+
+  if (!(port_byte_in(SERIAL_COM1 + 5) & 0x01))
+    return;
+
+  char c = port_byte_in(SERIAL_COM1);
+
+  if (c == '\r' || c == '\n') {
+    user_input(serial_buffer);
+    serial_buffer[0] = '\0';
+  } else {
+    int len = strlen(serial_buffer);
+    if (len < (int)sizeof(serial_buffer) - 1) {
+      serial_buffer[len] = c;
+      serial_buffer[len + 1] = '\0';
+    }
+  }
+}
 
 void serial_init() {
   port_byte_out(SERIAL_COM1 + 1, 0x00); // disable interrupts
@@ -11,6 +35,10 @@ void serial_init() {
   port_byte_out(SERIAL_COM1 + 2,
                 0xC7); // enable FIFO, clear it, 14-byte threshold
   port_byte_out(SERIAL_COM1 + 4, 0x0B); // enable IRQs, RTS/DSR set
+
+  port_byte_out(SERIAL_COM1 + 1,
+                0x01); // received data available interrupt (bit 0 in the IER)
+  register_interrupt_handler(IRQ4, serial_irq_handler);
 }
 
 static int serial_is_transmit_empty() {
