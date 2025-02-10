@@ -38,7 +38,7 @@ void user_input(char *input) {
 
 static void keyboard_callback(registers_t *regs) {
   (void)regs;
-  u8 scancode = port_byte_in(0x60);
+  uint8_t scancode = port_byte_in(0x60);
 
   if (scancode > SC_MAX)
     return;

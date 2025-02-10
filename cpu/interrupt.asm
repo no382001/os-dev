@@ -5,7 +5,6 @@ extern irq_handler
 %macro ISR_NOERR 1
     global isr%1
 isr%1:
-    cli
     push byte 0 ; placeholder, so that stack would look as if it's an exception with err code
     push %1
     jmp isr_common_stub
@@ -14,7 +13,6 @@ isr%1:
 %macro ISR_ERR 1
     global isr%1
 isr%1:
-    cli
     push %1
     jmp isr_common_stub
 %endmacro
@@ -75,13 +73,11 @@ isr_common_stub:
     popa
     add esp, 0x8 ; rebalance stack(pop err code and exception number)
 
-    sti ; re-enable interrupts
     iret
 
 %macro IRQ 2
     global irq%1
 irq%1:
-    cli
     push byte 0 ; always push a dummy err code so that we can reuse the register_t struct
     push byte %2
     jmp irq_common_stub
@@ -129,5 +125,4 @@ irq_common_stub:
     popa
     add esp, 0x8 ; rebalance stack(pop err code and exception number)
 
-    sti ; re-enable interrupts
     iret

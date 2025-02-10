@@ -7,12 +7,12 @@ OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt
 CC = gcc
 GDB = gdb
 LD = ld -m elf_i386
-CFLAGS = -g -m32 -fno-pie -ffreestanding -nostdlib -nostdinc -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
+CFLAGS = -g -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc)
 
-$(BUILD_DIR)/os-image.bin: $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin
-	cat $^ > $(BUILD_DIR)/os-image.bin
+$(BUILD_DIR)/os-image.bin: bits $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin
+	cat $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/os-image.bin
 
 OUTPUT_FILE = bits.h
 bits:
