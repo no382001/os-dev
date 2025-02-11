@@ -1,8 +1,5 @@
-- interrupts, fs
-- forth shell?
-	- its easy to do, extensible but im not really familiar with it tbh.
-	- maybe prolog? i'd need hooks and the whole interpreter
-	- tcc can do interpretation
-- vi, tmux
+- higher half kernel
+- migrate to linker file
+
 - maybe some networking so i can snapshot easily
 - it can bootstrap

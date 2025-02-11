@@ -26,10 +26,10 @@ attach:
 	${GDB} -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"
 
 $(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/boot/kernel_entry.o ${OBJ}
-	${LD} -o $@ -Ttext 0x1000 $^ --oformat binary
+	${LD} -o $@ -T kernel.ld $^ --oformat binary
 
 kernel.elf: $(BUILD_DIR)/boot/kernel_entry.o ${OBJ}
-	${LD} -o $@ -Ttext 0x1000 $^
+	${LD} -o $@ -T kernel.ld $^
 
 run: $(BUILD_DIR)/os-image.bin
 	qemu-system-i386 -serial stdio -fda $(BUILD_DIR)/os-image.bin
