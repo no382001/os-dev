@@ -1,5 +1,3 @@
-- higher half kernel
-- migrate to linker file
 
 - maybe some networking so i can snapshot easily
 - it can bootstrap

@@ -1,5 +1,12 @@
 #include "bits.h"
 
+unsigned int is_paging_enabled() {
+  unsigned int cr0;
+  asm volatile("mov %%cr0, %0" : "=r"(cr0));
+  return (cr0 & 0x80000000);
+}
+
+
 void kernel_main(void) {
   kernel_clear_screen();
 
@@ -26,4 +33,9 @@ void kernel_main(void) {
   memcpy("0123456789", s, 11);
   kernel_puts("\n");
   kernel_puts(s);
+
+  if (is_paging_enabled()){
+    kernel_puts("\n");
+    kernel_puts("PAGING ENABLED!");
+  }
 }
