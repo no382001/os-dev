@@ -1,6 +1,8 @@
 #include "bits.h"
 
 void isr_install() {
+  kernel_printf("- installing isr\n");
+
   set_idt_gate(0, (uint32_t)isr0);
   set_idt_gate(1, (uint32_t)isr1);
   set_idt_gate(2, (uint32_t)isr2);
@@ -140,6 +142,7 @@ void irq_handler(registers_t *r) {
 }
 
 void irq_install() {
+  kernel_printf("- installing irq\n");
   asm volatile("sti");
   init_timer(50);
   init_keyboard();

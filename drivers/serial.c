@@ -27,6 +27,8 @@ static void serial_irq_handler(registers_t *regs) {
 }
 
 void serial_init() {
+  kernel_printf("- setting up serial\n");
+
   port_byte_out(SERIAL_COM1 + 1, 0x00); // disable interrupts
   port_byte_out(SERIAL_COM1 + 3, 0x80); // enable DLAB (set baud rate divisor)
   port_byte_out(SERIAL_COM1 + 0, 0x03); // set divisor to 3 (38400 baud)
@@ -57,12 +59,19 @@ void serial_puts(const char *str) {
   }
 }
 
-void serial_debug_impl(char *file, int line, char *message) {
+void serial_printf(char *file, int line, const char *fmt, ...) {
+
   serial_puts(file);
   serial_puts(":");
+
   char c[15];
   int_to_ascii(line, c);
   serial_puts(c);
-  serial_puts(" ");
-  serial_puts(message);
+
+  va_list args;
+  va_start(args, fmt);
+  _vprintf(serial_write, fmt, args);
+  va_end(args);
+
+  serial_puts("\n");
 }

@@ -1,4 +1,5 @@
 #include "string.h"
+#include "mem.h"
 
 void int_to_ascii(int n, char str[]) {
   int i, sign;
@@ -25,7 +26,7 @@ void reverse(char s[]) {
   }
 }
 
-int strlen(char s[]) {
+int strlen(const char s[]) {
   int i = 0;
   while (s[i] != '\0')
     ++i;
@@ -54,26 +55,80 @@ int strcmp(char s1[], char s2[]) {
 }
 
 void hex_to_ascii(int n, char str[]) {
-  append(str, '0');
-  append(str, 'x');
-  char zeros = 0;
+  str[0] = '0';
+  str[1] = 'x';
+  str[2] = '\0';
 
-  int tmp;
-  int i;
-  for (i = 28; i > 0; i -= 4) {
-    tmp = (n >> i) & 0xF;
-    if (tmp == 0 && zeros == 0)
+  int started = 0;
+
+  for (int i = 28; i >= 0; i -= 4) {
+    int tmp = (n >> i) & 0xF;
+
+    if (tmp == 0 && !started) {
       continue;
-    zeros = 1;
-    if (tmp > 0xA)
-      append(str, tmp - 0xA + 'a');
-    else
-      append(str, tmp + '0');
+    }
+
+    started = 1;
+
+    char hex_char = (tmp < 10) ? (tmp + '0') : (tmp - 10 + 'a');
+    append(str, hex_char);
   }
 
-  tmp = n & 0xF;
-  if (tmp >= 0xA)
-    append(str, tmp - 0xA + 'a');
-  else
-    append(str, tmp + '0');
+  if (!started)
+    append(str, '0');
+}
+
+char *strcpy(const char *str, char *dest) {
+  int len = strlen(str);
+  memcpy(str, dest, len);
+  return dest;
+}
+
+void _vprintf(void (*output_func)(char), const char *fmt, va_list args) {
+  char num_buffer[32] = {0};
+
+  while (*fmt) {
+    if (*fmt == '%') {
+      fmt++;
+      switch (*fmt) {
+      case 'd': { // integer
+        int num = va_arg(args, int);
+        int_to_ascii(num, num_buffer);
+        char *ptr = num_buffer;
+        while (*ptr)
+          output_func(*ptr++);
+        break;
+      }
+      case 'x': { // hexadecimal
+        int num = va_arg(args, int);
+        hex_to_ascii(num, num_buffer);
+        char *ptr = num_buffer;
+        while (*ptr)
+          output_func(*ptr++);
+        break;
+      }
+      case 's': { // string
+        char *str = va_arg(args, char *);
+        while (*str)
+          output_func(*str++);
+        break;
+      }
+      case 'c': { // character
+        char c = (char)va_arg(args, int);
+        output_func(c);
+        break;
+      }
+      case '%': { // literal '%'
+        output_func('%');
+        break;
+      }
+      default:
+        output_func('?');
+        break;
+      }
+    } else {
+      output_func(*fmt);
+    }
+    fmt++;
+  }
 }

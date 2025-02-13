@@ -1,6 +1,4 @@
-#include "screen.h"
-#include "libc/mem.h"
-#include "low_level.h"
+#include "bits.h"
 
 static int get_screen_offset(int col, int row) {
   return 2 * (row * MAX_COLS + col);
@@ -121,4 +119,12 @@ void kernel_put_backspace() {
   int col = get_offset_col(offset);
   kernel_print_c_at(' ', col, row, WHITE_ON_BLACK);
   set_cursor(offset);
+}
+
+void kernel_printf(const char *fmt, ...) {
+  (void)fmt;
+  va_list args;
+  va_start(args, fmt);
+  _vprintf(kernel_putc, fmt, args);
+  va_end(args);
 }

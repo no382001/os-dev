@@ -17,3 +17,5 @@ void kernel_putc(char c);
 void kernel_puts(char *message);
 void kernel_puth(int value);
 void kernel_put_backspace();
+
+void kernel_printf(const char *fmt, ...);
