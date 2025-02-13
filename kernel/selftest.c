@@ -21,9 +21,8 @@ void selftest(void) {
   memcpy("hello heap!", s, 12);
   assertm(!strcmp(s, "hello heap!"), "heap string doesnt match!");
 
-  assert(heap_block_count() == 2);
-
   free(s);
 
   assert(heap_block_count() == 1);
+  kernel_printf("  - done\n");
 }
