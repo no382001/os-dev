@@ -25,7 +25,7 @@ void kernel_main(void) {
   serial_debug(" start!");
 
   // selftest();
-  fvm_test();
+  // fvm_test();
 
   /**/
   static forth_vm_t vm = {0};

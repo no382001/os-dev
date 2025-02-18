@@ -9,6 +9,8 @@
 #define vm_error(...) vm->io.stderr(__VA_ARGS__)
 #define vm_out(...) vm->io.stdout(__VA_ARGS__)
 #define vm_in() vm->io.stdin()
+#define vm_info(...)                                                           \
+  { vm->io.stderr(__VA_ARGS__); }
 
 void push(forth_vm_t *vm, int value) {
   if (sp < FVM_STACK_SIZE - 1)
@@ -205,10 +207,17 @@ void fvm_begin(forth_vm_t *vm) {
 
   do {
     for (int k = 0; loop_body[k]; k++) {
-      fvm_execute(vm, loop_body[k]);
+      if (isdigit(loop_body[k][0]) ||
+          (loop_body[k][0] == '-' && isdigit(loop_body[k][1]))) {
+        push(vm, atoi(loop_body[k]));
+      } else {
+        fvm_execute(vm, loop_body[k]); // refactor these lateer
+      }
     }
   } while (!pop(vm));
 }
+
+int loop_counter = 0;
 
 void fvm_do(forth_vm_t *vm) {
   int limit = pop(vm);
@@ -223,12 +232,19 @@ void fvm_do(forth_vm_t *vm) {
   }
   loop_body[i] = NULL;
 
-  for (int j = counter; j < limit; j++) {
+  for (loop_counter = counter; loop_counter < limit; loop_counter++) {
     for (int k = 0; loop_body[k]; k++) {
-      fvm_execute(vm, loop_body[k]);
+      if (isdigit(loop_body[k][0]) ||
+          (loop_body[k][0] == '-' && isdigit(loop_body[k][1]))) {
+        push(vm, atoi(loop_body[k]));
+      } else {
+        fvm_execute(vm, loop_body[k]);
+      }
     }
   }
 }
+
+void fvm_i(forth_vm_t *vm) { push(vm, loop_counter); }
 
 void fvm_key(forth_vm_t *vm) {
   int ch = vm_in();
@@ -292,6 +308,7 @@ void fvm_init(forth_vm_t *vm) {
   fvm_register_word(vm, "key", fvm_key);
   fvm_register_word(vm, "emit", fvm_emit);
   fvm_register_word(vm, ".s", fvm_print_stack);
+  fvm_register_word(vm, "i", fvm_i);
 }
 
 void fvm_execute(forth_vm_t *vm, const char *word) {
