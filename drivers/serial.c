@@ -59,14 +59,24 @@ void serial_puts(const char *str) {
   }
 }
 
+void serial_put_hex(uint32_t num) {
+  char hex_str[9];
+  hex_to_ascii(num, hex_str);
+  serial_puts(hex_str);
+}
+
 void serial_printf(char *file, int line, const char *fmt, ...) {
 
-  serial_puts(file);
-  serial_puts(":");
+  if (file) {
+    serial_puts(file);
+    serial_puts(":");
+  }
 
-  char c[15];
-  int_to_ascii(line, c);
-  serial_puts(c);
+  if (line != 0) {
+    char c[15];
+    int_to_ascii(line, c);
+    serial_puts(c);
+  }
 
   va_list args;
   va_start(args, fmt);

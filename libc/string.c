@@ -45,7 +45,7 @@ void backspace(char s[]) {
 }
 
 /* returns <0 if s1<s2, 0 if s1==s2, >0 if s1>s2 */
-int strcmp(char s1[], char s2[]) {
+int strcmp(const char s1[], const char s2[]) {
   int i;
   for (i = 0; s1[i] == s2[i]; i++) {
     if (s1[i] == '\0')
@@ -80,7 +80,7 @@ void hex_to_ascii(int n, char str[]) {
 
 char *strcpy(const char *str, char *dest) {
   int len = strlen(str);
-  memcpy(str, dest, len);
+  memcpy(dest, str, len);
   return dest;
 }
 
@@ -131,4 +131,27 @@ void _vprintf(void (*output_func)(char), const char *fmt, va_list args) {
     }
     fmt++;
   }
+}
+
+static buffer_writer_t *current_buffer;
+static void buffer_output_func(char c) {
+  if (current_buffer->index < current_buffer->max_size - 1) {
+    current_buffer->buffer[current_buffer->index++] = c;
+    current_buffer->buffer[current_buffer->index] = '\0';
+  }
+}
+
+int vsprintf(char *buffer, int size, const char *fmt, va_list args) {
+  buffer_writer_t writer = {buffer, 0, size};
+  current_buffer = &writer;
+  _vprintf(buffer_output_func, fmt, args);
+  return writer.index;
+}
+
+int sprintf(char *buffer, int size, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int written = vsprintf(buffer, size, fmt, args);
+  va_end(args);
+  return written;
 }

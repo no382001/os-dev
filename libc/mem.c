@@ -3,7 +3,7 @@
 #undef serial_debug
 #define serial_debug(...)
 
-void memcpy(const char *source, char *dest, int no_bytes) {
+void memcpy(char *dest, const char *source, int no_bytes) {
   int i;
   for (i = 0; i < no_bytes; i++) {
     *(dest + i) = *(source + i);

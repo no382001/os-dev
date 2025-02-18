@@ -1,3 +1,8 @@
 
 - maybe some networking so i can snapshot easily
 - it can bootstrap
+
+- standardize stdout
+- fileio
+- fix hexdump alignment
+- implement shell

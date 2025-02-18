@@ -9,7 +9,7 @@ static int handle_scrolling(int offset) {
     return offset;
   }
 
-  memcpy((char *)(VIDEO_ADDRESS + MAX_COLS * 2), (char *)VIDEO_ADDRESS,
+  memcpy((char *)VIDEO_ADDRESS, (char *)(VIDEO_ADDRESS + MAX_COLS * 2),
          (MAX_ROWS - 1) * MAX_COLS * 2);
 
   for (int j = 0; j < MAX_COLS; j++) {

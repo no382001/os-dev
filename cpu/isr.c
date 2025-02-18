@@ -104,15 +104,68 @@ static char *exception_messages[] = {"division by zero",
                                      "reserved",
                                      "reserved"};
 
-void isr_handler(registers_t *r) {
-  serial_debug("received interrupt: ");
-  char s[3];
-  int_to_ascii(r->int_no, s);
-  serial_puts(s);
-  serial_puts(" -> ");
-  serial_puts(exception_messages[r->int_no]);
+void print_registers(registers_t *r) {
+  serial_puts("--- register dump ---\n");
+
+  serial_puts("DS: ");
+  serial_put_hex(r->ds);
   serial_puts("\n");
-  asm volatile("hlt");
+
+  serial_puts("EDI: ");
+  serial_put_hex(r->edi);
+  serial_puts(" ESI: ");
+  serial_put_hex(r->esi);
+  serial_puts(" EBP: ");
+  serial_put_hex(r->ebp);
+  serial_puts(" ESP: ");
+  serial_put_hex(r->esp);
+  serial_puts("\n");
+
+  serial_puts("EBX: ");
+  serial_put_hex(r->ebx);
+  serial_puts(" EDX: ");
+  serial_put_hex(r->edx);
+  serial_puts(" ECX: ");
+  serial_put_hex(r->ecx);
+  serial_puts(" EAX: ");
+  serial_put_hex(r->eax);
+  serial_puts("\n");
+
+  serial_puts("interrupt number: ");
+  serial_put_hex(r->int_no);
+  serial_puts(" error code: ");
+  serial_put_hex(r->err_code);
+  serial_puts("\n");
+
+  serial_puts("EIP: ");
+  serial_put_hex(r->eip);
+  serial_puts(" CS: ");
+  serial_put_hex(r->cs);
+  serial_puts(" EFLAGS: ");
+  serial_put_hex(r->eflags);
+  serial_puts("\n");
+
+  serial_puts("User ESP: ");
+  serial_put_hex(r->useresp);
+  serial_puts(" SS: ");
+  serial_put_hex(r->ss);
+  serial_puts("\n");
+
+  serial_puts("--------------------\n");
+}
+
+void isr_handler(registers_t *r) {
+  if (r->int_no > 31) {
+    serial_debug(" unknown interrupt: %d", r->int_no);
+    print_registers(r);
+  } else {
+    serial_debug(" received interrupt: %d -> %s", r->int_no,
+                 exception_messages[r->int_no]);
+  }
+
+  while (1) {
+    asm volatile("hlt"); // shit can go wrong here
+  }
 }
 
 isr_t interrupt_handlers[256] = {0};

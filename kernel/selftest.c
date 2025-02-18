@@ -18,7 +18,7 @@ void selftest(void) {
 
   char *s = (char *)malloc(12);
   assertm(s, "malloc returned nullptr!");
-  memcpy("hello heap!", s, 12);
+  memcpy(s, "hello heap!", 12);
   assertm(!strcmp(s, "hello heap!"), "heap string doesnt match!");
 
   free(s);

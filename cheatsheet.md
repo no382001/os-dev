@@ -2,6 +2,7 @@
 `hexdump -C <obj>`
 ## navigation
 `b _start`<br>
+`b fat16.c:23`<br>
 `r` run<br>
 `c` continue to next bpoint<br>
 `si` step to the next instruction<br>
