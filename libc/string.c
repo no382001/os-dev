@@ -155,3 +155,85 @@ int sprintf(char *buffer, int size, const char *fmt, ...) {
   va_end(args);
   return written;
 }
+
+int atoi(const char *str) {
+  int result = 0;
+  int sign = 1;
+
+  while (*str == ' ' || *str == '\t' || *str == '\n' || *str == '\r' || *str == '\f' || *str == '\v') {
+      str++;
+  }
+
+  if (*str == '-') {
+      sign = -1;
+      str++;
+  } else if (*str == '+') {
+      str++;
+  }
+
+  while (*str >= '0' && *str <= '9') {
+      result = result * 10 + (*str - '0');
+      str++;
+  }
+
+  return sign * result;
+}
+
+int isdigit(int c) {
+  return (c >= '0' && c <= '9');
+}
+
+char *strcat(char *dest, const char *src) {
+  char *ptr = dest + strlen(dest);
+
+  while (*src) {
+      *ptr++ = *src++;
+  }
+
+  *ptr = '\0';
+  return dest;
+}
+
+char *strchr(const char *s, int c) {
+  while (*s) {
+      if (*s == (char)c) {
+          return (char *)s;
+      }
+      s++;
+  }
+  return NULL;
+}
+
+static char *last_str = NULL;
+
+char *strtok(char *str, const char *delim) {
+    if (str) {
+        last_str = str;
+    } else if (!last_str) {
+        return NULL;
+    }
+
+    while (*last_str && strchr(delim, *last_str)) {
+        last_str++;
+    }
+
+    if (*last_str == '\0') {
+        return NULL;
+    }
+
+    char *token_start = last_str;
+
+
+    while (*last_str && !strchr(delim, *last_str)) {
+        last_str++;
+    }
+
+    if (*last_str) {
+        *last_str = '\0';
+        last_str++;
+    } else {
+        last_str = NULL;
+    }
+
+    return token_start;
+}

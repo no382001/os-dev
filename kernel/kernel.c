@@ -21,5 +21,9 @@ void kernel_main(void) {
   hexdump("012345678910", 13, 4);
   hexdump("Hello World!", 13, 8);
 
+  forth_vm_t ctx;
+  fvm_init(&ctx);
+  fvm_repl(&ctx,"1 2 + .");
+
   serial_debug(" at the end...");
 }

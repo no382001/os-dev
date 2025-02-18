@@ -20,3 +20,9 @@ typedef struct {
 
 int vsprintf(char *buffer, int size, const char *fmt, va_list args);
 int sprintf(char *buffer, int size, const char *fmt, ...);
+
+char *strchr(const char *s, int c);
+char *strtok(char *str, const char *delim);
+char *strcat(char *dest, const char *src);
+int isdigit(int c);
+int atoi(const char *str);
