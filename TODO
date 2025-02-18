@@ -4,5 +4,4 @@
 
 - standardize stdout
 - fileio
-- fix hexdump alignment
 - implement shell

@@ -27,7 +27,7 @@ void hexdump(const char *buffer, int size, int colsize) {
   int remaining = size % colsize;
   if (remaining > 0) {
     for (int i = remaining; i < colsize; i++) {
-      kernel_printf("     %s", (i % 8 == 7) ? " " : "");
+      kernel_printf("     %s", (i % colsize == colsize - 1) ? " " : "");
       ascii[i] = ' ';
     }
     kernel_printf(" | %s |", ascii);
