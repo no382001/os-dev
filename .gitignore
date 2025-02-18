@@ -3,3 +3,4 @@
 os-image
 bits.h
 kernel.elf
+_build/*

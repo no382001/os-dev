@@ -7,11 +7,11 @@ OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt
 CC = gcc
 GDB = gdb
 LD = ld -m elf_i386
-CFLAGS = -g -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
+CFLAGS = -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps)
 
-$(BUILD_DIR)/os-image.bin: bits $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin
+$(BUILD_DIR)/os-image.bin: bits $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin crc
 	cat $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/os-image.bin
 
 $(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/boot/kernel_entry.o ${OBJ}
@@ -30,6 +30,9 @@ run: $(BUILD_DIR)/os-image.bin
 	qemu-system-i386 -serial stdio -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=fat16.img,format=raw
 
 #################
+crc:
+	crc32 $(BUILD_DIR)/kernel.bin | cut -d ' ' -f1 > $(BUILD_DIR)/kernel_crc.txt
+	echo "CRC32 of kernel: $$(cat $(BUILD_DIR)/kernel_crc.txt)"
 
 clean:
 	rm -rf $(BUILD_DIR) bits.h

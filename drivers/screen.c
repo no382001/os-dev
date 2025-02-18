@@ -1,5 +1,9 @@
 #include "bits.h"
 
+static char current_attribute = WHITE_ON_BLACK;
+
+void kernel_print_set_attribute(char a) { current_attribute = a; }
+
 static int get_screen_offset(int col, int row) {
   return 2 * (row * MAX_COLS + col);
 }
@@ -41,7 +45,7 @@ void kernel_print_c_at(char character, int col, int row, char attribute_byte) {
   unsigned char *vidmem = (unsigned char *)VIDEO_ADDRESS;
 
   if (!attribute_byte) {
-    attribute_byte = WHITE_ON_BLACK;
+    attribute_byte = current_attribute;
   }
 
   int offset;
@@ -122,9 +126,17 @@ void kernel_put_backspace() {
 }
 
 void kernel_printf(const char *fmt, ...) {
-  (void)fmt;
   va_list args;
   va_start(args, fmt);
   _vprintf(kernel_putc, fmt, args);
   va_end(args);
+}
+
+void kernel_aprintf(char attribute, const char *fmt, ...) {
+  kernel_print_set_attribute(attribute);
+  va_list args;
+  va_start(args, fmt);
+  kernel_printf(fmt, args);
+  va_end(args);
+  kernel_print_set_attribute(WHITE_ON_BLACK);
 }

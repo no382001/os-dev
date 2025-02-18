@@ -30,7 +30,7 @@ load_kernel:
 	call print_string
 
 	mov bx,KERNEL_OFFSET
-	mov dh,46 ; yeah... look out for this, if the kernel gets bigger it could get cut off
+	mov dh,50 ; yeah... look out for this, if the kernel gets bigger it could get cut off
 	mov dl,[BOOT_DRIVE]
 	
 	call disk_load
@@ -55,6 +55,7 @@ MSG_BOOT_DRIVE  db "Boot drive detected", 0
 MSG_REAL_MODE	db "1. Started in 16-bit Real mode", 0
 MSG_LOAD_KERNEL	db "2. Loading kernel into memory", 0
 MSG_PROT_MODE	db "3. Landed in 32-bit Protected mode!", 0
+MSG_KERNEL_LOAD_FAIL	db "!. Failed to load kernel, check CRC!", 0
 
 ;bootsector padding
 times 510-($-$$) db 0

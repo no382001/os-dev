@@ -5,3 +5,12 @@
 - standardize stdout
 - fileio
 - implement shell
+
+- tests for fvm
+    aggregate answer into a single line
+- crc
+
+in progress:
+[x] USA keyboard
+[ ] forth interperter tersing and refactoring
+[x] error with red

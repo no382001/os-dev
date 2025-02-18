@@ -2,7 +2,8 @@
 
 void hexdump(const char *buffer, int size, int colsize) {
   if (colsize <= 0 || colsize > 16) {
-    kernel_printf("hexdump: invalid colsize: %d. Must be between 1 and 16.", colsize);
+    kernel_printf("hexdump: invalid colsize: %d. Must be between 1 and 16.",
+                  colsize);
     return;
   }
 

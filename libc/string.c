@@ -133,17 +133,18 @@ void _vprintf(void (*output_func)(char), const char *fmt, va_list args) {
   }
 }
 
-static buffer_writer_t *current_buffer;
+buffer_writer_t output_buffer = {0};
+
 static void buffer_output_func(char c) {
-  if (current_buffer->index < current_buffer->max_size - 1) {
-    current_buffer->buffer[current_buffer->index++] = c;
-    current_buffer->buffer[current_buffer->index] = '\0';
+  if (output_buffer.index < output_buffer.max_size - 1) {
+    output_buffer.buffer[output_buffer.index++] = c;
+    output_buffer.buffer[output_buffer.index] = '\0';
   }
 }
 
 int vsprintf(char *buffer, int size, const char *fmt, va_list args) {
   buffer_writer_t writer = {buffer, 0, size};
-  current_buffer = &writer;
+  memcpy((char *)&output_buffer, (char *)&writer, sizeof(buffer_writer_t));
   _vprintf(buffer_output_func, fmt, args);
   return writer.index;
 }
@@ -160,34 +161,33 @@ int atoi(const char *str) {
   int result = 0;
   int sign = 1;
 
-  while (*str == ' ' || *str == '\t' || *str == '\n' || *str == '\r' || *str == '\f' || *str == '\v') {
-      str++;
+  while (*str == ' ' || *str == '\t' || *str == '\n' || *str == '\r' ||
+         *str == '\f' || *str == '\v') {
+    str++;
   }
 
   if (*str == '-') {
-      sign = -1;
-      str++;
+    sign = -1;
+    str++;
   } else if (*str == '+') {
-      str++;
+    str++;
   }
 
   while (*str >= '0' && *str <= '9') {
-      result = result * 10 + (*str - '0');
-      str++;
+    result = result * 10 + (*str - '0');
+    str++;
   }
 
   return sign * result;
 }
 
-int isdigit(int c) {
-  return (c >= '0' && c <= '9');
-}
+int isdigit(int c) { return (c >= '0' && c <= '9'); }
 
 char *strcat(char *dest, const char *src) {
   char *ptr = dest + strlen(dest);
 
   while (*src) {
-      *ptr++ = *src++;
+    *ptr++ = *src++;
   }
 
   *ptr = '\0';
@@ -196,10 +196,10 @@ char *strcat(char *dest, const char *src) {
 
 char *strchr(const char *s, int c) {
   while (*s) {
-      if (*s == (char)c) {
-          return (char *)s;
-      }
-      s++;
+    if (*s == (char)c) {
+      return (char *)s;
+    }
+    s++;
   }
   return NULL;
 }
@@ -207,33 +207,32 @@ char *strchr(const char *s, int c) {
 static char *last_str = NULL;
 
 char *strtok(char *str, const char *delim) {
-    if (str) {
-        last_str = str;
-    } else if (!last_str) {
-        return NULL;
-    }
+  if (str) {
+    last_str = str;
+  } else if (!last_str) {
+    return NULL;
+  }
 
-    while (*last_str && strchr(delim, *last_str)) {
-        last_str++;
-    }
+  while (*last_str && strchr(delim, *last_str)) {
+    last_str++;
+  }
 
-    if (*last_str == '\0') {
-        return NULL;
-    }
+  if (*last_str == '\0') {
+    return NULL;
+  }
 
-    char *token_start = last_str;
+  char *token_start = last_str;
 
+  while (*last_str && !strchr(delim, *last_str)) {
+    last_str++;
+  }
 
-    while (*last_str && !strchr(delim, *last_str)) {
-        last_str++;
-    }
+  if (*last_str) {
+    *last_str = '\0';
+    last_str++;
+  } else {
+    last_str = NULL;
+  }
 
-    if (*last_str) {
-        *last_str = '\0';
-        last_str++;
-    } else {
-        last_str = NULL;
-    }
-
-    return token_start;
+  return token_start;
 }

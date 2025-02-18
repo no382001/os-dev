@@ -21,7 +21,6 @@ void port_word_out(unsigned short port, unsigned short data) {
   __asm__("out %%ax, %%dx" : : "a"(data), "d"(port));
 }
 
-
 void ata_read_sector(uint32_t lba, uint8_t *buffer) {
 
   port_byte_out(0x1F6, (lba >> 24) | 0xE0);

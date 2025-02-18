@@ -2,9 +2,10 @@
 
 #define stack vm->stack
 #define sp vm->sp
-#define vm_error(...) kernel_printf(__VA_ARGS__)
+#define vm_error(...) kernel_aprintf(LIGHT_RED_ON_BLACK, __VA_ARGS__)
 
 forth_word_t dictionary[FVM_DICTIONARY_SIZE];
+int memory[256] = {0};
 int dict_size = 1;
 
 void push(forth_vm_t *vm, int value) {
@@ -22,8 +23,11 @@ int pop(forth_vm_t *vm) {
   void name(forth_vm_t *vm) {                                                  \
     if (sp < 1)                                                                \
       vm_error("not enough values on the stack!\n");                           \
-    else                                                                       \
-      push(vm, pop(vm) op pop(vm));                                            \
+    else {                                                                     \
+      int r = pop(vm);                                                         \
+      int l = pop(vm);                                                         \
+      push(vm, l op r);                                                        \
+    }                                                                          \
   }
 
 FVM_OP(fvm_add, +)
@@ -34,8 +38,11 @@ FVM_OP(fvm_mul, *)
   void name(forth_vm_t *vm) {                                                  \
     if (sp < 1)                                                                \
       vm_error("not enough values for comparison!\n");                         \
-    else                                                                       \
-      push(vm, pop(vm) op pop(vm) ? 0 : 1);                                    \
+    else {                                                                     \
+      int r = pop(vm);                                                         \
+      int l = pop(vm);                                                         \
+      push(vm, l op r ? 1 : 0);                                                \
+    }                                                                          \
   }
 
 FVM_CMP(fvm_eq, ==)
@@ -96,9 +103,11 @@ void fvm_div(forth_vm_t *vm) {
 }
 
 void fvm_print_top(forth_vm_t *vm) {
-  if (sp >= 0)
-    kernel_printf("%d\n", pop(vm));
-  else
+  if (sp >= 0) {
+    int t = pop(vm);
+    // sprintf(vm->output_buffer, 256, "%d\n", t);
+    vm_error("> %d\n", t);
+  } else
     vm_error("stack underflow! nothing to print.\n");
 }
 
@@ -153,8 +162,6 @@ void fvm_tuck(forth_vm_t *vm) {
   }
 }
 
-int memory[256] = {0};
-
 void fvm_store(forth_vm_t *vm) {
   if (sp < 1)
     vm_error("not enough values for store!\n");
@@ -178,7 +185,7 @@ void fvm_fetch(forth_vm_t *vm) {
       vm_error("invalid memory address!\n");
   }
 }
-void fvm_execute(forth_vm_t *vm, const char *word);
+
 void fvm_begin(forth_vm_t *vm) {
   char *loop_body[256];
   char *token;
@@ -232,7 +239,18 @@ void fvm_cr(forth_vm_t *vm) {
   (void)vm; // putchar('\n');
 }
 
-void fvm_register_word(const char *name, void (*function)(forth_vm_t *));
+void fvm_print_stack(forth_vm_t *vm) {
+  if (sp < 0) {
+    vm_error("stack is empty!\n");
+    return;
+  }
+
+  for (int i = 0; i <= sp; i++) {
+    vm_error("%d ", stack[i]);
+  }
+  vm_error("\n");
+}
+
 void fvm_init(forth_vm_t *vm) {
   sp = -1;
   fvm_register_word("+", fvm_add);
@@ -266,9 +284,9 @@ void fvm_init(forth_vm_t *vm) {
   fvm_register_word("key", fvm_key);
   fvm_register_word("emit", fvm_emit);
   fvm_register_word("cr", fvm_cr);
+  fvm_register_word(".s", fvm_print_stack);
 }
 
-void fvm_repl(forth_vm_t *vm, char *input);
 void fvm_execute(forth_vm_t *vm, const char *word) {
   for (int i = 0; i < dict_size; i++) {
     if (!strcmp(dictionary[i].name, word)) {
@@ -321,8 +339,8 @@ void fvm_register_word(const char *name, void (*function)(forth_vm_t *)) {
     memcpy(dictionary[dict_size].name, name, FVM_WORD_SIZE);
     dictionary[dict_size].function = function;
     dict_size++;
-  } else
-    vm_error("dictionary is full!\n");
+  } // else
+    // vm_error("dictionary is full!\n");
 }
 
 void fvm_repl(forth_vm_t *vm, char *input) {
@@ -340,6 +358,8 @@ void fvm_repl(forth_vm_t *vm, char *input) {
   }
 
   while (token) {
+    if (strcmp(token, "\\") == 0)
+      break;
     if (isdigit(token[0]) || (token[0] == '-' && isdigit(token[1]))) {
       push(vm, atoi(token));
     } else {
