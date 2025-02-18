@@ -2,28 +2,35 @@
 
 #define stack vm->stack
 #define sp vm->sp
-#define vm_error(...) kernel_aprintf(LIGHT_RED_ON_BLACK, __VA_ARGS__)
+#define dictionary vm->dictionary
+#define memory vm->memory
+#define dict_size vm->dict_size
 
-forth_word_t dictionary[FVM_DICTIONARY_SIZE];
-int memory[256] = {0};
-int dict_size = 1;
+#define vm_error(...) vm->io.stderr(__VA_ARGS__)
+#define vm_out(...) vm->io.stdout(__VA_ARGS__)
+#define vm_in() vm->io.stdin()
 
 void push(forth_vm_t *vm, int value) {
   if (sp < FVM_STACK_SIZE - 1)
     stack[++sp] = value;
   else
-    vm_error("stack overflow!\n");
+    vm_error("stack overflow!");
 }
 
 int pop(forth_vm_t *vm) {
-  return (sp >= 0) ? stack[sp--] : (vm_error("stack underflow!\n"), 0);
+  if (sp >= 0) {
+    return stack[sp--];
+  } else {
+    vm_error("stack underflow!");
+    return 0;
+  }
 }
 
 #define FVM_OP(name, op)                                                       \
   void name(forth_vm_t *vm) {                                                  \
-    if (sp < 1)                                                                \
-      vm_error("not enough values on the stack!\n");                           \
-    else {                                                                     \
+    if (sp < 1) {                                                              \
+      vm_error("not enough values on the stack!");                             \
+    } else {                                                                   \
       int r = pop(vm);                                                         \
       int l = pop(vm);                                                         \
       push(vm, l op r);                                                        \
@@ -36,9 +43,9 @@ FVM_OP(fvm_mul, *)
 
 #define FVM_CMP(name, op)                                                      \
   void name(forth_vm_t *vm) {                                                  \
-    if (sp < 1)                                                                \
-      vm_error("not enough values for comparison!\n");                         \
-    else {                                                                     \
+    if (sp < 1) {                                                              \
+      vm_error("not enough values for comparison!");                           \
+    } else {                                                                   \
       int r = pop(vm);                                                         \
       int l = pop(vm);                                                         \
       push(vm, l op r ? 1 : 0);                                                \
@@ -56,20 +63,20 @@ void fvm_not(forth_vm_t *vm) {
   if (sp >= 0)
     stack[sp] = stack[sp] == 0 ? 1 : 0;
   else
-    vm_error("stack underflow! cannot negate.\n");
+    vm_error("stack underflow! cannot negate.");
 }
 
 void fvm_dup(forth_vm_t *vm) {
   if (sp >= 0)
     push(vm, stack[sp]);
   else
-    vm_error("stack underflow! cannot duplicate.\n");
+    vm_error("stack underflow! cannot duplicate.");
 }
 
 void fvm_swap(forth_vm_t *vm) {
-  if (sp < 1)
-    vm_error("not enough values to swap!\n");
-  else {
+  if (sp < 1) {
+    vm_error("not enough values to swap!");
+  } else {
     int a = pop(vm), b = pop(vm);
     push(vm, a);
     push(vm, b);
@@ -79,36 +86,36 @@ void fvm_swap(forth_vm_t *vm) {
 void fvm_drop(forth_vm_t *vm) {
   if (sp >= 0)
     pop(vm);
-  else
-    vm_error("stack underflow! cannot drop.\n");
+  else {
+    vm_error("stack underflow! cannot drop.");
+  }
 }
 
 void fvm_over(forth_vm_t *vm) {
-  if (sp < 1)
-    vm_error("not enough values for over!\n");
-  else
+  if (sp < 1) {
+    vm_error("not enough values for over!");
+  } else {
     push(vm, stack[sp - 1]);
+  }
 }
 
 void fvm_div(forth_vm_t *vm) {
-  if (sp < 1)
-    vm_error("not enough values on the stack for division!\n");
-  else {
+  if (sp < 1) {
+    vm_error("not enough values on the stack for division!");
+  } else {
     int b = pop(vm), a = pop(vm);
     if (b)
       push(vm, a / b);
     else
-      vm_error("division by zero!\n");
+      vm_error("division by zero!");
   }
 }
 
 void fvm_print_top(forth_vm_t *vm) {
   if (sp >= 0) {
-    int t = pop(vm);
-    // sprintf(vm->output_buffer, 256, "%d\n", t);
-    vm_error("> %d\n", t);
+    vm_out("%d", pop(vm));
   } else
-    vm_error("stack underflow! nothing to print.\n");
+    vm_error("stack underflow! nothing to print.");
 }
 
 void fvm_if(forth_vm_t *vm) {
@@ -131,9 +138,9 @@ void fvm_else(forth_vm_t *vm) {
 void fvm_then(forth_vm_t *vm) { (void)vm; }
 
 void fvm_rot(forth_vm_t *vm) {
-  if (sp < 2)
-    vm_error("not enough values to rotate!\n");
-  else {
+  if (sp < 2) {
+    vm_error("not enough values to rotate!");
+  } else {
     int c = pop(vm), b = pop(vm), a = pop(vm);
     push(vm, b);
     push(vm, c);
@@ -142,9 +149,9 @@ void fvm_rot(forth_vm_t *vm) {
 }
 
 void fvm_nip(forth_vm_t *vm) {
-  if (sp < 1)
-    vm_error("not enough values to nip!\n");
-  else {
+  if (sp < 1) {
+    vm_error("not enough values to nip!");
+  } else {
     int b = pop(vm);
     pop(vm);
     push(vm, b);
@@ -152,9 +159,9 @@ void fvm_nip(forth_vm_t *vm) {
 }
 
 void fvm_tuck(forth_vm_t *vm) {
-  if (sp < 1)
-    vm_error("not enough values to tuck!\n");
-  else {
+  if (sp < 1) {
+    vm_error("not enough values to tuck!");
+  } else {
     int b = pop(vm), a = pop(vm);
     push(vm, b);
     push(vm, a);
@@ -163,26 +170,26 @@ void fvm_tuck(forth_vm_t *vm) {
 }
 
 void fvm_store(forth_vm_t *vm) {
-  if (sp < 1)
-    vm_error("not enough values for store!\n");
-  else {
+  if (sp < 1) {
+    vm_error("not enough values for store!");
+  } else {
     int addr = pop(vm), value = pop(vm);
     if (addr >= 0 && addr < 256)
       memory[addr] = value;
     else
-      vm_error("invalid memory address!\n");
+      vm_error("invalid memory address!");
   }
 }
 
 void fvm_fetch(forth_vm_t *vm) {
-  if (sp < 0)
-    vm_error("not enough values for fetch!\n");
-  else {
+  if (sp < 0) {
+    vm_error("not enough values for fetch!");
+  } else {
     int addr = pop(vm);
     if (addr >= 0 && addr < 256)
       push(vm, memory[addr]);
     else
-      vm_error("invalid memory address!\n");
+      vm_error("invalid memory address!");
   }
 }
 
@@ -224,67 +231,67 @@ void fvm_do(forth_vm_t *vm) {
 }
 
 void fvm_key(forth_vm_t *vm) {
-  int ch = 0; // getchar();
+  int ch = vm_in();
   push(vm, ch);
 }
 
 void fvm_emit(forth_vm_t *vm) {
-  if (sp < 0)
-    vm_error("stack underflow in emit!\n");
-  else
-    pop(vm); // putchar();
-}
-
-void fvm_cr(forth_vm_t *vm) {
-  (void)vm; // putchar('\n');
+  if (sp < 0) {
+    vm_error("stack underflow in emit!");
+  } else
+    vm_out("%c", pop(vm));
 }
 
 void fvm_print_stack(forth_vm_t *vm) {
   if (sp < 0) {
-    vm_error("stack is empty!\n");
+    vm_error("stack is empty!");
     return;
   }
 
   for (int i = 0; i <= sp; i++) {
     vm_error("%d ", stack[i]);
   }
-  vm_error("\n");
+  vm_error("");
 }
 
 void fvm_init(forth_vm_t *vm) {
   sp = -1;
-  fvm_register_word("+", fvm_add);
-  fvm_register_word("-", fvm_sub);
-  fvm_register_word("*", fvm_mul);
-  fvm_register_word("/", fvm_div);
-  fvm_register_word(".", fvm_print_top);
-  fvm_register_word("dup", fvm_dup);
-  fvm_register_word("swap", fvm_swap);
-  fvm_register_word("drop", fvm_drop);
-  fvm_register_word("over", fvm_over);
-  fvm_register_word("=", fvm_eq);
-  fvm_register_word("<>", fvm_neq);
-  fvm_register_word("<", fvm_lt);
-  fvm_register_word(">", fvm_gt);
-  fvm_register_word("<=", fvm_leq);
-  fvm_register_word(">=", fvm_geq);
-  fvm_register_word("not", fvm_not);
-  fvm_register_word("if", fvm_if);
-  fvm_register_word("else", fvm_else);
-  fvm_register_word("then", fvm_then);
-  fvm_register_word("rot", fvm_rot);
-  fvm_register_word("nip", fvm_nip);
-  fvm_register_word("tuck", fvm_tuck);
-  fvm_register_word("!", fvm_store);
-  fvm_register_word("@", fvm_fetch);
-  fvm_register_word("begin", fvm_begin);
-  fvm_register_word("until", fvm_then);
-  fvm_register_word("do", fvm_do);
-  fvm_register_word("loop", fvm_then);
-  fvm_register_word("key", fvm_key);
-  fvm_register_word("emit", fvm_emit);
-  fvm_register_word("cr", fvm_cr);
-  fvm_register_word(".s", fvm_print_stack);
+  dict_size = 1;
+  vm->io.stdin = &fvm_default_stdin;
+  vm->io.stdout = &fvm_default_stdout;
+  vm->io.stderr = &fvm_default_stderr;
+
+  fvm_register_word(vm, "+", fvm_add);
+  fvm_register_word(vm, "-", fvm_sub);
+  fvm_register_word(vm, "*", fvm_mul);
+  fvm_register_word(vm, "/", fvm_div);
+  fvm_register_word(vm, ".", fvm_print_top);
+  fvm_register_word(vm, "dup", fvm_dup);
+  fvm_register_word(vm, "swap", fvm_swap);
+  fvm_register_word(vm, "drop", fvm_drop);
+  fvm_register_word(vm, "over", fvm_over);
+  fvm_register_word(vm, "=", fvm_eq);
+  fvm_register_word(vm, "<>", fvm_neq);
+  fvm_register_word(vm, "<", fvm_lt);
+  fvm_register_word(vm, ">", fvm_gt);
+  fvm_register_word(vm, "<=", fvm_leq);
+  fvm_register_word(vm, ">=", fvm_geq);
+  fvm_register_word(vm, "not", fvm_not);
+  fvm_register_word(vm, "if", fvm_if);
+  fvm_register_word(vm, "else", fvm_else);
+  fvm_register_word(vm, "then", fvm_then);
+  fvm_register_word(vm, "rot", fvm_rot);
+  fvm_register_word(vm, "nip", fvm_nip);
+  fvm_register_word(vm, "tuck", fvm_tuck);
+  fvm_register_word(vm, "!", fvm_store);
+  fvm_register_word(vm, "@", fvm_fetch);
+  fvm_register_word(vm, "begin", fvm_begin);
+  fvm_register_word(vm, "until", fvm_then);
+  fvm_register_word(vm, "do", fvm_do);
+  fvm_register_word(vm, "loop", fvm_then);
+  fvm_register_word(vm, "key", fvm_key);
+  fvm_register_word(vm, "emit", fvm_emit);
+  fvm_register_word(vm, ".s", fvm_print_stack);
 }
 
 void fvm_execute(forth_vm_t *vm, const char *word) {
@@ -299,19 +306,19 @@ void fvm_execute(forth_vm_t *vm, const char *word) {
       return;
     }
   }
-  vm_error("unknown word! '%s'\n", word);
+  vm_error("unknown word! '%s'", word);
 }
 
 void fvm_define_word(forth_vm_t *vm, char *input) {
   (void)vm;
   char *name = strtok(input, " ");
   if (!name) {
-    vm_error("invalid word definition!\n");
+    vm_error("invalid word definition!");
     return;
   }
 
   if (dict_size >= FVM_DICTIONARY_SIZE) {
-    vm_error("dictionary full!\n");
+    vm_error("dictionary full!");
     return;
   }
 
@@ -331,16 +338,17 @@ void fvm_define_word(forth_vm_t *vm, char *input) {
     token = strtok(NULL, " ");
   }
 
-  vm_error("word definition missing ';'\n");
+  vm_error("word definition missing ';'");
 }
 
-void fvm_register_word(const char *name, void (*function)(forth_vm_t *)) {
+void fvm_register_word(forth_vm_t *vm, const char *name,
+                       void (*function)(forth_vm_t *)) {
   if (dict_size < FVM_DICTIONARY_SIZE) {
     memcpy(dictionary[dict_size].name, name, FVM_WORD_SIZE);
     dictionary[dict_size].function = function;
     dict_size++;
-  } // else
-    // vm_error("dictionary is full!\n");
+  } else
+    vm_error("dictionary is full!");
 }
 
 void fvm_repl(forth_vm_t *vm, char *input) {
@@ -367,4 +375,25 @@ void fvm_repl(forth_vm_t *vm, char *input) {
     }
     token = strtok(NULL, " ");
   }
+}
+
+char fvm_default_stdin(void) { return 0; }
+
+void fvm_default_stdout(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  _vprintf(kernel_putc, format, args);
+  kernel_printf("\n");
+  va_end(args);
+}
+
+void fvm_default_stderr(const char *format, ...) {
+  va_list args; // make sure that the function really takes va_list and not just
+                // ... bc its UB
+  va_start(args, format);
+  kernel_print_set_attribute(LIGHT_RED_ON_BLACK);
+  _vprintf(kernel_putc, format, args);
+  kernel_print_set_attribute(WHITE_ON_BLACK);
+  kernel_printf("\n");
+  va_end(args);
 }

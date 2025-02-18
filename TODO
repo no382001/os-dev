@@ -2,15 +2,19 @@
 - maybe some networking so i can snapshot easily
 - it can bootstrap
 
-- standardize stdout
 - fileio
 - implement shell
 
 - tests for fvm
-    aggregate answer into a single line
-- crc
+[ ] aggregate answer into a single line
+[ ] step by step eval
+[ ] constant stack watch
 
 in progress:
-[x] USA keyboard
 [ ] forth interperter tersing and refactoring
-[x] error with red
+[ ] standardize stdout
+[ ] crc
+[ ] map the memory, i really dont know why it crashes sometimes
+
+notes:
+- make sure that the function really takes va_list and not just ... bc its UB

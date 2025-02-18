@@ -7,7 +7,8 @@ OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt
 CC = gcc
 GDB = gdb
 LD = ld -m elf_i386
-CFLAGS = -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
+CFLAGSNO = -fno-pie -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Wno-error=comment
+CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps)
 
@@ -18,7 +19,7 @@ $(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/boot/kernel_entry.o ${OBJ}
 	${LD} -o $@ -T kernel.ld $^ --oformat binary
 
 $(BUILD_DIR)/%.o: %.c ${HEADERS}
-	${CC} ${CFLAGS} -c $< -o $@
+	${CC} ${CFLAGS} ${CFLAGSNO} -c $< -o $@
 
 $(BUILD_DIR)/%.o: %.asm
 	nasm $< -f elf32 -o $@

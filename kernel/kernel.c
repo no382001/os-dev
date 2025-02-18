@@ -6,7 +6,6 @@ void fvm_test(void);
 
 forth_vm_t *fvm = 0;
 
-void fvm_print_stack(forth_vm_t *vm);
 void user_input(char *input) {
   if (!fvm) {
     return;
@@ -28,9 +27,11 @@ void kernel_main(void) {
   // selftest();
   fvm_test();
 
-  static forth_vm_t vm;
+  /**/
+  static forth_vm_t vm = {0};
   fvm_init(&vm);
   fvm = &vm;
+  /**/
 
   /*
   fat_bpb_t bpb;

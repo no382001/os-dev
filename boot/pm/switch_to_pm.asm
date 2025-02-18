@@ -22,7 +22,7 @@ init_pm:
 	mov fs,ax
 	mov gs,ax
 
-	mov ebp,0x90000 		;update stack, to the top of free space
+	mov ebp,0x80000 		;update stack, to the top of free space
 	mov esp,ebp
 
 	call BEGIN_PM

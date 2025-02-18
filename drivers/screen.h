@@ -34,4 +34,10 @@ void kernel_put_backspace();
 void kernel_print_set_attribute(char a);
 
 void kernel_printf(const char *fmt, ...);
-void kernel_aprintf(char attribute, const char *fmt, ...);
+
+#define kernel_aprintf(attr, ...)                                              \
+  do {                                                                         \
+    kernel_print_set_attribute(attr);                                          \
+    kernel_printf(__VA_ARGS__);                                                \
+    kernel_print_set_attribute(WHITE_ON_BLACK);                                \
+  } while (0);

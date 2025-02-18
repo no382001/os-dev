@@ -131,12 +131,3 @@ void kernel_printf(const char *fmt, ...) {
   _vprintf(kernel_putc, fmt, args);
   va_end(args);
 }
-
-void kernel_aprintf(char attribute, const char *fmt, ...) {
-  kernel_print_set_attribute(attribute);
-  va_list args;
-  va_start(args, fmt);
-  kernel_printf(fmt, args);
-  va_end(args);
-  kernel_print_set_attribute(WHITE_ON_BLACK);
-}
