@@ -14,6 +14,7 @@
 `info functions/variables/registers`<br>
 `disas _start`<br>
 `x/4xg $rip` examine register "x/ count-format-size $register"<br>
+`vmmap`<br>
 ## mod
 `patch string 0x402000 "Patched!\\x0a"`	patch address value<br>
 `set $rdx=0x9`<br>

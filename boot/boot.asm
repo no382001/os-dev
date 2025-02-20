@@ -1,7 +1,8 @@
 ;boot sector that boots a C kernel in 32bit protected
 org 0x7c00
 
-KERNEL_OFFSET equ 0x1000
+; kernel_load does this manually
+KERNEL_OFFSET equ 0x10000
 
 mov [BOOT_DRIVE],dl ;stores dl in boot drive
 
@@ -29,8 +30,10 @@ load_kernel:
 	mov bx,MSG_LOAD_KERNEL
 	call print_string
 
-	mov bx,KERNEL_OFFSET
-	mov dh,50 ; yeah... look out for this, if the kernel gets bigger it could get cut off
+	mov ax, 0x1000      ; set segment = 0x1000 (0x10000 / 16)
+	mov es, ax          ; ES now points to 0x10000
+	mov bx, 0x0000      ; offset in segment
+	mov dh, 60
 	mov dl,[BOOT_DRIVE]
 	
 	call disk_load

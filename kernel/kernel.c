@@ -22,10 +22,9 @@ void kernel_main(void) {
   init_heap();
 
   serial_init();
-  serial_debug(" start!");
+  serial_debug("kernel start!");
 
-  // selftest();
-  // fvm_test();
+  selftest();
 
   /**/
   static forth_vm_t vm = {0};
@@ -38,8 +37,4 @@ void kernel_main(void) {
   fat16_read_bpb(&bpb);
   fat16_list_root(&bpb);
   */
-  // hexdump("012345678910", 13, 4);
-  // hexdump("Hello World!", 13, 8);
-
-  serial_debug(" at the end...");
 }

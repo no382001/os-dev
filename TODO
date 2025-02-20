@@ -1,20 +1,16 @@
 
-- maybe some networking so i can snapshot easily
 - it can bootstrap
 
 - fileio
-- implement shell
 
-- tests for fvm
-[ ] aggregate answer into a single line
-[ ] step by step eval
-[ ] constant stack watch
+- implement shell
+- fvm
+- aggregate answer into a single line
+- constant stack watch
 
 in progress:
-[ ] forth interperter tersing and refactoring
-[ ] standardize stdout
-[ ] crc
-[ ] map the memory, i really dont know why it crashes sometimes
+- standardize stdout
+- crc
 
 notes:
 - make sure that the function really takes va_list and not just ... bc its UB
