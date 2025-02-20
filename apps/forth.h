@@ -26,6 +26,7 @@ struct forth_vm_t {
   int dict_size;
   int memory[256];
   forth_vm_io_t io;
+  int err;
 };
 
 void push(forth_vm_t *vm, int value);

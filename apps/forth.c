@@ -6,9 +6,16 @@
 #define memory vm->memory
 #define dict_size vm->dict_size
 
-#define vm_error(...) vm->io.stderr(__VA_ARGS__)
+#define vm_error(...)                                                          \
+  {                                                                            \
+    vm->io.stderr(__VA_ARGS__);                                                \
+    vm->err++;                                                                 \
+  }
+
 #define vm_out(...) vm->io.stdout(__VA_ARGS__)
+
 #define vm_in() vm->io.stdin()
+
 #define vm_info(...)                                                           \
   { vm->io.stderr(__VA_ARGS__); }
 
@@ -271,6 +278,7 @@ void fvm_print_stack(forth_vm_t *vm) {
 }
 
 void fvm_init(forth_vm_t *vm) {
+  vm->err = 0;
   sp = -1;
   dict_size = 1;
   vm->io.stdin = &fvm_default_stdin;
@@ -400,7 +408,6 @@ void fvm_default_stdout(const char *format, ...) {
   va_list args;
   va_start(args, format);
   _vprintf(kernel_putc, format, args);
-  kernel_printf("\n");
   va_end(args);
 }
 

@@ -33,7 +33,7 @@ load_kernel:
 	mov ax, 0x1000      ; set segment = 0x1000 (0x10000 / 16)
 	mov es, ax          ; ES now points to 0x10000
 	mov bx, 0x0000      ; offset in segment
-	mov dh, 60
+	mov dh, 70
 	mov dl,[BOOT_DRIVE]
 	
 	call disk_load

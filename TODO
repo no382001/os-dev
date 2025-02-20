@@ -2,15 +2,15 @@
 - it can bootstrap
 
 - fileio
+  - basic vim
 
-- implement shell
-- fvm
-- aggregate answer into a single line
-- constant stack watch
+- standardize stdout/in
 
-in progress:
-- standardize stdout
-- crc
+- fvm shell
+  - strings
+
+- crc and loading dynamic kernel size
+- inconsistent type usage
 
 notes:
 - make sure that the function really takes va_list and not just ... bc its UB

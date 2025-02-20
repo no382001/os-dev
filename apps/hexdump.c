@@ -2,7 +2,7 @@
 
 void hexdump(const char *buffer, int size, int colsize) {
   if (colsize <= 0 || colsize > 16) {
-    kernel_printf("hexdump: invalid colsize: %d. Must be between 1 and 16.",
+    kernel_printf("hexdump: invalid colsize: %d. Must be between 1 and 16.\n",
                   colsize);
     return;
   }
@@ -13,26 +13,24 @@ void hexdump(const char *buffer, int size, int colsize) {
   for (int i = 0; i < size; i++) {
     if (i % colsize == 0) {
       if (i != 0) {
-        kernel_printf(" | %s |", ascii);
+        kernel_printf(" | %s |\n", ascii);
       }
-      kernel_printf("\n%x |  ", i);
+      kernel_printf("%08x | ", (uint32_t)(buffer + i));
     }
 
-    kernel_printf("%x ", (unsigned char)buffer[i]);
+    kernel_printf("%02x ", (unsigned char)buffer[i]);
 
     ascii[i % colsize] =
-        (buffer[i] >= 32 && buffer[i] <= 126) ? buffer[i] : ' ';
-  }
+        (buffer[i] >= 32 && buffer[i] <= 126) ? buffer[i] : '.';
 
-  // fill last line with spaces if not aligned to `colsize`
-  int remaining = size % colsize;
-  if (remaining > 0) {
-    for (int i = remaining; i < colsize; i++) {
-      kernel_printf("     %s", (i % colsize == colsize - 1) ? " " : "");
-      ascii[i] = ' ';
+    if (i == size - 1) {
+      int remaining = (i + 1) % colsize;
+      if (remaining > 0) {
+        for (int j = remaining; j < colsize; j++) {
+          kernel_printf("   ");
+        }
+      }
+      kernel_printf(" | %s |\n", ascii);
     }
-    kernel_printf(" | %s |", ascii);
   }
-
-  kernel_printf("\n");
 }

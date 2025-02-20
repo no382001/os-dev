@@ -2,6 +2,9 @@
 #include "drivers/serial.h"
 #include "libc/types.h"
 
+#undef serial_debug
+#define serial_debug(...)
+
 void fat16_read_bpb(fat_bpb_t *bpb) {
   uint8_t buffer[512] = {0};
   ata_read_sector(0, buffer);
@@ -42,59 +45,119 @@ static void fat16_entry_extract_filename(fat_entry_t *e, char *out) {
   }
 }
 
-void fat16_list_directory(fat_bpb_t *bpb, uint16_t start_cluster,
-                          bool is_root) {
-  fat_entry_t entries[512] = {0};
+fs_node_t *fs_build_tree(fat_bpb_t *bpb, uint16_t start_cluster,
+                         fs_node_t *parent, int is_root) {
+  fs_node_t *head = NULL;
+  fs_node_t *prev = NULL;
+
+  fat_entry_t entries[512];
   uint8_t buffer[512];
 
   uint16_t lba;
   uint16_t dir_size;
 
   if (is_root) {
-    // root directory is stored in a fixed region
     lba = bpb->reserved_sectors + (bpb->fat_count * bpb->sectors_per_fat);
     dir_size =
         (bpb->root_entries * sizeof(fat_entry_t)) / bpb->bytes_per_sector;
   } else {
-    // subdirectories are stored in clusters
-    if (start_cluster < 2) {
-      serial_debug("ERROR: invalid directory cluster %d", start_cluster);
-      return;
-    }
-
     lba = fat16_cluster_to_lba(bpb, start_cluster);
-    dir_size = 1; // each directory fits in 1 sector for now
+    dir_size = 1;
   }
 
-  serial_debug(" listing directory at LBA: %d (Cluster: %d, Root: %d)", lba,
+  serial_debug("building directory at LBA: %d (Cluster: %d, Root: %d)", lba,
                start_cluster, is_root);
 
   for (int i = 0; i < dir_size; i++) {
     ata_read_sector(lba + i, buffer);
-    memcpy(((char *)entries) + (i * 512), (char *)buffer, 512);
+    memcpy((char *)entries + (i * 512), (char *)buffer, 512);
   }
 
   for (int i = 0; i < bpb->root_entries; i++) {
     if (entries[i].name[0] == 0x00)
-      break; // no more files
+      break;
     if (entries[i].attributes == 0x0F)
-      continue; // skip LFN garbage
+      continue;
 
-    char full_name[13] = {0}; // 8 + 1 (.) + 3 + 1 (\0)
+    fs_node_t *node = malloc(sizeof(fs_node_t));
+    memset((uint8_t *)node, 0, sizeof(fs_node_t));
+
+    char full_name[13] = {0};
     fat16_entry_extract_filename(&entries[i], full_name);
-
     if (!strcmp(full_name, ".") || !strcmp(full_name, "..")) {
       continue;
     }
+    memcpy(node->name, full_name, 13);
+
+    node->size = entries[i].file_size;
+    node->start_cluster = entries[i].start_cluster;
+    node->type =
+        (entries[i].attributes & 0x10) ? FS_TYPE_DIRECTORY : FS_TYPE_FILE;
+    node->parent = parent;
 
     if (entries[i].attributes & 0x10) {
       serial_debug(" [DIR] %s", full_name);
-      fat16_list_directory(bpb, entries[i].start_cluster, false);
     } else {
       serial_debug(" file: %s, size: %d bytes, cluster: %d", full_name,
                    entries[i].file_size, entries[i].start_cluster);
     }
+
+    if (node->type == FS_TYPE_DIRECTORY) {
+      node->children = fs_build_tree(bpb, node->start_cluster, node, false);
+    }
+
+    if (!head) {
+      head = node;
+    } else {
+      prev->next = node;
+    }
+    prev = node;
   }
+  return head;
 }
 
-void fat16_list_root(fat_bpb_t *bpb) { fat16_list_directory(bpb, 0, true); }
+fs_node_t *fs_find_file(fs_node_t *root, const char *name) {
+  fs_node_t *current = root;
+  while (current) {
+    if (!strcmp(current->name, name)) {
+      return current;
+    }
+    if (current->type == FS_TYPE_DIRECTORY) {
+      fs_node_t *found = fs_find_file(current->children, name);
+      if (found)
+        return found;
+    }
+    current = current->next;
+  }
+  return NULL;
+}
+
+void fs_read_file(fat_bpb_t *bpb, fs_node_t *file, uint8_t *out) {
+  uint16_t lba = fat16_cluster_to_lba(bpb, file->start_cluster);
+  int read = (file->size / 512) + 1;
+  char *buffer = malloc(read);
+  for (uint8_t i = 0; i < read; i++) {
+    ata_read_sector(lba + i, (uint8_t *)(buffer + (i * 512)));
+  }
+
+  memcpy((char *)out, buffer, file->size);
+  free(buffer);
+}
+
+void fs_print_tree(fs_node_t *node, int depth) {
+  if (!node)
+    return;
+
+  for (int i = 0; i < depth; i++) {
+    kernel_printf("|   ");
+  }
+
+  if (node->type == FS_TYPE_DIRECTORY) {
+    kernel_printf("|-- %s\n", node->name);
+  } else {
+    kernel_printf("|-- %s (%d bytes)\n", node->name, node->size);
+  }
+
+  fs_print_tree(node->children, depth + 1);
+  fs_print_tree(node->next, depth);
+}

@@ -66,7 +66,7 @@ void serial_put_hex(uint32_t num) {
 }
 
 void serial_printf(char *file, int line, const char *fmt, ...) {
-
+  serial_puts(" ");
   if (file) {
     serial_puts(file);
     serial_puts(":");

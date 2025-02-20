@@ -12,7 +12,7 @@ CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultli
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps)
 
-$(BUILD_DIR)/os-image.bin: bits $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin crc
+$(BUILD_DIR)/os-image.bin: format bits $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin crc
 	cat $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/os-image.bin
 
 $(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/boot/kernel_entry.o ${OBJ}

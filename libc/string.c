@@ -84,14 +84,61 @@ char *strcpy(const char *str, char *dest) {
   return dest;
 }
 
+void hex_to_ascii_padded(int num, char str[], int width, int zero_pad,
+                         int uppercase) {
+  (void)zero_pad;
+  char temp[16]; // max 32-bit hex is 8 chars + '\0'
+  int index = 0;
+
+  for (int i = 28; i >= 0; i -= 4) {
+    int tmp = (num >> i) & 0xF;
+    temp[index++] =
+        (tmp < 10) ? (tmp + '0') : (tmp - 10 + (uppercase ? 'A' : 'a'));
+  }
+  temp[index] = '\0';
+
+  char *hex_start = temp;
+  while (*hex_start == '0' && *(hex_start + 1) != '\0') {
+    hex_start++;
+  }
+
+  int len = strlen(hex_start);
+
+  int pad_len = (width > len) ? width - len : 0;
+  int out_index = 0;
+
+  str[out_index++] = '0';
+  str[out_index++] = 'x';
+
+  for (int i = 0; i < pad_len; i++) {
+    str[out_index++] = '0';
+  }
+
+  strcpy(hex_start, str + out_index);
+}
+
 void _vprintf(void (*output_func)(char), const char *fmt, va_list args) {
   char num_buffer[32] = {0};
 
   while (*fmt) {
     if (*fmt == '%') {
       fmt++;
+
+      int zero_pad = 0;
+      int width = 0;
+
+      if (*fmt == '0') {
+        zero_pad = 1;
+        fmt++;
+      }
+
+      while (*fmt >= '0' && *fmt <= '9') {
+        width = width * 10 + (*fmt - '0');
+        fmt++;
+      }
+
       switch (*fmt) {
-      case 'd': { // integer
+      case 'd': {
         int num = va_arg(args, int);
         int_to_ascii(num, num_buffer);
         char *ptr = num_buffer;
@@ -99,26 +146,28 @@ void _vprintf(void (*output_func)(char), const char *fmt, va_list args) {
           output_func(*ptr++);
         break;
       }
-      case 'x': { // hexadecimal
+      case 'x':
+      case 'X': {
         int num = va_arg(args, int);
-        hex_to_ascii(num, num_buffer);
+        int uppercase = (*fmt == 'X');
+        hex_to_ascii_padded(num, num_buffer, width, zero_pad, uppercase);
         char *ptr = num_buffer;
         while (*ptr)
           output_func(*ptr++);
         break;
       }
-      case 's': { // string
+      case 's': {
         char *str = va_arg(args, char *);
         while (*str)
           output_func(*str++);
         break;
       }
-      case 'c': { // character
+      case 'c': {
         char c = (char)va_arg(args, int);
         output_func(c);
         break;
       }
-      case '%': { // literal '%'
+      case '%': {
         output_func('%');
         break;
       }

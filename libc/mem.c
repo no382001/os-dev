@@ -61,7 +61,7 @@ void *malloc(size_t size) {
     heap_start = block;
   }
 
-  serial_debug("\tmalloc:\t block allocated at ", &block);
+  serial_debug("\tmalloc:\t block allocated at %x", &block);
 
   block->used = true;
 

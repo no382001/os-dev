@@ -37,5 +37,22 @@ typedef struct {
 } __attribute__((packed)) fat_entry_t;
 
 void fat16_read_bpb(fat_bpb_t *bpb);
-void fat16_list_directory(fat_bpb_t *bpb, uint16_t start_cluster, bool is_root);
-void fat16_list_root(fat_bpb_t *bpb);
+
+typedef enum { FS_TYPE_FILE, FS_TYPE_DIRECTORY } fs_node_type_t;
+
+typedef struct fs_node_t fs_node_t;
+struct fs_node_t {
+  char name[13];
+  uint32_t size;
+  uint16_t start_cluster;
+  fs_node_type_t type;
+  fs_node_t *parent;
+  fs_node_t *children;
+  fs_node_t *next;
+};
+
+fs_node_t *fs_build_tree(fat_bpb_t *bpb, uint16_t start_cluster,
+                         fs_node_t *parent, int is_root);
+fs_node_t *fs_find_file(fs_node_t *root, const char *name);
+void fs_read_file(fat_bpb_t *bpb, fs_node_t *file, uint8_t *buffer);
+void fs_print_tree(fs_node_t *node, int depth);
