@@ -3,17 +3,34 @@
 #undef serial_debug
 #define serial_debug(...)
 
-void memcpy(char *dest, const char *source, int no_bytes) {
-  int i;
-  for (i = 0; i < no_bytes; i++) {
-    *(dest + i) = *(source + i);
+void *memcpy(void *dest, const void *src, size_t num_bytes) {
+  uint8_t *d = (uint8_t *)dest;
+  const uint8_t *s = (const uint8_t *)src;
+
+  while (((uintptr_t)d % 4) && num_bytes) {
+    *d++ = *s++;
+    num_bytes--;
   }
+
+  while (num_bytes >= 4) {
+    *((uint32_t *)d) = *((uint32_t *)s);
+    d += 4;
+    s += 4;
+    num_bytes -= 4;
+  }
+
+  while (num_bytes--) {
+    *d++ = *s++;
+  }
+
+  return dest;
 }
 
 void memset(uint8_t *dest, uint8_t val, uint32_t len) {
   uint8_t *temp = (uint8_t *)dest;
-  for (; len != 0; len--)
+  for (; len != 0; len--) {
     *temp++ = val;
+  }
 }
 
 #define HEAP_START 0xC0100000

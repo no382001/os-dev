@@ -229,41 +229,34 @@ void set_vga_mode12() {
   asm volatile("sti");
 }
 
+#define VGA_BUFFER_SIZE ((VGA_WIDTH / 8) * VGA_HEIGHT)
+
+uint8_t *vga_bb = 0;
+
 void vga_put_pixel(int x, int y, unsigned char color) {
-  if (x < 0 || x >= 640 || y < 0 || y >= 480)
+  if (x < 0 || x >= VGA_WIDTH || y < 0 || y >= VGA_HEIGHT)
     return;
 
   // calculate the bit mask to select the correct pixel within a byte
   // since each byte in vga memory holds 8 pixels, we shift a some bits to the
   // right
   uint8_t mask = 0x80 >> (x % 8);
-
-  uint8_t *vga = VGA_MEMORY;
-
   // compute the memory offset for the pixel
   // since each row consists of (640 / 8) bytes (80 bytes per row),
   // we multiply the row index (y) by 80 and add the byte index (x / 8)
-  int offset = (y * (640 / 8)) + (x / 8);
+  int offset = (y * (VGA_WIDTH / 8)) + (x / 8);
 
-  // loop through each of the 4 bit planes to set the correct pixel color
   for (int plane = 0; plane < 4; plane++) {
-    // select the appropriate vga memory plane
-    port_byte_out(VGA_SEQUENCER_INDEX, 0x02); // select the map mask register
-    port_byte_out(VGA_SEQUENCER_DATA,
-                  1 << plane); // enable only the current plane
-
-    // check if the current bit plane should be set based on the pixel color
+    uint8_t *plane_buffer = &vga_bb[plane * VGA_BUFFER_SIZE];
     if (color & (1 << plane)) {
-      vga[offset] |= mask; // set the corresponding bit in memory
+      plane_buffer[offset] |= mask;
     } else {
-      vga[offset] &= ~mask; // clear the corresponding bit in memory
+      plane_buffer[offset] &= ~mask; // clear, or maybe dont do anything here?
     }
   }
 }
 
 void vga_clear_screen(unsigned char color) {
-  uint8_t *vga = VGA_MEMORY;
-
   // calculate the total number of bytes in vga memory for one plane
   int size = (VGA_WIDTH / 8) * VGA_HEIGHT;
 
@@ -286,7 +279,7 @@ void vga_clear_screen(unsigned char color) {
     fill_value =
         (byte_fill << 24) | (byte_fill << 16) | (byte_fill << 8) | byte_fill;
 
-    ptr = vga;
+    ptr = vga_bb;
     for (int i = 0; i < size / 4; i++) {
       *((uint32_t *)ptr) = fill_value;
       ptr += 4;
@@ -294,26 +287,38 @@ void vga_clear_screen(unsigned char color) {
   }
 }
 
-void draw_scrolling_gradient(int offset) {
-  uint8_t *vga = VGA_MEMORY;
+void vga_swap_buffers() {
+  uint8_t *vga = (uint8_t *)0xA0000;
+  int size = VGA_BUFFER_SIZE;
 
-  // loop through each of the 4 bit planes
   for (int plane = 0; plane < 4; plane++) {
-    port_byte_out(VGA_SEQUENCER_INDEX, 0x02);
-    port_byte_out(VGA_SEQUENCER_DATA, 1 << plane);
+    port_byte_out(VGA_SEQUENCER_INDEX, 0x02); // select the map mask register
+    port_byte_out(VGA_SEQUENCER_DATA,
+                  1 << plane); // enable only the current plane
 
-    uint8_t *ptr = vga;
+    memcpy((void *)vga, (void *)&vga_bb[plane * VGA_BUFFER_SIZE], size);
+  }
+}
 
-    for (int y = 0; y < VGA_HEIGHT; y++) {
-      for (int x = 0; x < (VGA_WIDTH / 8); x++) {
-        // the gradient moves based on the offset parameter
-        // and cycles every 40 pixels while wrapping within screen width
-        uint8_t color_byte =
-            (((x * 8 + y + offset) % VGA_WIDTH) / 40) & (1 << plane) ? 0xFF
-                                                                     : 0x00;
-
-        *ptr++ = color_byte;
-      }
+void vga_draw_filled_rect(int x, int y, int width, int height, uint8_t color) {
+  for (int j = 0; j < height; j++) {
+    for (int i = 0; i < width; i++) {
+      vga_put_pixel(x + i, y + j, color);
     }
   }
+}
+
+void vga_draw_rect(int x, int y, int width, int height, uint8_t color) {
+  for (int i = 0; i < width; i++) {
+    vga_put_pixel(x + i, y, color);
+    vga_put_pixel(x + i, y + height - 1, color);
+  }
+  for (int j = 0; j < height; j++) {
+    vga_put_pixel(x, y + j, color);
+    vga_put_pixel(x + width - 1, y + j, color);
+  }
+}
+
+void vga_clear_rect(int x, int y, int width, int height) {
+  vga_draw_filled_rect(x, y, width, height, 0x00);
 }

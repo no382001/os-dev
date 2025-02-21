@@ -15,8 +15,11 @@
 `disas _start`<br>
 `x/4xg $rip` examine register "x/ count-format-size $register"<br>
 `vmmap`<br>
+`watch <variable>` hardware breakpoint on change<br>
 ## mod
 `patch string 0x402000 "Patched!\\x0a"`	patch address value<br>
 `set $rdx=0x9`<br>
 `x/14gx $rsp` print top 14 of stask<br>
 `p/x obj` examine current state of object
+## other
+`nm -S _build/drivers/screen.o | grep backbuffer`

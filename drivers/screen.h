@@ -52,6 +52,7 @@ void kernel_printf(const char *fmt, ...);
 #define VGA_MEMORY ((uint8_t *)0xA0000)
 #define VGA_WIDTH 640
 #define VGA_HEIGHT 480
+#define VGA_BUFFER_SIZE ((VGA_WIDTH / 8) * VGA_HEIGHT)
 
 #define VGA_MISC_WRITE 0x3C2
 #define VGA_SEQUENCER_INDEX 0x3C4
@@ -88,6 +89,10 @@ void kernel_printf(const char *fmt, ...);
   }
 
 void set_vga_mode12();
+void vga_swap_buffers();
+
 void vga_clear_screen(unsigned char color);
 void vga_put_pixel(int x, int y, unsigned char color);
-void draw_scrolling_gradient(int offset);
+void vga_draw_filled_rect(int x, int y, int width, int height, uint8_t color);
+void vga_draw_rect(int x, int y, int width, int height, uint8_t color);
+void vga_clear_rect(int x, int y, int width, int height);

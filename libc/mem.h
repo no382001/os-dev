@@ -12,7 +12,7 @@ struct mem_block {
 void init_heap();
 void print_heap();
 
-void memcpy(char *dest, const char *source, int no_bytes);
+void *memcpy(void *dest, const void *src, size_t num_bytes);
 void memset(uint8_t *dest, uint8_t val, uint32_t len);
 
 void *malloc(size_t size);
