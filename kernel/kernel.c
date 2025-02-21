@@ -18,6 +18,15 @@ void user_input(char *input) {
   }
 }
 
+extern uint32_t tick;
+void sleep(uint32_t milliseconds) {
+  uint32_t target_ticks =
+      tick + (milliseconds * 60) / 1000; // (assuming 60Hz PIT)
+  while (tick < target_ticks) {
+    asm volatile("hlt"); // Halt CPU until the next interrupt
+  }
+}
+
 void kernel_main(void) {
   kernel_clear_screen();
 
@@ -30,7 +39,7 @@ void kernel_main(void) {
 
   selftest();
 
-  /**/
+  /** /
 
   static forth_vm_t vm = {0};
   fvm_init(&vm);
@@ -49,5 +58,24 @@ void kernel_main(void) {
     fs_read_file(&bpb, f, (uint8_t *)&buffer);
     hexdump((char *)&buffer, 40, 8);
   }
+
   /**/
+  set_vga_mode12();
+
+  int rect_width = 200;
+  int rect_height = 100;
+
+  int center_x = (VGA_WIDTH / 2) - (rect_width / 2);
+  int center_y = (VGA_HEIGHT / 2) - (rect_height / 2);
+
+  int i = 0;
+  while (1) {
+    draw_scrolling_gradient(i++);
+    for (int j = 0; j < rect_width; j++) {
+      for (int k = 0; k < rect_height; k++) {
+        vga_put_pixel(center_x + j, center_y + k, 0);
+      }
+    }
+    sleep(16); // 60fps?
+  }
 }

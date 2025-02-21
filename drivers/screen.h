@@ -1,5 +1,9 @@
 #pragma once
 
+/*******************************
+ * text mode
+ */
+
 #define VIDEO_ADDRESS ((char *)0xb8000)
 #define MAX_ROWS 25
 #define MAX_COLS 80
@@ -40,3 +44,50 @@ void kernel_printf(const char *fmt, ...);
     kernel_printf(__VA_ARGS__);                                                \
     kernel_print_set_attribute(WHITE_ON_BLACK);                                \
   } while (0);
+
+/*******************************
+ * VGA mode 13
+ */
+
+#define VGA_MEMORY ((uint8_t *)0xA0000)
+#define VGA_WIDTH 640
+#define VGA_HEIGHT 480
+
+#define VGA_MISC_WRITE 0x3C2
+#define VGA_SEQUENCER_INDEX 0x3C4
+#define VGA_SEQUENCER_DATA 0x3C5
+#define VGA_GRAPHICS_INDEX 0x3CE
+#define VGA_GRAPHICS_DATA 0x3CF
+#define VGA_CRTC_INDEX 0x3D4
+#define VGA_CRTC_DATA 0x3D5
+#define VGA_ATTRIBUTE_INDEX 0x3C0
+#define VGA_ATTRIBUTE_DATA 0x3C0
+#define VGA_INPUT_STATUS 0x3DA
+
+#define WRITE_MISC(val) port_byte_out(VGA_MISC_WRITE, val)
+#define WRITE_SEQUENCER(index, val)                                            \
+  {                                                                            \
+    port_byte_out(VGA_SEQUENCER_INDEX, index);                                 \
+    port_byte_out(VGA_SEQUENCER_DATA, val);                                    \
+  }
+#define WRITE_GRAPHICS(index, val)                                             \
+  {                                                                            \
+    port_byte_out(VGA_GRAPHICS_INDEX, index);                                  \
+    port_byte_out(VGA_GRAPHICS_DATA, val);                                     \
+  }
+#define WRITE_CRTC(index, val)                                                 \
+  {                                                                            \
+    port_byte_out(VGA_CRTC_INDEX, index);                                      \
+    port_byte_out(VGA_CRTC_DATA, val);                                         \
+  }
+#define WRITE_ATTRIBUTE(index, val)                                            \
+  {                                                                            \
+    port_byte_in(VGA_INPUT_STATUS);                                            \
+    port_byte_out(VGA_ATTRIBUTE_INDEX, index);                                 \
+    port_byte_out(VGA_ATTRIBUTE_DATA, val);                                    \
+  }
+
+void set_vga_mode12();
+void vga_clear_screen(unsigned char color);
+void vga_put_pixel(int x, int y, unsigned char color);
+void draw_scrolling_gradient(int offset);
