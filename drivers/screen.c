@@ -1,8 +1,19 @@
 #include "bits.h"
 
+int is_mode_03h() {
+  unsigned char mode;
+  __asm__ volatile("movb 0x449, %0" : "=r"(mode));
+  return (mode == 0x3);
+}
+
 static char current_attribute = WHITE_ON_BLACK;
 
-void kernel_print_set_attribute(char a) { current_attribute = a; }
+void kernel_print_set_attribute(char a) {
+  if (!is_mode_03h()) {
+    return;
+  }
+  current_attribute = a;
+}
 
 static int get_screen_offset(int col, int row) {
   return 2 * (row * MAX_COLS + col);
@@ -41,7 +52,8 @@ static int get_cursor() {
   return offset * 2;
 }
 
-void kernel_print_c_at(char character, int col, int row, char attribute_byte) {
+static void kernel_print_c_at(char character, int col, int row,
+                              char attribute_byte) {
   unsigned char *vidmem = (unsigned char *)VIDEO_ADDRESS;
 
   if (!attribute_byte) {
@@ -69,6 +81,10 @@ void kernel_print_c_at(char character, int col, int row, char attribute_byte) {
 }
 
 void kernel_clear_screen() {
+  if (!is_mode_03h()) {
+    return;
+  }
+
   int screen_size = MAX_COLS * MAX_ROWS;
   int i;
   char *screen = VIDEO_ADDRESS;
@@ -80,18 +96,7 @@ void kernel_clear_screen() {
   set_cursor(get_screen_offset(0, 0));
 }
 
-void kernel_puth(int value) {
-  static char hex_chars[] = "0123456789ABCDEF";
-  kernel_print_c_at('0', -1, -1, WHITE_ON_BLACK);
-  kernel_print_c_at('x', -1, -1, WHITE_ON_BLACK);
-
-  for (int i = 7; i >= 0; i--) {
-    unsigned char nibble = (value >> (i * 4)) & 0xF;
-    kernel_print_c_at(hex_chars[nibble], -1, -1, WHITE_ON_BLACK);
-  }
-}
-
-void kernel_print_string_at(char *message, int col, int row) {
+static void kernel_print_string_at(char *message, int col, int row) {
   int offset;
 
   if (col >= 0 && row >= 0) {
@@ -108,9 +113,19 @@ void kernel_print_string_at(char *message, int col, int row) {
   }
 }
 
-void kernel_puts(char *message) { kernel_print_string_at(message, -1, -1); }
+void kernel_puts(char *message) {
+  if (!is_mode_03h()) {
+    return;
+  }
+  kernel_print_string_at(message, -1, -1);
+}
 
-void kernel_putc(char c) { kernel_print_c_at(c, -1, -1, 0); }
+void kernel_putc(char c) {
+  if (!is_mode_03h()) {
+    return;
+  }
+  kernel_print_c_at(c, -1, -1, 0);
+}
 
 int get_offset_row(int offset) { return offset / (2 * MAX_COLS); }
 int get_offset_col(int offset) {
@@ -118,6 +133,10 @@ int get_offset_col(int offset) {
 }
 
 void kernel_put_backspace() {
+  if (!is_mode_03h()) {
+    return;
+  }
+
   int offset = get_cursor() - 2;
   int row = get_offset_row(offset);
   int col = get_offset_col(offset);
@@ -126,6 +145,10 @@ void kernel_put_backspace() {
 }
 
 void kernel_printf(const char *fmt, ...) {
+  if (!is_mode_03h()) {
+    return;
+  }
+
   va_list args;
   va_start(args, fmt);
   _vprintf(kernel_putc, fmt, args);

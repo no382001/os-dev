@@ -30,14 +30,12 @@ void kernel_main(void) {
 
   selftest();
 
-  /** /
+  /**/
+
   static forth_vm_t vm = {0};
   fvm_init(&vm);
   fvm = &vm;
-  /**/
 
-  /*
-   */
   fat_bpb_t bpb;
   fat16_read_bpb(&bpb);
 
@@ -47,8 +45,9 @@ void kernel_main(void) {
   fs_node_t *f = fs_find_file(root, "FILE.TXT");
 
   if (f) {
-    char buffer[128] = {0};
+    char *buffer = malloc(f->size);
     fs_read_file(&bpb, f, (uint8_t *)&buffer);
     hexdump((char *)&buffer, 40, 8);
   }
+  /**/
 }

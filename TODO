@@ -1,7 +1,7 @@
 
 - it can bootstrap
 
-- fileio
+- fileio/ open/ write
   - basic vim
 
 - standardize stdout/in
@@ -14,3 +14,11 @@
 
 notes:
 - make sure that the function really takes va_list and not just ... bc its UB
+
+- i think paging fails at some point after the first 4k
+- switch to 13h
+
+- think about optimizations
+  - dont link unused code atleast
+  - -O1 crashes when interacting w/ ata
+  - libc opt
