@@ -57,3 +57,5 @@ int load_bdf(fat_bpb_t *bpb, fs_node_t *bdf) {
   free(buffer);
   return 0;
 }
+
+glyph_t *get_char_bdf_glyph(char c) { return &loaded_font.glyphs[c - 'A']; }

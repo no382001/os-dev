@@ -114,5 +114,13 @@ void vga_draw_filled_rect(int x, int y, int width, int height, uint8_t color);
 void vga_draw_rect(int x, int y, int width, int height, uint8_t color);
 void vga_clear_rect(int x, int y, int width, int height);
 
-void draw_bdf_char(int x, int y, char c, uint8_t color);
-void draw_bdf_string(int x, int y, const char *str, uint8_t color);
+typedef struct {
+  uint8_t color;
+  int scale_x;
+  int scale_y;
+} font_t;
+
+void init_font(font_t *font);
+
+void draw_bdf_char(int x, int y, char c, font_t *font);
+void draw_bdf_string(int x, int y, const char *str, font_t *font);

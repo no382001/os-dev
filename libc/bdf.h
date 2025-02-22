@@ -17,3 +17,4 @@ typedef struct {
 } bdf_font_t;
 
 int load_bdf(fat_bpb_t *bpb, fs_node_t *bdf);
+glyph_t *get_char_bdf_glyph(char c);

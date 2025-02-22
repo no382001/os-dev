@@ -103,6 +103,14 @@ void vga12h_gradient_demo() {
   fs_node_t *f = fs_find_file(root, "VIII.BDF");
   load_bdf(&bpb, f);
 
+  font_t font = {0};
+  init_font(&font);
+  font.scale_x = 5;
+  font.scale_y = 25;
+
+  int x = 20, y = 20;
+  char string[] = "Hello World!";
+
   while (1) {
     for (int i = 0; i < 4; i++) {
       boxes[i].offset++;
@@ -114,7 +122,7 @@ void vga12h_gradient_demo() {
       _draw_scrolling_gradient(&boxes[i]);
     }
 
-    draw_bdf_string(10, 10, "hello world!", WHITE_ON_BLACK);
+    draw_bdf_string(x, y, string, &font);
 
     vga_swap_buffers();
     sleep(16);

@@ -325,44 +325,55 @@ void vga_clear_rect(int x, int y, int width, int height) {
 
 extern bdf_font_t loaded_font;
 
-void draw_bdf_char(int x, int y, char c, uint8_t color) {
+void init_font(font_t *font) {
+  font->color = WHITE_ON_BLACK;
+  font->scale_x = 1;
+  font->scale_y = 1;
+}
+
+void draw_bdf_char(int x, int y, char c, font_t *font) {
   if (c < 0)
     return;
 
   glyph_t glyph = loaded_font.glyphs[(uint8_t)c];
 
   int glyph_width = glyph.width;
+  int glyph_height = glyph.height;
   int bytes_per_row = (glyph_width + 7) / 8;
 
-  const int max_height =
-      loaded_font.glyphs['A'].height; // objectively the highest
+  int adjusted_y =
+      y + (loaded_font.glyphs['A'].height - glyph.height) * font->scale_y;
 
-  int adjusted_y = y + (max_height - glyph.height);
-
-  for (int row = 0; row < glyph.height; row++) {
+  for (int row = 0; row < glyph_height; row++) {
     for (int col = 0; col < glyph_width; col++) {
       int byte_index = col / 8;
       int bit_position = 7 - (col % 8);
+
       if (glyph.bitmap[row * bytes_per_row + byte_index] &
           (1 << bit_position)) {
-        vga_put_pixel(x + col, adjusted_y + row, color);
+        for (int sy = 0; sy < font->scale_y; sy++) {
+          for (int sx = 0; sx < font->scale_x; sx++) {
+            vga_put_pixel(x + col * font->scale_x + sx,
+                          adjusted_y + row * font->scale_y + sy, font->color);
+          }
+        }
       }
     }
   }
 }
 
-void draw_bdf_string(int x, int y, const char *str, uint8_t color) {
+void draw_bdf_string(int x, int y, const char *str, font_t *font) {
   int offset_x = 0;
 
   while (*str) {
     if (*str == '\n') {
-      y += loaded_font.glyphs['A'].height;
+      y += loaded_font.glyphs['A'].height * font->scale_y;
       offset_x = 0;
     } else if (*str == ' ') {
       x += loaded_font.glyphs['A'].width;
     } else {
-      draw_bdf_char(x + offset_x, y, *str, color);
-      offset_x += loaded_font.glyphs[(uint8_t)*str].width + 1;
+      draw_bdf_char(x + offset_x, y, *str, font);
+      offset_x += (loaded_font.glyphs[(uint8_t)*str].width + 1) * font->scale_x;
     }
     str++;
   }
