@@ -1,5 +1,8 @@
 #include "fat16.h"
+#include "drivers/low_level.h"
 #include "drivers/serial.h"
+#include "libc/mem.h"
+#include "libc/string.h"
 #include "libc/types.h"
 
 #undef serial_debug
@@ -135,13 +138,9 @@ fs_node_t *fs_find_file(fs_node_t *root, const char *name) {
 void fs_read_file(fat_bpb_t *bpb, fs_node_t *file, uint8_t *out) {
   uint16_t lba = fat16_cluster_to_lba(bpb, file->start_cluster);
   int read = (file->size / 512) + 1;
-  char *buffer = malloc(read);
   for (uint8_t i = 0; i < read; i++) {
-    ata_read_sector(lba + i, (uint8_t *)(buffer + (i * 512)));
+    ata_read_sector(lba + i, (uint8_t *)(out + (i * 512)));
   }
-
-  memcpy((char *)out, buffer, file->size);
-  free(buffer);
 }
 
 void fs_print_tree(fs_node_t *node, int depth) {

@@ -1,5 +1,4 @@
 #pragma once
-#include "bits.h"
 #include "libc/types.h"
 
 typedef struct {

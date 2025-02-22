@@ -54,3 +54,9 @@ debug: kernel.elf
 
 attach:
 	${GDB} -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"
+
+mountfat:
+	sudo mount fat16.img /mnt/fat16
+
+umountfat:
+	sudo umount /mnt/fat16

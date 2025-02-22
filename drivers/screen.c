@@ -322,3 +322,48 @@ void vga_draw_rect(int x, int y, int width, int height, uint8_t color) {
 void vga_clear_rect(int x, int y, int width, int height) {
   vga_draw_filled_rect(x, y, width, height, 0x00);
 }
+
+extern bdf_font_t loaded_font;
+
+void draw_bdf_char(int x, int y, char c, uint8_t color) {
+  if (c < 0)
+    return;
+
+  glyph_t glyph = loaded_font.glyphs[(uint8_t)c];
+
+  int glyph_width = glyph.width;
+  int bytes_per_row = (glyph_width + 7) / 8;
+
+  const int max_height =
+      loaded_font.glyphs['A'].height; // objectively the highest
+
+  int adjusted_y = y + (max_height - glyph.height);
+
+  for (int row = 0; row < glyph.height; row++) {
+    for (int col = 0; col < glyph_width; col++) {
+      int byte_index = col / 8;
+      int bit_position = 7 - (col % 8);
+      if (glyph.bitmap[row * bytes_per_row + byte_index] &
+          (1 << bit_position)) {
+        vga_put_pixel(x + col, adjusted_y + row, color);
+      }
+    }
+  }
+}
+
+void draw_bdf_string(int x, int y, const char *str, uint8_t color) {
+  int offset_x = 0;
+
+  while (*str) {
+    if (*str == '\n') {
+      y += loaded_font.glyphs['A'].height;
+      offset_x = 0;
+    } else if (*str == ' ') {
+      x += loaded_font.glyphs['A'].width;
+    } else {
+      draw_bdf_char(x + offset_x, y, *str, color);
+      offset_x += loaded_font.glyphs[(uint8_t)*str].width + 1;
+    }
+    str++;
+  }
+}

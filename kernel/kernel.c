@@ -31,11 +31,11 @@ void kernel_main(void) {
   serial_debug("kernel start!");
 
   selftest();
-
   uint8_t backbuffer[VGA_BUFFER_SIZE * 4] = {0};
   vga_bb = (uint8_t *)&backbuffer;
 
   set_vga_mode12();
-
   vga12h_gradient_demo();
+  /*
+   */
 }

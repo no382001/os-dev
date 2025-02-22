@@ -54,6 +54,19 @@ int strcmp(const char s1[], const char s2[]) {
   return s1[i] - s2[i];
 }
 
+int strncmp(const char s1[], const char s2[], size_t n) {
+  char temp1[n + 1];
+  char temp2[n + 1];
+
+  memcpy(temp1, s1, n);
+  memcpy(temp2, s2, n);
+
+  temp1[n] = '\0';
+  temp2[n] = '\0';
+
+  return strcmp(temp1, temp2);
+}
+
 void hex_to_ascii(int n, char str[]) {
   str[0] = '0';
   str[1] = 'x';
@@ -284,4 +297,116 @@ char *strtok(char *str, const char *delim) {
   }
 
   return token_start;
+}
+
+static int isspace(char c) { return c == ' '; }
+
+static int parse_int(const char **buffer, int base) {
+  int result = 0, sign = 1;
+
+  while (isspace(**buffer))
+    (*buffer)++;
+
+  if (**buffer == '-') {
+    sign = -1;
+    (*buffer)++;
+  } else if (**buffer == '+') {
+    (*buffer)++;
+  }
+
+  while (isdigit(**buffer) ||
+         (base == 16 && (**buffer >= 'a' && **buffer <= 'f')) ||
+         (base == 16 && (**buffer >= 'A' && **buffer <= 'F'))) {
+    if (**buffer >= '0' && **buffer <= '9') {
+      result = result * base + (**buffer - '0');
+    } else if (**buffer >= 'a' && **buffer <= 'f') {
+      result = result * base + (**buffer - 'a' + 10);
+    } else if (**buffer >= 'A' && **buffer <= 'F') {
+      result = result * base + (**buffer - 'A' + 10);
+    }
+    (*buffer)++;
+  }
+
+  return sign * result;
+}
+
+static float parse_float(const char **buffer) {
+  float result = 0.0f;
+  float divisor = 1.0f;
+  int sign = 1;
+
+  while (isspace(**buffer))
+    (*buffer)++;
+
+  if (**buffer == '-') {
+    sign = -1;
+    (*buffer)++;
+  } else if (**buffer == '+') {
+    (*buffer)++;
+  }
+
+  while (isdigit(**buffer)) {
+    result = result * 10 + (**buffer - '0');
+    (*buffer)++;
+  }
+
+  if (**buffer == '.') {
+    (*buffer)++;
+    while (isdigit(**buffer)) {
+      result = result * 10 + (**buffer - '0');
+      divisor *= 10.0f;
+      (*buffer)++;
+    }
+  }
+
+  return sign * (result / divisor);
+}
+
+int sscanf(const char *buffer, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int matched = 0;
+
+  while (*fmt) {
+    if (*fmt == '%') {
+      fmt++;
+
+      while (isspace(*buffer))
+        buffer++;
+
+      if (*fmt == 'd') {
+        int *num_ptr = va_arg(args, int *);
+        *num_ptr = parse_int(&buffer, 10);
+        matched++;
+      } else if (*fmt == 'x') {
+        int *num_ptr = va_arg(args, int *);
+        *num_ptr = parse_int(&buffer, 16);
+        matched++;
+      } else if (*fmt == 'f') {
+        float *num_ptr = va_arg(args, float *);
+        *num_ptr = parse_float(&buffer);
+        matched++;
+      } else if (*fmt == 's') {
+        char *str_ptr = va_arg(args, char *);
+        while (*buffer && !isspace(*buffer)) {
+          *str_ptr++ = *buffer++;
+        }
+        *str_ptr = '\0';
+        matched++;
+      } else if (*fmt == 'c') {
+        char *char_ptr = va_arg(args, char *);
+        *char_ptr = *buffer++;
+        matched++;
+      }
+    } else {
+      if (*buffer != *fmt) {
+        break;
+      }
+      buffer++;
+    }
+    fmt++;
+  }
+
+  va_end(args);
+  return matched;
 }

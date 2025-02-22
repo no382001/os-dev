@@ -1,5 +1,5 @@
 #include "apps/vga_demo.h"
-
+#include "libc/bdf.h"
 extern uint8_t *vga_bb;
 
 void _draw_scrolling_gradient(gradient_ctx_t *ctx) {
@@ -57,6 +57,8 @@ void _draw_scrolling_gradient(gradient_ctx_t *ctx) {
 
 void vga12h_gradient_demo() {
 
+  vga_clear_screen(0);
+
   gradient_ctx_t background = {.offset = 0,
                                .x = 0,
                                .y = 0,
@@ -94,6 +96,13 @@ void vga12h_gradient_demo() {
                               .scroll = DOWN,
                               .orient = RIGHT}};
 
+  fat_bpb_t bpb = {0};
+  fat16_read_bpb(&bpb);
+  fs_node_t *root = fs_build_tree(&bpb, 0, 0, 1);
+  // fs_node_t *f = fs_find_file(root, "TOM-TH~1.BDF");
+  fs_node_t *f = fs_find_file(root, "VIII.BDF");
+  load_bdf(&bpb, f);
+
   while (1) {
     for (int i = 0; i < 4; i++) {
       boxes[i].offset++;
@@ -104,6 +113,8 @@ void vga12h_gradient_demo() {
     for (int i = 0; i < 4; i++) {
       _draw_scrolling_gradient(&boxes[i]);
     }
+
+    draw_bdf_string(10, 10, "hello world!", WHITE_ON_BLACK);
 
     vga_swap_buffers();
     sleep(16);

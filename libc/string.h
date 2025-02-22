@@ -7,6 +7,7 @@ int strlen(const char s[]);
 void backspace(char s[]);
 void append(char s[], char n);
 int strcmp(const char s1[], const char s2[]);
+int strncmp(const char s1[], const char s2[], size_t n);
 void hex_to_ascii(int n, char str[]);
 char *strcpy(const char *src, char *dest);
 
@@ -26,3 +27,10 @@ char *strtok(char *str, const char *delim);
 char *strcat(char *dest, const char *src);
 int isdigit(int c);
 int atoi(const char *str);
+
+#include "libc/types.h"
+#include "mem.h"
+#include "string.h"
+#include <stdarg.h>
+
+int sscanf(const char *buffer, const char *fmt, ...);
