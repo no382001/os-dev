@@ -19,7 +19,7 @@ SECTIONS
 
     . = 0x90000;
     . = ALIGN(16); 
-    _stack_bottom = .;      /* Stack starts here */
-    . = . + 0x10000;        /* Reserve 64KB for the stack */
+    _stack_bottom = .;
+    . = . + 0x10000;
     _stack_top = .;  
 }

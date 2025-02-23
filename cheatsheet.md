@@ -1,5 +1,6 @@
 `readelf -a elf`<br>
-`hexdump -C <obj>`
+`hexdump -C <obj>`<br>
+`objdump -h <elf>`
 ## navigation
 `b _start`<br>
 `b fat16.c:23`<br>

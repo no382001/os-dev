@@ -1,69 +1,55 @@
-;boot sector that boots a C kernel in 32bit protected
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; bootloader start
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 org 0x7c00
 
-; kernel_load does this manually
-KERNEL_OFFSET equ 0x10000
+%include "boot/1_real_mode.asm" ; start herr
+%include "boot/2_protected_mode.asm"
 
-mov [BOOT_DRIVE],dl ;stores dl in boot drive
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; gdt
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+gdt_start:
 
-mov bp,0x9000 ;setup stack
-mov sp,bp
+gdt_null:			;mandatory null descriptor
+	dd 0x0
+	dd 0x0
 
-mov bx,MSG_REAL_MODE
-call print_string
+gdt_code:			;code segment descriptor
+					;base=0x0, limit 0xfffff
+					;1st flag: (present)1 (priviledge)00 (descriptor type)1 -> 1001b
+					;type flags: (granularity)1 (32-bit default)1 (64-bit seg)0 (AVL)0 -> 1100b
+	dw 0xffff		;limit (0-15)b
+	dw 0x0			;base (0-15)b
+	db 0x0			;base (16-23)b
+	db 10011010b 	;1st flags, type flags
+	db 11001111b 	;2nd flags, limit (16-19)b
+	db 0x0			;base (24-31)b
 
-call load_kernel
+gdt_data:
+					;same as code seg except type
+					; type f: (code)0 (expand down)0 (writable)1 (accessed)0 -> 0010b
+	dw 0xffff 		;limit (0-15)b
+	dw 0x0 			;base (0-15)b
+	db 0x0 			;base (16-23)b
+	db 10010010b 	;1st flags, type flags
+	db 11001111b 	;2nd flags, limit (16-19)b
+	db 0x0			;base (24-31)b
 
-call switch_to_pm
+gdt_end:			;so assembler can calculate the size of the GDT for the GDT descpritor
 
-jmp $
+gdt_descriptor:
+	dw gdt_end - gdt_start - 1
+	dd gdt_start
 
-%include "boot/print_string.asm"
-%include "boot/disk_load.asm"
-%include "boot/pm/gdt.asm"
-%include "boot/pm/print_string_pm.asm"
-%include "boot/pm/switch_to_pm.asm"
+;handy constants
+CODE_SEG equ gdt_code - gdt_start
+DATA_SEG equ gdt_data - gdt_start
 
-BITS 16
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; bootloader end
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-load_kernel:
-	mov bx,MSG_LOAD_KERNEL
-	call print_string
-
-	mov ax, 0x1000      ; set segment = 0x1000 (0x10000 / 16)
-	mov es, ax          ; ES now points to 0x10000
-	mov bx, 0x0000      ; offset in segment
-	mov dh, 80
-	mov dl,[BOOT_DRIVE]
-	
-	call disk_load
-
-	ret
-
-BITS 32
-
-BEGIN_PM:
-	mov ebx,MSG_PROT_MODE ;32bit string to announce we are in protected mode
-	call print_string_pm
-
-	call KERNEL_OFFSET
-
-	jmp $ ;hang
-
-
-;global variables
-
-BOOT_DRIVE		db 0
-MSG_BOOT_DRIVE  db "Boot drive detected", 0
-MSG_REAL_MODE	db "1. Started in 16-bit Real mode", 0
-MSG_LOAD_KERNEL	db "2. Loading kernel into memory", 0
-MSG_PROT_MODE	db "3. Landed in 32-bit Protected mode!", 0
-MSG_KERNEL_LOAD_FAIL	db "!. Failed to load kernel, check CRC!", 0
-
-;bootsector padding
 times 510-($-$$) db 0
 dw 0xaa55
-
-; im not sure why we need this?
-;fill to 4096 0x1000 where the kernel begins
-;times 4096-($-$$) db 0

@@ -1,11 +1,16 @@
 ;ensures that we always jump to main instead of serially executing the first function that kernel.c contains
 bits 32
+
+%define STACK_SIZE 0x10000
+%define STACK_TOP (0x90000 + STACK_SIZE)
+
 _start:
-    mov esp, 0x90000
+    mov esp, STACK_TOP
     mov ebp, esp
 
+    ; fill the stack w/ magic
     mov edi, esp
-    mov ecx, 0x8000     ; 16KB stack (adjust based on your stack size)
+    mov ecx, STACK_SIZE
     mov eax, 0xDEADBEEF
     rep stosd
 
