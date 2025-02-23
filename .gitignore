@@ -4,3 +4,4 @@ os-image
 bits.h
 kernel.elf
 _build/*
+disk/fat16.img

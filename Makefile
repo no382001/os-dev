@@ -12,7 +12,7 @@ CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultli
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps)
 
-$(BUILD_DIR)/os-image.bin: format bits $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin crc
+$(BUILD_DIR)/os-image.bin: format bits $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin crc disk/fat16.img
 	cat $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/os-image.bin
 
 $(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/boot/kernel_entry.o ${OBJ}
@@ -28,15 +28,18 @@ $(BUILD_DIR)/%.bin: %.asm
 	nasm $< -f bin -o $@
 
 run: $(BUILD_DIR)/os-image.bin
-	qemu-system-i386 -serial stdio -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=fat16.img,format=raw
+	qemu-system-i386 -serial stdio -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=disk/fat16.img,format=raw
 
 #################
+disk/fat16.img:
+	cd disk && ./make_disk.sh
+
 crc:
 	crc32 $(BUILD_DIR)/kernel.bin | cut -d ' ' -f1 > $(BUILD_DIR)/kernel_crc.txt
 	echo "CRC32 of kernel: $$(cat $(BUILD_DIR)/kernel_crc.txt)"
 
 clean:
-	rm -rf $(BUILD_DIR) bits.h
+	rm -rf $(BUILD_DIR) bits.h disk/fat16.img
 
 format:
 	find . -name '*.h' -o -name '*.c' | xargs clang-format -i
@@ -50,7 +53,7 @@ kernel.elf: $(BUILD_DIR)/boot/kernel_entry.o ${OBJ}
 	${LD} -o $@ -T kernel.ld $^
 
 debug: kernel.elf
-	qemu-system-i386 -s -S -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=fat16.img,format=raw
+	qemu-system-i386 -s -S -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=disk/fat16.img,format=raw
 
 attach:
 	${GDB} -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"

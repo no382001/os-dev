@@ -23,3 +23,7 @@ notes:
     [#0] 0x13ab7 → memset(dest=0x186d0 <backbuffer+352> "", val=0x1, len=0x9600)
     [#1] 0x101ca → kernel_main()
     - workaround is to expose the stack variable to a global ptr
+
+forth:
+  strings
+  fileio
