@@ -66,7 +66,6 @@ void serial_put_hex(uint32_t num) {
 }
 
 void serial_printf(char *file, int line, const char *fmt, ...) {
-  serial_puts(" ");
   if (file) {
     serial_puts(file);
     serial_puts(":");
@@ -77,6 +76,7 @@ void serial_printf(char *file, int line, const char *fmt, ...) {
     int_to_ascii(line, c);
     serial_puts(c);
   }
+  serial_puts(" ");
 
   va_list args;
   va_start(args, fmt);

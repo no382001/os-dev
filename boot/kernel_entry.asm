@@ -1,8 +1,8 @@
 ;ensures that we always jump to main instead of serially executing the first function that kernel.c contains
 bits 32
 
-%define STACK_SIZE 0x10000
-%define STACK_TOP (0x90000 + STACK_SIZE)
+%define STACK_SIZE 0x40000 ; 256kb
+%define STACK_TOP (0x60000 + STACK_SIZE)
 
 _start:
     mov esp, STACK_TOP
