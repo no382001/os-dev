@@ -27,3 +27,7 @@ notes:
 forth:
   strings
   fileio
+
+  stack wasnt mapped
+
+- aligned labels

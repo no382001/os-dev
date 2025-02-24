@@ -13,7 +13,7 @@ void init_heap();
 void print_heap();
 
 void *memcpy(void *dest, const void *src, size_t num_bytes);
-void memset(uint8_t *dest, uint8_t val, uint32_t len);
+void memset(void *dest, int val, uint32_t len);
 
 void *malloc(size_t size);
 void free(void *ptr);

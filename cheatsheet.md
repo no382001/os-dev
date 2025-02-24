@@ -23,4 +23,5 @@
 `x/14gx $rsp` print top 14 of stask<br>
 `p/x obj` examine current state of object
 ## other
-`nm -S _build/drivers/screen.o | grep backbuffer`
+`nm -S _build/drivers/screen.o | grep backbuffer`<br>
+`dump memory dump.bin 0xADDRESS_START 0xADDRESS_END`

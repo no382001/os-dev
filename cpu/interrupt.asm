@@ -72,7 +72,7 @@ isr_common_stub:
 
     popa
     add esp, 0x8 ; rebalance stack(pop err code and exception number)
-
+    ; i shouldnt need cli/sti here, its redundant, i read somewhere...
     iret
 
 %macro IRQ 2
@@ -112,9 +112,7 @@ irq_common_stub:
     mov fs, ax
     mov gs, ax
 
-    push esp
     call irq_handler
-    pop esp
 
     pop ebx ; restore original data segment
     mov ds, bx

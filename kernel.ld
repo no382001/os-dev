@@ -1,24 +1,33 @@
 OUTPUT_FORMAT("elf32-i386")
 ENTRY(kernel_main)
+
 SECTIONS
 {
+  /* Kernel starts at 0x10000 */
   . = 0x10000;
-  _kernel_start = .;
-  .text : {
+  
+  /* Align .text section to 4KB */
+  . = ALIGN(0x1000);
+  .text : ALIGN(0x1000) {
       *(.text)
   }
-  .rodata : {
+
+  /* Align .rodata section to 4KB */
+  . = ALIGN(0x1000);
+  .rodata : ALIGN(0x1000) {
       *(.rodata)
   }
-  .data : {
+
+  /* Align .data section to 4KB */
+  . = ALIGN(0x1000);
+  .data : ALIGN(0x1000) {
       *(.data)
   }
-  . = ALIGN(16);
-  .bss : {
+
+  /* Align .bss section to 4KB */
+  . = ALIGN(0x1000);
+  .bss : ALIGN(0x1000) {
       *(.bss)
+      *(COMMON)  /* Ensure uninitialized globals go here */
   }
-  _kernel_end = .;
-  
-  _stack_bottom = 0x60000;
-  _stack_top = 0xA0000;
 }

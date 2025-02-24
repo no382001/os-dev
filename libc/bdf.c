@@ -7,7 +7,7 @@ int load_bdf(fat_bpb_t *bpb, fs_node_t *bdf) {
     return -1;
   }
 
-  uint8_t *buffer = malloc(bdf->size);
+  uint8_t *buffer = (uint8_t *)kmalloc(bdf->size);
   if (!buffer)
     return -1;
 
@@ -54,7 +54,7 @@ int load_bdf(fat_bpb_t *bpb, fs_node_t *bdf) {
     line = next_line;
   }
 
-  free(buffer);
+  //  free(buffer);
   return 0;
 }
 

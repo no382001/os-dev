@@ -94,16 +94,12 @@ int core_tests(void) {
 
   assertm(is_paging_enabled(), "paging is not enabled!");
 
-  assert(heap_block_count() == 1);
-
-  char *s = (char *)malloc(12);
+  char *s = (char *)kmalloc(12);
   assertm(s, "malloc returned nullptr!");
   memcpy(s, "hello heap!", 12);
   assertm(!strcmp(s, "hello heap!"), "heap string doesnt match!");
 
-  free(s);
-
-  assert(heap_block_count() == 1);
+  //  free(s);
 
   return failed;
 }

@@ -18,32 +18,25 @@ void user_input(char *input) {
   }
 }
 
-extern uint32_t _stack_top;
-extern uint32_t _stack_bottom;
-
-uint32_t get_stack_usage() {
-  uint32_t esp;
-  asm volatile("mov %%esp, %0" : "=r"(esp));
-
-  if (esp < (uint32_t)&_stack_bottom || esp > (uint32_t)&_stack_top) {
-    return 0;
-  }
-
-  return (uint32_t)&_stack_top - esp;
-}
-
 extern uint8_t *vga_bb;
 void kernel_main(void) {
   kernel_clear_screen();
 
   isr_install();
   irq_install();
+  serial_debug("start!");
+  // kernel_printf("%db\n", get_stack_usage());
+  initialise_paging();
+  serial_debug("end!");
+
+  /*
   init_heap();
 
   serial_init();
   serial_debug("kernel start!");
 
   selftest();
+
   uint8_t backbuffer[VGA_BUFFER_SIZE * 4] = {0};
   vga_bb = (uint8_t *)&backbuffer;
 
@@ -51,6 +44,5 @@ void kernel_main(void) {
 
   set_vga_mode12();
   vga12h_gradient_demo();
-  /*
    */
 }

@@ -26,7 +26,7 @@ void *memcpy(void *dest, const void *src, size_t num_bytes) {
   return dest;
 }
 
-void memset(uint8_t *dest, uint8_t val, uint32_t len) {
+void memset(void *dest, int val, uint32_t len) {
   uint8_t *temp = (uint8_t *)dest;
   for (; len != 0; len--) {
     *temp++ = val;
@@ -34,6 +34,7 @@ void memset(uint8_t *dest, uint8_t val, uint32_t len) {
 }
 
 #define HEAP_START 0xC0100000
+/*
 static mem_block_t *heap_start = NULL;
 
 void init_heap() {
@@ -43,6 +44,7 @@ void init_heap() {
   heap_start->used = false;
   heap_start->next = NULL;
 }
+
 
 mem_block_t *find_free_block(uint32_t size) {
   mem_block_t *current = heap_start;
@@ -140,3 +142,4 @@ int heap_block_count() {
   }
   return i;
 }
+  */

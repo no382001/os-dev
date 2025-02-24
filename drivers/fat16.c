@@ -82,7 +82,7 @@ fs_node_t *fs_build_tree(fat_bpb_t *bpb, uint16_t start_cluster,
     if (entries[i].attributes == 0x0F)
       continue;
 
-    fs_node_t *node = malloc(sizeof(fs_node_t));
+    fs_node_t *node = (fs_node_t *)kmalloc(sizeof(fs_node_t));
     memset((uint8_t *)node, 0, sizeof(fs_node_t));
 
     char full_name[13] = {0};
