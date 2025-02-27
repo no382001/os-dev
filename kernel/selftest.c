@@ -1,5 +1,5 @@
 #include "bits.h"
-
+/**/
 // have a `failed` variable ready
 #define assertm(c, ...)                                                        \
   if (!(c)) {                                                                  \
@@ -7,8 +7,8 @@
     failed++;                                                                  \
   }
 
-#define assert(c)                                                              \
-  { assertm(c, " assert failed!"); }
+#define assert_eq(c)                                                           \
+  { assertm(c, " assert_eq failed!"); }
 
 #include "apps/forth.h"
 
@@ -17,7 +17,7 @@
     fvm_repl(&vm, expr);                                                       \
     fvm_test_buffer[strlen(fvm_test_buffer) - 1] = 0;                          \
     bool b = !strcmp(res, fvm_test_buffer);                                    \
-    assert(!strcmp(res, fvm_test_buffer));                                     \
+    assert_eq(!strcmp(res, fvm_test_buffer));                                  \
     if (!b) {                                                                  \
       serial_debug(" expected `%s` got `%s`", res, fvm_test_buffer);           \
     }                                                                          \

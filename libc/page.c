@@ -1,6 +1,7 @@
 #include "libc/page.h"
 #include "drivers/serial.h"
 // https://web.archive.org/web/20160326061042/http://jamesmolloy.co.uk/tutorial_html/6.-Paging.html
+
 #undef serial_debug
 #define serial_debug(...)
 
@@ -17,15 +18,12 @@ unsigned int is_paging_enabled() {
   return (cr0 & 0x80000000);
 }
 
-// A bitset of frames - used or free.
 uint32_t *frames = 0;
 uint32_t nframes = 0;
 
-// Macros used in the bitset algorithms.
 #define INDEX_FROM_BIT(a) (a / (8 * 4))
 #define OFFSET_FROM_BIT(a) (a % (8 * 4))
 
-// Static function to set a bit in the frames bitset
 static void set_frame(uint32_t frame_addr) {
   uint32_t frame = frame_addr / 0x1000;
   uint32_t idx = INDEX_FROM_BIT(frame);
@@ -33,7 +31,6 @@ static void set_frame(uint32_t frame_addr) {
   frames[idx] |= (0x1 << off);
 }
 
-// Static function to clear a bit in the frames bitset
 static void clear_frame(uint32_t frame_addr) {
   uint32_t frame = frame_addr / 0x1000;
   uint32_t idx = INDEX_FROM_BIT(frame);
@@ -41,13 +38,12 @@ static void clear_frame(uint32_t frame_addr) {
   frames[idx] &= ~(0x1 << off);
 }
 
-// Static function to find the first free frame.
-static uint32_t first_frame() {
+static uint32_t first_frame() { // free frame
   uint32_t i, j;
   for (i = 0; i < INDEX_FROM_BIT(nframes); i++) {
     if (frames[i] != 0xFFFFFFFF) // nothing free, exit early.
     {
-      // at least one bit is free here.
+      // at least one bit is free
       for (j = 0; j < 32; j++) {
         uint32_t toTest = 0x1 << j;
         if (!(frames[i] & toTest)) {
@@ -59,7 +55,6 @@ static uint32_t first_frame() {
   return -1;
 }
 
-// Function to allocate a frame.
 void alloc_frame(page_t *page, int is_kernel, int is_writeable) {
   (void)is_kernel;
   (void)is_writeable;
@@ -86,14 +81,13 @@ void alloc_frame(page_t *page, int is_kernel, int is_writeable) {
   }
 }
 
-// Function to deallocate a frame.
 void free_frame(page_t *page) {
   uint32_t frame;
   if (!(frame = page->frame)) {
-    return; // The given page didn't actually have an allocated frame!
+    return;
   } else {
-    clear_frame(frame); // Frame is now free again.
-    page->frame = 0x0;  // Page now doesn't have a frame.
+    clear_frame(frame);
+    page->frame = 0x0;
   }
 }
 
@@ -107,26 +101,15 @@ void initialise_paging() {
 
   nframes = mem_end_page / 0x1000;
   frames = (uint32_t *)kmalloc(INDEX_FROM_BIT(nframes));
-  if (!frames) {
-    kernel_panic("kmalloc failed!");
-  }
   memset(frames, 0, INDEX_FROM_BIT(nframes));
 
-  // Let's make a page directory.
   kernel_directory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
-  if (!kernel_directory) {
-    kernel_panic("kmalloc failed!");
-  }
   memset(kernel_directory, 0, sizeof(page_directory_t));
   current_directory = kernel_directory;
 
-  // We need to identity map (phys addr = virt addr) from
-  // 0x0 to the end of used memory, so we can access this
-  // transparently, as if paging wasn't enabled.
-  // NOTE that we use a while loop here deliberately.
-  // inside the loop body we actually change placement_address
-  // by calling kmalloc(). A while loop causes this to be
-  // computed on-the-fly rather than once at the start.
+  // ALL OF THESE ARE IDENTITY MAPS!
+
+  // pre-install pages for heap
   uint32_t i = 0;
   for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += 0x1000)
     get_page(i, 1, kernel_directory);
@@ -142,11 +125,12 @@ void initialise_paging() {
     i += 0x1000;
   }
 
+  // alloc pages for heap
   for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += 0x1000)
     alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
 
   // https://forum.osdev.org/viewtopic.php?t=57400
-  i = 0xC0040000; // bios uses this? otherwise i crash
+  i = 0xC0040000; // qemu bios uses these addresses? otherwise i page fault
   while (i < 0xC0050000) {
     page_t *p = get_page(i, 1, kernel_directory);
     alloc_frame(p, 0, 0);
@@ -159,6 +143,7 @@ void initialise_paging() {
   kheap = create_heap(KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE,
                       KHEAP_INITIAL_SIZE, 0, 0);
 }
+
 void switch_page_directory(page_directory_t *dir) {
   current_directory = dir;
   asm volatile("mov %0, %%cr3" ::"r"(&dir->tablesPhysical));
@@ -169,30 +154,24 @@ void switch_page_directory(page_directory_t *dir) {
 }
 
 page_t *get_page(uint32_t address, int make, page_directory_t *dir) {
-  // serial_debug("getting page at %x", address);
-  //  Turn the address into an index.
+
   address /= 0x1000;
-  // Find the page table containing this address.
   uint32_t table_idx = address / 1024;
-  if (dir->tables[table_idx]) // If this table is already assigned
-  {
-    // serial_debug("table found! %d", table_idx);
+  if (dir->tables[table_idx]) {
     return &dir->tables[table_idx]->pages[address % 1024];
   } else if (make) {
     uint32_t tmp;
-    serial_debug("making a table...");
     dir->tables[table_idx] =
         (page_table_t *)kmalloc_ap(sizeof(page_table_t), &tmp);
     memset(dir->tables[table_idx], 0, sizeof(page_table_t));
     dir->tablesPhysical[table_idx] = tmp | 0x3; // PRESENT, RW
     return &dir->tables[table_idx]->pages[address % 1024];
   } else {
-    // serial_debug("table not found!");
     return 0;
   }
 }
 
-void print_mapped_pages(page_directory_t *dir) {
+static void print_mapped_pages(page_directory_t *dir) {
   uint32_t start = 0;
   uint32_t end = 0;
   int in_range = 0;

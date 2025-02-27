@@ -1,9 +1,4 @@
-// ordered_array.c -- Implementation for creating, inserting and deleting
-//                    from ordered arrays.
-//                    Written for JamesM's kernel development tutorials.
-
 #include "libc/ordered_array.h"
-
 #include "drivers/serial.h"
 #include "libc/utils.h"
 
@@ -33,13 +28,10 @@ ordered_array_t place_ordered_array(void *addr, uint32_t max_size,
   return to_ret;
 }
 
-void destroy_ordered_array(ordered_array_t *array) {
-  (void)array;
-  //    kfree(array->array);
-}
+void destroy_ordered_array(ordered_array_t *array) { kfree(array->array); }
 
 void insert_ordered_array(type_t item, ordered_array_t *array) {
-  ASSERT(array->less_than);
+  assert(array->less_than);
   uint32_t iterator = 0;
   while (iterator < array->size &&
          array->less_than(array->array[iterator], item))
@@ -60,7 +52,7 @@ void insert_ordered_array(type_t item, ordered_array_t *array) {
 }
 
 type_t lookup_ordered_array(uint32_t i, ordered_array_t *array) {
-  ASSERT(i < array->size);
+  assert(i < array->size);
   return array->array[i];
 }
 

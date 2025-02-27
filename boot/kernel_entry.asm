@@ -5,6 +5,7 @@ bits 32
 %define STACK_SIZE 0x40000 ; 256kb
 %define STACK_TOP (STACK_BOTTOM + STACK_SIZE)
 
+
 _start:
     mov esp, STACK_TOP
     mov ebp, esp

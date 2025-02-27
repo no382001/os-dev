@@ -2,7 +2,7 @@
 #include "bits.h"
 
 void sleep(uint32_t milliseconds);
-#define ASSERT(c)                                                              \
+#define assert(c)                                                              \
   do {                                                                         \
     if (c) {                                                                   \
     } else {                                                                   \
