@@ -1,5 +1,5 @@
-C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c apps/*.c)
-HEADERS = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h apps/*.h)
+C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c)
+HEADERS = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h)
 
 BUILD_DIR = _build
 OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt.o
@@ -10,7 +10,7 @@ LD = ld -m elf_i386
 CFLAGSNO = -fno-pie -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Wno-error=comment
 CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
 
-$(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps)
+$(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc)
 
 $(BUILD_DIR)/os-image.bin: format bits $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin disk/fat16.img
 	cat $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/os-image.bin

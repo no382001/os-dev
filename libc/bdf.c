@@ -54,7 +54,7 @@ int load_bdf(fat_bpb_t *bpb, fs_node_t *bdf) {
     line = next_line;
   }
 
-  //  free(buffer);
+  kfree(buffer);
   return 0;
 }
 
