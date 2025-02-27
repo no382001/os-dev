@@ -65,3 +65,6 @@ uint32_t
 kmalloc_ap(uint32_t sz,
            uint32_t *phys);    // page aligned and returns a physical address.
 uint32_t kmalloc(uint32_t sz); // vanilla (normal).
+
+void alloc_frame(page_t *page, int is_kernel, int is_writeable);
+void free_frame(page_t *page);

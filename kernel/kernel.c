@@ -4,19 +4,7 @@
 void selftest(void);
 void fvm_test(void);
 
-forth_vm_t *fvm = 0;
-
-void user_input(char *input) {
-  if (!fvm) {
-    return;
-  }
-  fvm_repl(fvm, input);
-  if (fvm->err) {
-    fvm->err = 0;
-  } else {
-    kernel_printf(" ok\n");
-  }
-}
+void user_input(char *input) { (void)input; }
 
 extern uint8_t *vga_bb;
 void kernel_main(void) {
@@ -25,10 +13,24 @@ void kernel_main(void) {
   isr_install();
   irq_install();
   serial_debug("start!");
-  // kernel_printf("%db\n", get_stack_usage());
-  initialise_paging();
-  serial_debug("end!");
+  kernel_printf("start!!\n");
 
+  uint32_t a = kmalloc(8);
+
+  initialise_paging();
+
+  uint32_t b = kmalloc(8);
+  uint32_t c = kmalloc(8);
+
+  serial_printff("a: %x", a);
+  serial_printff("b: %x", b);
+  serial_printff("c: %x", c);
+
+  kfree((void *)c);
+  kfree((void *)b);
+  uint32_t d = kmalloc(12);
+  serial_printff("d: %x", d);
+  serial_debug("end!");
   /*
   init_heap();
 

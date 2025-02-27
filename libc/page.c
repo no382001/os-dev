@@ -1,8 +1,8 @@
-#include "page.h"
+#include "libc/page.h"
 #include "drivers/serial.h"
 // https://web.archive.org/web/20160326061042/http://jamesmolloy.co.uk/tutorial_html/6.-Paging.html
-//  #undef serial_debug
-//  #define serial_debug(...)
+#undef serial_debug
+#define serial_debug(...)
 
 #define kernel_panic(...)                                                      \
   do {                                                                         \
@@ -16,27 +16,6 @@ unsigned int is_paging_enabled() {
   asm volatile("mov %%cr0, %0" : "=r"(cr0));
   return (cr0 & 0x80000000);
 }
-
-uint32_t placement_address = (uint32_t)0x100000;
-
-static uint32_t __kmalloc(uint32_t sz, int align, uint32_t *phys) {
-  if (align == 1 && (placement_address & 0xFFFFF000)) {
-    placement_address &= 0xFFFFF000; // page align
-    placement_address += 0x1000;
-  }
-  if (phys) {
-    *phys = placement_address;
-  }
-  uint32_t tmp = placement_address;
-  placement_address += sz;
-  // serial_debug("__kmalloc returns %x of size %d and plac_addr is %x now",
-  // tmp, sz, placement_address);
-  return tmp;
-}
-
-uint32_t kmalloc(uint32_t sz) { return __kmalloc(sz, 0, 0); }
-uint32_t kmalloc_a(uint32_t sz) { return __kmalloc(sz, 1, 0); }
-uint32_t kmalloc_ap(uint32_t sz, uint32_t *p) { return __kmalloc(sz, 1, p); }
 
 // A bitset of frames - used or free.
 uint32_t *frames = 0;
@@ -61,15 +40,6 @@ static void clear_frame(uint32_t frame_addr) {
   uint32_t off = OFFSET_FROM_BIT(frame);
   frames[idx] &= ~(0x1 << off);
 }
-/*
-// Static function to test if a bit is set.
-static uint32_t test_frame(uint32_t frame_addr) {
-  uint32_t frame = frame_addr / 0x1000;
-  uint32_t idx = INDEX_FROM_BIT(frame);
-  uint32_t off = OFFSET_FROM_BIT(frame);
-  return (frames[idx] & (0x1 << off));
-}
-*/
 
 // Static function to find the first free frame.
 static uint32_t first_frame() {
@@ -104,9 +74,10 @@ void alloc_frame(page_t *page, int is_kernel, int is_writeable) {
   } else {
     uint32_t idx = first_frame();
     if (idx == (uint32_t)-1) {
-      kernel_panic("no free frames!");
+      kernel_panic("no free frames! out of %d", nframes);
       return;
     }
+
     set_frame(idx * 0x1000);
     page->present = 1;
     page->rw = 1;
@@ -128,13 +99,10 @@ void free_frame(page_t *page) {
 
 page_directory_t *kernel_directory = 0;
 page_directory_t *current_directory = 0;
-
-#define STACK_BOTTOM 0x60000 // 384KB
-#define STACK_TOP 0xA0000    // 640KB
-#define STACK_SIZE ((STACK_TOP - STACK_BOTTOM) / 0x1000)
+extern uint32_t placement_address;
+extern heap_t *kheap;
 
 void initialise_paging() {
-  // 1MB
   uint32_t mem_end_page = 0x1000000;
 
   nframes = mem_end_page / 0x1000;
@@ -160,36 +128,37 @@ void initialise_paging() {
   // by calling kmalloc(). A while loop causes this to be
   // computed on-the-fly rather than once at the start.
   uint32_t i = 0;
-  while (i < placement_address) {
-    // Kernel code is readable but not writeable from userspace.
-    alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
+  for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += 0x1000)
+    get_page(i, 1, kernel_directory);
+
+  i = 0;
+  // this is kinda weird. the first address it wants to give is 0x157000 but
+  // since the prev 0x156000 + 0x1000 only reaches to 0x156fff, 0x157000 will be
+  // unmapped and we page fault on heap creation so just create an additional
+  // page as a workaround... i guess
+  while (i < placement_address + 0x1000) {
+    page_t *p = get_page(i, 1, kernel_directory);
+    alloc_frame(p, 0, 0);
     i += 0x1000;
   }
-  /*
-  for (uint32_t i = 0; i < 1024; i++) {
-    if (kernel_directory->tables[i]) {
-      uint32_t page_table_base = (i * 1024 * 0x1000);
 
-      for (uint32_t j = 0; j < 1024; j++) {
-        page_t *page = &kernel_directory->tables[i]->pages[j];
+  for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += 0x1000)
+    alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
 
-        if (page->present) {
-          uint32_t virt_addr = page_table_base + (j * 0x1000);
-          uint32_t phys_addr = page->frame * 0x1000;
-          serial_debug("Virtual: %x -> Physical: %x", virt_addr, phys_addr);
-        }
-      }
-    }
+  // https://forum.osdev.org/viewtopic.php?t=57400
+  i = 0xC0040000; // bios uses this? otherwise i crash
+  while (i < 0xC0050000) {
+    page_t *p = get_page(i, 1, kernel_directory);
+    alloc_frame(p, 0, 0);
+    i += 0x1000;
   }
-  */
 
-  // Before we enable paging, we must register our page fault handler.
   register_interrupt_handler(14, page_fault);
-
-  // Now, enable paging!
   switch_page_directory(kernel_directory);
-}
 
+  kheap = create_heap(KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE,
+                      KHEAP_INITIAL_SIZE, 0, 0);
+}
 void switch_page_directory(page_directory_t *dir) {
   current_directory = dir;
   asm volatile("mov %0, %%cr3" ::"r"(&dir->tablesPhysical));
@@ -211,6 +180,7 @@ page_t *get_page(uint32_t address, int make, page_directory_t *dir) {
     return &dir->tables[table_idx]->pages[address % 1024];
   } else if (make) {
     uint32_t tmp;
+    serial_debug("making a table...");
     dir->tables[table_idx] =
         (page_table_t *)kmalloc_ap(sizeof(page_table_t), &tmp);
     memset(dir->tables[table_idx], 0, sizeof(page_table_t));
@@ -219,6 +189,42 @@ page_t *get_page(uint32_t address, int make, page_directory_t *dir) {
   } else {
     // serial_debug("table not found!");
     return 0;
+  }
+}
+
+void print_mapped_pages(page_directory_t *dir) {
+  uint32_t start = 0;
+  uint32_t end = 0;
+  int in_range = 0;
+
+  serial_printff("mapped addresses:");
+  for (uint32_t i = 0; i < 1024; i++) {
+    if (!dir->tables[i]) {
+      continue;
+    }
+
+    uint32_t page_table_base = i * 1024 * 0x1000;
+
+    for (uint32_t j = 0; j < 1024; j++) {
+      page_t *page = &dir->tables[i]->pages[j];
+
+      if (page->present) {
+        uint32_t addr = page_table_base + (j * 0x1000);
+
+        if (!in_range) {
+          start = addr;
+          in_range = 1;
+        }
+        end = addr;
+      } else if (in_range) {
+        serial_printff("   %x - %x", start, end + 0x1000 - 1);
+        in_range = 0;
+      }
+    }
+  }
+
+  if (in_range) {
+    serial_printff("   %x - %x", start, end + 0x1000 - 1);
   }
 }
 
@@ -237,6 +243,8 @@ void page_fault(registers_t *regs) {
 
   if (present) {
     strcat(state, "present ");
+  } else {
+    strcat(state, "not-present ");
   }
   if (rw) {
     strcat(state, "write ");
@@ -257,6 +265,7 @@ void page_fault(registers_t *regs) {
   }
 
   serial_printff("page fault! ( %s) at %x", state, faulting_address);
+  print_mapped_pages(kernel_directory);
   while (1) {
   }
 }

@@ -28,7 +28,7 @@ $(BUILD_DIR)/%.bin: %.asm
 	nasm $< -f bin -o $@
 
 run: $(BUILD_DIR)/os-image.bin
-	qemu-system-i386 -m 16 -serial stdio -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=disk/fat16.img,format=raw
+	qemu-system-i386 -m 4 -serial stdio -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=disk/fat16.img,format=raw
 
 #################
 disk/fat16.img:
@@ -49,7 +49,7 @@ kernel.elf: $(BUILD_DIR)/boot/kernel_entry.o ${OBJ}
 	${LD} -o $@ -T kernel.ld $^
 
 debug: kernel.elf
-	qemu-system-i386 -m 16 -s -S -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=disk/fat16.img,format=raw
+	qemu-system-i386 -m 4 -s -S -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=disk/fat16.img,format=raw
 
 attach:
 	${GDB} -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"

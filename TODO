@@ -1,9 +1,6 @@
 
 - it can bootstrap
 
-- fileio/ open/ write
-  - basic vim
-
 - standardize stdout/in
 
 - fvm shell
@@ -17,6 +14,26 @@
   - -O1 crashes when interacting w/ ata
   - libc opt
 
+
+forth:
+  - comments and docu struct for each registered word
+    - load on initrd from a file 
+  - strings
+  - fileio integration
+
+fileio:
+  - open/ write
+
+fs:
+  long filename
+  ext2 support?
+
+build disk:
+  on generation save the img, remove it from clean and keep backups
+  when trying to generate new one, make a file comparator that shows the differences in file
+
+- basic vim
+
 notes:
 - make sure that the function really takes va_list and not just ... bc its UB
 - static memory fails sometimes, misaligned and corrupted .bss?
@@ -24,10 +41,6 @@ notes:
     [#1] 0x101ca → kernel_main()
     - workaround is to expose the stack variable to a global ptr
 
-forth:
-  strings
-  fileio
-
-  stack wasnt mapped
-
 - aligned labels
+mmaps and the  fkcuing bios tyring to use some address that is not mapped by me
+
