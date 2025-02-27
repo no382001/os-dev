@@ -96,8 +96,10 @@ page_directory_t *current_directory = 0;
 extern uint32_t placement_address;
 extern heap_t *kheap;
 
+void print_mapped_pages(page_directory_t *dir);
+
 void initialise_paging() {
-  uint32_t mem_end_page = 0x1000000;
+  uint32_t mem_end_page = END_OF_MEMORY;
 
   nframes = mem_end_page / 0x1000;
   frames = (uint32_t *)kmalloc(INDEX_FROM_BIT(nframes));
@@ -142,6 +144,7 @@ void initialise_paging() {
 
   kheap = create_heap(KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE,
                       KHEAP_INITIAL_SIZE, 0, 0);
+  print_mapped_pages(kernel_directory);
 }
 
 void switch_page_directory(page_directory_t *dir) {
@@ -171,7 +174,7 @@ page_t *get_page(uint32_t address, int make, page_directory_t *dir) {
   }
 }
 
-static void print_mapped_pages(page_directory_t *dir) {
+void print_mapped_pages(page_directory_t *dir) {
   uint32_t start = 0;
   uint32_t end = 0;
   int in_range = 0;

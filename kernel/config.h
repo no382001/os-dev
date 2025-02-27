@@ -9,7 +9,7 @@ used in:
         this is the heap before page is set up, consequently this is where the
 page tables are
 */
-#define PLACEMENT_ADDRESS 0x150000
+#define PLACEMENT_ADDRESS 0x100000
 
 /*
     heap things
@@ -24,6 +24,10 @@ page tables are
 #define STACK_BOTTOM 0x60000
 #define STACK_SIZE 0x40000 //; 256kb
 #define STACK_TOP (STACK_BOTTOM + STACK_SIZE)
+
+// the available pagable RAM
+#define END_OF_MEMORY 0x4000000 // 4M
+
 /*
 +----------------------+  0x00000
 | ...                  |
@@ -49,5 +53,5 @@ page tables are
 | ...                  |
 +----------------------+  0xc0100000
 | kernel heap          |
-+----------------------+  0xc0200000 (+KHEAP_INITIAL_SIZE)
++----------------------+  0xc0200000+ (dynamic)
 */

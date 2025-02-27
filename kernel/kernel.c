@@ -4,7 +4,30 @@
 void selftest(void);
 void fvm_test(void);
 
-void user_input(char *input) { (void)input; }
+forth_vm_t *g_fvm = 0;
+
+void user_input(char *input) {
+  if (!g_fvm) {
+    return;
+  }
+  fvm_repl(g_fvm, input);
+  if (g_fvm->err) {
+    g_fvm->err = 0;
+  } else {
+    kernel_printf(" ok\n");
+  }
+}
+
+uint32_t get_stack_usage() {
+  uint32_t esp;
+  asm volatile("mov %%esp, %0" : "=r"(esp));
+
+  if (esp < (uint32_t)STACK_BOTTOM || esp > (uint32_t)STACK_TOP) {
+    return 0;
+  }
+
+  return (uint32_t)STACK_TOP - esp;
+}
 
 extern uint8_t *vga_bb;
 void kernel_main(void) {
@@ -12,25 +35,13 @@ void kernel_main(void) {
 
   isr_install();
   irq_install();
-  serial_debug("start!");
-  kernel_printf("start!!\n");
-
-  uint32_t a = kmalloc(8);
 
   initialise_paging();
+  kernel_printf("%db\n", get_stack_usage());
 
-  uint32_t b = kmalloc(8);
-  uint32_t c = kmalloc(8);
+  g_fvm = (forth_vm_t *)kmalloc(sizeof(forth_vm_t));
+  fvm_init(g_fvm);
 
-  serial_printff("a: %x", a);
-  serial_printff("b: %x", b);
-  serial_printff("c: %x", c);
-
-  kfree((void *)c);
-  kfree((void *)b);
-  uint32_t d = kmalloc(12);
-  serial_printff("d: %x", d);
-  serial_debug("end!");
   /*
   init_heap();
 

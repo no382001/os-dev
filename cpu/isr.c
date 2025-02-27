@@ -133,14 +133,14 @@ void register_interrupt_handler(uint8_t n, isr_t handler) {
 
 #define PIC_EOI 0x20 /* end-of-interrupt command code */
 
-void irq_handler(registers_t *r) {
-  if (r->int_no >= 40) // why 40?
+void irq_handler(registers_t r) {
+  if (r.int_no >= 40) // why 40?
     port_byte_out(PIC2, PIC_EOI);
   port_byte_out(PIC1, PIC_EOI);
 
-  if (interrupt_handlers[r->int_no] != 0) {
-    isr_t handler = interrupt_handlers[r->int_no];
-    handler(r);
+  if (interrupt_handlers[r.int_no] != 0) {
+    isr_t handler = interrupt_handlers[r.int_no];
+    handler(&r);
   }
 }
 
@@ -148,5 +148,5 @@ void irq_install() {
   kernel_printf("- installing irq\n");
   asm volatile("sti");
   init_timer(50);
-  //  init_keyboard();
+  init_keyboard();
 }
