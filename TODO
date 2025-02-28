@@ -44,3 +44,12 @@ notes:
 - aligned labels
 mmaps and the  fkcuing bios tyring to use some address that is not mapped by me
 
+
+
+convert to cooperative multitaskin:
+ - detach the timer from the scheduler put it on the separate 0x30 interrupt vecotr
+ - get rid of the bootloader, boot w/ multiboot and `quemu -kernel`
+ - adjust the linker file, put heap on _end
+ - dont forget (*.multiboot) in .text
+ - maybe the supposed quemu bios 0xC08* shit will go away?
+ - maybe time to switch to c++? it'd be worse to debug
