@@ -1,4 +1,5 @@
 #include "timer.h"
+#include "cpu/task.h"
 #include "drivers/low_level.h"
 #include "drivers/screen.h"
 #include "isr.h"
@@ -6,8 +7,8 @@
 uint32_t tick = 0;
 
 static void timer_callback(registers_t *regs) {
-  (void)regs;
   tick++;
+  schedule(regs);
 }
 
 void init_timer(uint32_t freq) {

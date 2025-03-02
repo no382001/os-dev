@@ -109,6 +109,9 @@ isr_t interrupt_handlers[256] = {0};
 void isr_handler(registers_t r) {
   if (!interrupt_handlers[r.int_no]) {
     serial_debug(" unhandled interrupt: %d", r.int_no);
+    if (r.int_no <= 32) {
+      serial_debug(" aka: %s", exception_messages[r.int_no]);
+    }
   } else {
     isr_t handler = interrupt_handlers[r.int_no];
     handler(&r); // if there is a custom one, this makes sense

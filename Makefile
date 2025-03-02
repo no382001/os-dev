@@ -2,7 +2,7 @@ C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c apps/*.c)
 HEADERS = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h apps/*.h)
 
 BUILD_DIR = _build
-OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt.o
+OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt.o $(BUILD_DIR)/cpu/task_switch.o
 
 CC = gcc
 GDB = gdb
@@ -12,11 +12,10 @@ CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultli
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps)
 
-$(BUILD_DIR)/os-image.bin: format bits $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin disk/fat16.img
-	cat $(BUILD_DIR)/boot/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/os-image.bin
+all: format bits $(BUILD_DIR)/kernel.elf disk/fat16.img
 
-$(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/boot/kernel_entry.o ${OBJ}
-	${LD} -o $@ -T kernel.ld $^ --oformat binary
+$(BUILD_DIR)/kernel.elf: $(BUILD_DIR)/boot/entry.o ${OBJ}
+	${LD} -o $@ -T kernel.ld $^
 
 $(BUILD_DIR)/%.o: %.c ${HEADERS}
 	${CC} ${CFLAGS} ${CFLAGSNO} -c $< -o $@
@@ -27,8 +26,8 @@ $(BUILD_DIR)/%.o: %.asm
 $(BUILD_DIR)/%.bin: %.asm
 	nasm $< -f bin -o $@
 
-run: $(BUILD_DIR)/os-image.bin
-	qemu-system-i386 -m 4 -serial stdio -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=disk/fat16.img,format=raw
+run: all
+	qemu-system-i386 -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw
 
 #################
 disk/fat16.img:
@@ -45,14 +44,11 @@ bits:
 	echo "#pragma once" > $(OUTPUT_FILE)
 	find . -type f -name "*.h" 2>/dev/null | sed 's|^./||' | awk '{print "#include \"" $$0 "\""}' >> $(OUTPUT_FILE)
 
-kernel.elf: $(BUILD_DIR)/boot/kernel_entry.o ${OBJ}
-	${LD} -o $@ -T kernel.ld $^
-
-debug: kernel.elf
-	qemu-system-i386 -m 4 -s -S -boot a -fda $(BUILD_DIR)/os-image.bin -drive file=disk/fat16.img,format=raw
+debug: all
+	qemu-system-i386 -m 4 -s -S -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw
 
 attach:
-	${GDB} -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"
+	${GDB} -ex "target remote localhost:1234" -ex "symbol-file $(BUILD_DIR)/kernel.elf"
 
 mountfat:
 	sudo mount fat16.img /mnt/fat16

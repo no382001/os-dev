@@ -41,7 +41,7 @@ void fvm_print_into_buffer(const char *format, ...) {
   strcat(fvm_test_buffer, " "); // delete the last space in the macro idc
   va_end(args);
 }
-/*
+/**/
 int fvm_test() {
   int failed = 0;
 
@@ -89,7 +89,7 @@ int fvm_test() {
   return failed;
 }
 
-*/
+/**/
 int core_tests(void) {
   int failed = 0;
 
@@ -118,5 +118,5 @@ int core_tests(void) {
 
 void selftest(void) {
   run_test(core_tests);
-  // run_test(fvm_test);
+  run_test(fvm_test);
 }

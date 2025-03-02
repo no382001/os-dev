@@ -179,7 +179,7 @@ void print_mapped_pages(page_directory_t *dir) {
   uint32_t end = 0;
   int in_range = 0;
 
-  serial_printff("mapped addresses:");
+  kernel_printf("vmmap:\n");
   for (uint32_t i = 0; i < 1024; i++) {
     if (!dir->tables[i]) {
       continue;
@@ -199,14 +199,14 @@ void print_mapped_pages(page_directory_t *dir) {
         }
         end = addr;
       } else if (in_range) {
-        serial_printff("   %x - %x", start, end + 0x1000 - 1);
+        kernel_printf(" %x - %x\n", start, end + 0x1000 - 1);
         in_range = 0;
       }
     }
   }
 
   if (in_range) {
-    serial_printff("   %x - %x", start, end + 0x1000 - 1);
+    kernel_printf(" %x - %x\n", start, end + 0x1000 - 1);
   }
 }
 
