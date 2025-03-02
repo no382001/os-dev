@@ -127,3 +127,5 @@ void vga12h_gradient_demo() {
     sleep(16);
   }
 }
+
+void vga12h_terminal_demo() {}

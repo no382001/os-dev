@@ -15,7 +15,7 @@ static void serial_irq_handler(registers_t *regs) {
   char c = port_byte_in(SERIAL_COM1);
 
   if (c == '\r' || c == '\n') {
-    user_input(serial_buffer);
+    //    user_input(serial_buffer);
     serial_buffer[0] = '\0';
   } else {
     int len = strlen(serial_buffer);
