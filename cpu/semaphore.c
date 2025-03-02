@@ -5,35 +5,38 @@ void semaphore_init(semaphore_t *sem, int initial_count) {
   atomic_flag_clear(&sem->lock);
 }
 
-void semaphore_wait(semaphore_t *sem) { // this in itself does not guarantee
-                                        // that we dont get interrupted
+void semaphore_wait(semaphore_t *sem) {
   while (1) {
-    while (
-        atomic_flag_test_and_set_explicit(&sem->lock, memory_order_acquire)) {
-      __builtin_ia32_pause();
-    }
+    asm volatile("cli");
 
-    if (sem->count > 0) {
-      sem->count--;
+    if (!atomic_flag_test_and_set_explicit(&sem->lock, memory_order_acquire)) {
+      if (sem->count > 0) {
+        sem->count--;
+        atomic_flag_clear_explicit(&sem->lock, memory_order_release);
+        break;
+      }
+
       atomic_flag_clear_explicit(&sem->lock, memory_order_release);
-      break;
     }
 
-    atomic_flag_clear_explicit(&sem->lock, memory_order_release);
-
+    asm volatile("sti");
     asm volatile("int $0x20");
   }
 }
 
 void semaphore_signal(semaphore_t *sem) {
-  while (atomic_flag_test_and_set_explicit(&sem->lock, memory_order_acquire)) {
-    __builtin_ia32_pause();
+  asm volatile("cli");
+
+  if (!atomic_flag_test_and_set_explicit(&sem->lock, memory_order_acquire)) {
+    asm volatile("sti");
+    asm volatile("int $0x20"); // we dont have it, yield
   }
 
   sem->count++;
 
   atomic_flag_clear_explicit(&sem->lock, memory_order_release);
 
+  asm volatile("sti");
   asm volatile("int $0x20");
 }
 

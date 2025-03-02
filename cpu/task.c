@@ -8,9 +8,11 @@ static task_t tasks[MAX_TASK] = {0};
 
 void switch_stack_and_jump(uint32_t stack, uint32_t task);
 void switch_stack(uint32_t esp, uint32_t ebp);
+#include "cpu/semaphore.h"
+extern semaphore_t task_semaphore;
 
 void schedule(registers_t *regs) {
-  if (active_tasks == 0) {
+  if (active_tasks == 0 || task_semaphore.count == 0) {
     return;
   }
 
