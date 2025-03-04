@@ -13,6 +13,11 @@
 #define KEY_LALT 0x38
 #define KEY_LALT_REL 0xB8
 
+#define KEY_LEFT 0x4B
+#define KEY_RIGHT 0x4D
+#define KEY_UP 0x48
+#define KEY_DOWN 0x50
+
 typedef void (*key_handler_t)(uint8_t scancode, char ascii, int is_pressed);
 
 typedef struct {

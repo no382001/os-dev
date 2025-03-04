@@ -50,3 +50,8 @@ convert to cooperative multitaskin:
  - detach the timer from the scheduler put it on the separate 0x30 interrupt vecotr
  - adjust the linker file, put heap on _end
  - maybe the supposed quemu bios 0xC08* shit will go away?
+
+
+terminal:
+  add rectangles so i can know ehere i am
+  

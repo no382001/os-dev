@@ -229,9 +229,14 @@ void set_vga_mode12() {
   asm volatile("sti");
 }
 
-#define VGA_BUFFER_SIZE ((VGA_WIDTH / 8) * VGA_HEIGHT)
-
 uint8_t *vga_bb = 0;
+
+void init_vga12h() {
+  vga_bb = (uint8_t *)kmalloc(VGA_BUFFER_SIZE * 4);
+  assert(vga_bb);
+}
+
+#define VGA_BUFFER_SIZE ((VGA_WIDTH / 8) * VGA_HEIGHT)
 
 void vga_put_pixel(int x, int y, unsigned char color) {
   if (x < 0 || x >= VGA_WIDTH || y < 0 || y >= VGA_HEIGHT)

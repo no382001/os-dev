@@ -17,6 +17,8 @@ void kernel_main(void) {
   selftest();
 
   set_vga_mode12();
+  init_vga12h();
 
-  vga12h_gradient_demo();
+  vga_demo_terminal();
+  // vga12h_gradient_demo();
 }

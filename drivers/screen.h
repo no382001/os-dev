@@ -108,7 +108,7 @@ void vga_swap_buffers();
 #define VGA_YELLOW 0x0E
 #define VGA_WHITE 0x0F
 
-void vga_clear_screen(unsigned char color);
+void init_vga12h();
 void vga_put_pixel(int x, int y, unsigned char color);
 void vga_draw_filled_rect(int x, int y, int width, int height, uint8_t color);
 void vga_draw_rect(int x, int y, int width, int height, uint8_t color);

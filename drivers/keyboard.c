@@ -34,6 +34,7 @@ static void keyboard_callback(registers_t *regs) {
   int is_pressed = !(scancode & 0x80);
   uint8_t normalized_scancode = is_pressed ? scancode : (scancode & 0x7F);
 
+  // serial_debug("%x,%x", is_pressed, normalized_scancode);
   if (normalized_scancode == KEY_LSHIFT || normalized_scancode == KEY_RSHIFT) {
     kb_ctx.shift_pressed = is_pressed;
     return;
@@ -45,12 +46,12 @@ static void keyboard_callback(registers_t *regs) {
     return;
   }
 
+  char ascii = 0;
   if (is_pressed && normalized_scancode <= SC_MAX) {
-    char ascii = scancode_to_ascii(normalized_scancode, kb_ctx.shift_pressed);
-
-    if (kb_ctx.current_handler) {
-      kb_ctx.current_handler(normalized_scancode, ascii, is_pressed);
-    }
+    ascii = scancode_to_ascii(normalized_scancode, kb_ctx.shift_pressed);
+  }
+  if (kb_ctx.current_handler) {
+    kb_ctx.current_handler(normalized_scancode, ascii, is_pressed);
   }
 }
 
@@ -61,6 +62,7 @@ void clear_key_buffer(void) {
 
 static void default_key_handler(uint8_t scancode, char ascii, int is_pressed) {
   (void)is_pressed;
+
   if (scancode == KEY_BACKSPACE) {
     if (kb_ctx.buffer_pos > 0) {
       kb_ctx.buffer_pos--;

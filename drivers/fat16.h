@@ -55,3 +55,4 @@ fs_node_t *fs_build_tree(fat_bpb_t *bpb, uint16_t start_cluster,
 fs_node_t *fs_find_file(fs_node_t *root, const char *name);
 void fs_read_file(fat_bpb_t *bpb, fs_node_t *file, uint8_t *buffer);
 void fs_print_tree(fs_node_t *node, int depth);
+void fs_cleanup(fs_node_t *node);
