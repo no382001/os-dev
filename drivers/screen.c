@@ -323,26 +323,27 @@ void vga_clear_rect(int x, int y, int width, int height) {
   vga_draw_filled_rect(x, y, width, height, 0x00);
 }
 
-extern bdf_font_t loaded_font;
-
-void init_font(font_t *font) {
+void init_font(font_t *font, bdf_font_t *bfd) {
+  assert(bfd);
   font->color = WHITE_ON_BLACK;
   font->scale_x = 1;
   font->scale_y = 1;
+  font->bfd = bfd;
 }
 
 void draw_bdf_char(int x, int y, char c, font_t *font) {
+  assert(font);
   if (c < 0)
     return;
 
-  glyph_t glyph = loaded_font.glyphs[(uint8_t)c];
+  glyph_t glyph = font->bfd->glyphs[(uint8_t)c];
 
   int glyph_width = glyph.width;
   int glyph_height = glyph.height;
   int bytes_per_row = (glyph_width + 7) / 8;
 
   int adjusted_y =
-      y + (loaded_font.glyphs['A'].height - glyph.height) * font->scale_y;
+      y + (font->bfd->glyphs['A'].height - glyph.height) * font->scale_y;
 
   for (int row = 0; row < glyph_height; row++) {
     for (int col = 0; col < glyph_width; col++) {
@@ -367,13 +368,13 @@ void draw_bdf_string(int x, int y, const char *str, font_t *font) {
 
   while (*str) {
     if (*str == '\n') {
-      y += loaded_font.glyphs['A'].height * font->scale_y;
+      y += font->bfd->glyphs['A'].height * font->scale_y;
       offset_x = 0;
     } else if (*str == ' ') {
-      x += loaded_font.glyphs['A'].width;
+      x += font->bfd->glyphs['A'].width;
     } else {
       draw_bdf_char(x + offset_x, y, *str, font);
-      offset_x += (loaded_font.glyphs[(uint8_t)*str].width + 1) * font->scale_x;
+      offset_x += (font->bfd->glyphs[(uint8_t)*str].width + 1) * font->scale_x;
     }
     str++;
   }

@@ -55,7 +55,7 @@ void _draw_scrolling_gradient(gradient_ctx_t *ctx) {
 }
 
 void vga12h_gradient_demo() {
-
+  vga_bb = (uint8_t *)kmalloc(VGA_BUFFER_SIZE * 4);
   vga_clear_screen(0);
 
   gradient_ctx_t background = {.offset = 0,
@@ -100,10 +100,12 @@ void vga12h_gradient_demo() {
   fs_node_t *root = fs_build_tree(&bpb, 0, 0, 1);
   // fs_node_t *f = fs_find_file(root, "TOM-TH~1.BDF");
   fs_node_t *f = fs_find_file(root, "VIII.BDF");
-  load_bdf(&bpb, f);
+  bdf_font_t bdf = {0};
+  load_bdf(&bpb, f, &bdf);
 
   font_t font = {0};
-  init_font(&font);
+  init_font(&font, &bdf);
+
   font.scale_x = 5;
   font.scale_y = 25;
 
@@ -122,6 +124,9 @@ void vga12h_gradient_demo() {
     }
 
     draw_bdf_string(x, y, string, &font);
+    font.color = BLUE_ON_BLACK;
+    draw_bdf_string(x + 20, y + 20, string, &font);
+    font.color = WHITE_ON_BLACK;
 
     vga_swap_buffers();
     sleep(16);

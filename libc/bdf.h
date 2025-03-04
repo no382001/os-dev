@@ -16,5 +16,5 @@ typedef struct {
   glyph_t glyphs[MAX_GLYPHS];
 } bdf_font_t;
 
-int load_bdf(fat_bpb_t *bpb, fs_node_t *bdf);
+int load_bdf(fat_bpb_t *bpb, fs_node_t *file, bdf_font_t *bdf);
 glyph_t *get_char_bdf_glyph(char c);
