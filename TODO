@@ -1,55 +1,51 @@
 
-- it can bootstrap
+WOULD BE NICE:
+- compile c on site
+- hosting its own libc (im only using vargs adn ctypes rn)
+- script to make it run on grub so i can demo it on copy.sh/v86
 
-- standardize stdout/in
-
-- fvm shell
-  - strings
-
-- crc and loading dynamic kernel size
-- inconsistent type usage
-
-- think about optimizations
-  - dont link unused code atleast
-  - -O1 crashes when interacting w/ ata
-  - libc opt
-
-
-forth:
-  - comments and docu struct for each registered word
-    - load on initrd from a file 
-  - strings
-  - fileio integration
+FEATURES:
+  - crc and loading dynamic kernel size
 
 fileio:
   - open/ write
 
 fs:
-  long filename
-  ext2 support?
+  - fat16 long filename
+  - ext2 support?
+  - elf files
+
+vfs:
+  - 9p
+  https://blog.aqwari.net/9p/
+  https://blog.aqwari.net/9p/parsing/
+  https://git.sr.ht/~ft/c9/tree
+  - can connect to outside atleast on qemu com1 
 
 build disk:
+  (if i have 9p this is kind of irrelevant)
   on generation save the img, remove it from clean and keep backups
   when trying to generate new one, make a file comparator that shows the differences in file
 
-- basic vim
-
 notes:
 - make sure that the function really takes va_list and not just ... bc its UB
-- static memory fails sometimes, misaligned and corrupted .bss?
-    [#0] 0x13ab7 → memset(dest=0x186d0 <backbuffer+352> "", val=0x1, len=0x9600)
-    [#1] 0x101ca → kernel_main()
-    - workaround is to expose the stack variable to a global ptr
 
-- aligned labels
-mmaps and the  fkcuing bios tyring to use some address that is not mapped by me
-
-
-
-convert to cooperative multitaskin:
- - detach the timer from the scheduler put it on the separate 0x30 interrupt vecotr
- - get rid of the bootloader, boot w/ multiboot and `quemu -kernel`
+adjustments:
  - adjust the linker file, put heap on _end
- - dont forget (*.multiboot) in .text
- - maybe the supposed quemu bios 0xC08* shit will go away?
- - maybe time to switch to c++? it'd be worse to debug
+ - inconsistent type usage
+
+multitaskin:
+ - im not confident that semaphore actually does what it should, and the interruption logic could be improved with a better model like having priorities, placing currently io-blocked tasks to top-prio, right now its just a hack, wasting some cycles for sure
+ - detach the timer from the scheduler put it on the separate 0x30 interrupt vecotr
+ - wrapper so functions can return properly, completed state and de-schedule
+ - signalling, recovery strategies
+
+forking should work now?
+
+bfd font:
+  - some letters are misaligned
+
+runtime dynamic linker for binaries, instead of implementing userland and syscalls
+ - when a binary is loaded, the linker would resolve the syscalls or whatever, but how, id need my own exec format, so i can know when and where something unresolved would be called, this can bite me in the back later, and i will need to replace it further down the line. but it seems like a quick and easy way to get `outside` programs running from fs
+ https://forum.osdev.org/viewtopic.php?t=57631
+ - this guy did something, and can exec shit right away, maybe it would be useful if i could actually run things not specifically compiled for my os only, POSIX compliance? there has to be more than that
