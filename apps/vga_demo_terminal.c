@@ -1,4 +1,5 @@
 #include "apps/vga_demo_terminal.h"
+#include "apps/forth.h"
 #include "libc/heap.h"
 #include "libc/utils.h"
 
@@ -97,11 +98,6 @@ static void terminal_print_char(char c) {
   }
 }
 
-static void terminal_process_command(const char *cmd) {
-  draw_bdf_string(g_t.cursor_x, g_t.cursor_y, cmd, &g_t.font);
-  terminal_newline();
-}
-
 static void terminal_redraw_line_from_position(uint32_t start_pos) {
   uint32_t original_x = g_t.cursor_x;
   uint32_t i;
@@ -118,6 +114,14 @@ static void terminal_redraw_line_from_position(uint32_t start_pos) {
   }
 
   g_t.cursor_x = original_x;
+}
+
+static void terminal_process_command(const char *str) {
+  for (int i = 0; i < strlen(str); i++) {
+    terminal_print_char(str[i]);
+  }
+
+  terminal_newline();
 }
 
 static void terminal_key_handler(uint8_t scancode, char ascii, int is_pressed) {
