@@ -31,3 +31,7 @@ unsigned int is_paging_enabled();
 
 void alloc_frame(page_t *page, int is_kernel, int is_writeable);
 void free_frame(page_t *page);
+
+uint32_t virtual2phys(page_directory_t *dir, void *virtual_addr);
+// return the phys address based on the kernel pagedir
+uint32_t virt2phys(void *virtual_addr);

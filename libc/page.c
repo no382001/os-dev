@@ -251,3 +251,30 @@ void page_fault(registers_t *regs) {
   while (1) {
   }
 }
+
+uint32_t virtual2phys(page_directory_t *dir, void *virtual_addr) {
+  uint32_t address = (uint32_t)virtual_addr;
+  uint32_t page_idx = address / 0x1000;
+  uint32_t table_idx = page_idx / 1024;
+  uint32_t page_offset = page_idx % 1024;
+  uint32_t offset_in_page = address % 0x1000;
+
+  if (!dir->tables[table_idx]) {
+    serial_printff("Attempt to translate invalid virtual address %x",
+                   virtual_addr);
+    return 0; // Error case
+  }
+
+  page_t *page = &dir->tables[table_idx]->pages[page_offset];
+
+  if (!page->present) {
+    serial_printff("Attempt to translate non-present page at %x", virtual_addr);
+    return 0; // Error case
+  }
+
+  return (page->frame * 0x1000) + offset_in_page;
+}
+
+uint32_t virt2phys(void *virtual_addr) {
+  return virtual2phys(kernel_directory, virtual_addr);
+}

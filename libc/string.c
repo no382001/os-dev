@@ -1,6 +1,8 @@
 #include "string.h"
 #include "mem.h"
 
+void itoa(int n, char str[]) { int_to_ascii(n, str); }
+
 void int_to_ascii(int n, char str[]) {
   int i, sign;
   if ((sign = n) < 0)
@@ -130,6 +132,7 @@ void hex_to_ascii_padded(int num, char str[], int width, int zero_pad,
   strcpy(hex_start, str + out_index);
 }
 
+// unsafe, primal
 void _vprintf(void (*output_func)(char), const char *fmt, va_list args) {
   char num_buffer[32] = {0};
 
