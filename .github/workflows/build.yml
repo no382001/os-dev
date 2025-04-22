@@ -1,0 +1,50 @@
+name: build_kernel
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          /var/cache/apt/archives
+          ~/.cache/pip
+        key: ${{ runner.os }}-build-deps-${{ hashFiles('install_dependencies.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-build-deps-
+    
+    - name: install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          build-essential \
+          gcc-multilib \
+          nasm \
+          gdb \
+          qemu-system-x86 \
+          clang-format \
+          mtools \
+          dosfstools
+    
+    - name: build kernel
+      run: make
+    
+    
+    - name: upload kernel artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel
+        path: |
+          _build/kernel.elf
+          disk/fat16.img
+        if-no-files-found: error

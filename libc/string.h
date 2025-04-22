@@ -1,6 +1,8 @@
 #pragma once
 #include "bits.h"
 
+#include <stdarg.h>
+
 void int_to_ascii(int n, char str[]);
 void reverse(char s[]);
 int strlen(const char s[]);
