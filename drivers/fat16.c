@@ -160,3 +160,19 @@ void fs_print_tree(fs_node_t *node, int depth) {
   fs_print_tree(node->children, depth + 1);
   fs_print_tree(node->next, depth);
 }
+
+void fs_cleanup(fs_node_t *node) {
+  if (!node) {
+    return;
+  }
+
+  if (node->type == FS_TYPE_DIRECTORY && node->children) {
+    fs_cleanup(node->children);
+  }
+
+  fs_node_t *next = node->next;
+
+  kfree(node);
+
+  fs_cleanup(next);
+}

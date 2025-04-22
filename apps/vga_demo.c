@@ -53,3 +53,84 @@ void _draw_scrolling_gradient(gradient_ctx_t *ctx) {
     }
   }
 }
+
+void vga12h_gradient_demo() {
+  vga_bb = (uint8_t *)kmalloc(VGA_BUFFER_SIZE * 4);
+  vga_clear_screen(0);
+
+  gradient_ctx_t background = {.offset = 0,
+                               .x = 0,
+                               .y = 0,
+                               .w = VGA_WIDTH,
+                               .h = VGA_HEIGHT,
+                               .scroll = DOWN,
+                               .orient = LEFT};
+
+  gradient_ctx_t boxes[4] = {{.offset = 35,
+                              .x = 50,
+                              .y = 50,
+                              .w = VGA_WIDTH / 4,
+                              .h = VGA_HEIGHT / 4,
+                              .scroll = UP,
+                              .orient = LEFT},
+                             {.offset = 35,
+                              .x = VGA_WIDTH / 2,
+                              .y = 50,
+                              .w = VGA_WIDTH / 4,
+                              .h = VGA_HEIGHT / 4,
+                              .scroll = UP,
+                              .orient = RIGHT},
+                             {.offset = 35,
+                              .x = 50,
+                              .y = VGA_HEIGHT / 2,
+                              .w = VGA_WIDTH / 4,
+                              .h = VGA_HEIGHT / 4,
+                              .scroll = DOWN,
+                              .orient = LEFT},
+                             {.offset = 35,
+                              .x = VGA_WIDTH / 2,
+                              .y = VGA_HEIGHT / 2,
+                              .w = VGA_WIDTH / 4,
+                              .h = VGA_HEIGHT / 4,
+                              .scroll = DOWN,
+                              .orient = RIGHT}};
+
+  fat_bpb_t bpb = {0};
+  fat16_read_bpb(&bpb);
+  fs_node_t *root = fs_build_tree(&bpb, 0, 0, 1);
+  // fs_node_t *f = fs_find_file(root, "TOM-TH~1.BDF");
+  fs_node_t *f = fs_find_file(root, "VIII.BDF");
+  bdf_font_t bdf = {0};
+  load_bdf(&bpb, f, &bdf);
+
+  font_t font = {0};
+  init_font(&font, &bdf);
+
+  font.scale_x = 5;
+  font.scale_y = 25;
+
+  int x = 20, y = 20;
+  char string[] = "Hello World!";
+
+  while (1) {
+    for (int i = 0; i < 4; i++) {
+      boxes[i].offset++;
+    }
+
+    _draw_scrolling_gradient(&background);
+
+    for (int i = 0; i < 4; i++) {
+      _draw_scrolling_gradient(&boxes[i]);
+    }
+
+    draw_bdf_string(x, y, string, &font);
+    font.color = BLUE_ON_BLACK;
+    draw_bdf_string(x + 20, y + 20, string, &font);
+    font.color = WHITE_ON_BLACK;
+
+    vga_swap_buffers();
+    sleep(16);
+  }
+}
+
+void vga12h_terminal_demo() {}

@@ -108,19 +108,23 @@ void vga_swap_buffers();
 #define VGA_YELLOW 0x0E
 #define VGA_WHITE 0x0F
 
-void vga_clear_screen(unsigned char color);
+void init_vga12h();
 void vga_put_pixel(int x, int y, unsigned char color);
 void vga_draw_filled_rect(int x, int y, int width, int height, uint8_t color);
 void vga_draw_rect(int x, int y, int width, int height, uint8_t color);
 void vga_clear_rect(int x, int y, int width, int height);
+void vga_clear_screen(unsigned char color);
+
+#include "libc/bdf.h"
 
 typedef struct {
   uint8_t color;
   int scale_x;
   int scale_y;
+  bdf_font_t *bfd;
 } font_t;
 
-void init_font(font_t *font);
+void init_font(font_t *font, bdf_font_t *bfd);
 
 void draw_bdf_char(int x, int y, char c, font_t *font);
 void draw_bdf_string(int x, int y, const char *str, font_t *font);
