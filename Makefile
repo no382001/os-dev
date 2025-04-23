@@ -27,7 +27,7 @@ $(BUILD_DIR)/%.bin: %.asm
 	nasm $< -f bin -o $@
 
 run: all
-	qemu-system-i386 -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw
+	qemu-system-i386 -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -netdev user,id=mynet0 -device rtl8139,netdev=mynet0
 
 #################
 disk/fat16.img:
@@ -45,7 +45,7 @@ bits:
 	find . -type f -name "*.h" 2>/dev/null | sed 's|^./||' | awk '{print "#include \"" $$0 "\""}' >> $(OUTPUT_FILE)
 
 debug: all
-	qemu-system-i386 -m 4 -s -S -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw
+	qemu-system-i386 -m 4 -serial stdio -s -S -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -netdev user,id=mynet0 -device rtl8139,netdev=mynet0
 
 attach:
 	${GDB} -ex "target remote localhost:1234" -ex "symbol-file $(BUILD_DIR)/kernel.elf"

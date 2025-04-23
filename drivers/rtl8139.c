@@ -45,7 +45,7 @@ void rtl8139_handler(registers_t *reg) {
   uint16_t status = port_word_in(rtl8139_device.io_base + 0x3e);
 
   if (status & TOK) {
-    serial_printff("Packet sent\n");
+    serial_debug("Packet sent");
   }
   if (status & ROK) {
     // qemu_printf("Received packet\n");
@@ -65,10 +65,10 @@ void read_mac_addr() {
 
   rtl8139_device.mac_addr[4] = mac_part2 >> 0;
   rtl8139_device.mac_addr[5] = mac_part2 >> 8;
-  serial_printff("MAC Address: %01x:%01x:%01x:%01x:%01x:%01x\n",
-                 rtl8139_device.mac_addr[0], rtl8139_device.mac_addr[1],
-                 rtl8139_device.mac_addr[2], rtl8139_device.mac_addr[3],
-                 rtl8139_device.mac_addr[4], rtl8139_device.mac_addr[5]);
+  serial_debug("mac: %01x:%01x:%01x:%01x:%01x:%01x", rtl8139_device.mac_addr[0],
+               rtl8139_device.mac_addr[1], rtl8139_device.mac_addr[2],
+               rtl8139_device.mac_addr[3], rtl8139_device.mac_addr[4],
+               rtl8139_device.mac_addr[5]);
 }
 
 void get_mac_addr(uint8_t *src_mac_addr) {
@@ -94,14 +94,15 @@ void rtl8139_init() {
   // first get the network device using PCI
   pci_rtl8139_device = pci_get_device(RTL8139_VENDOR_ID, RTL8139_DEVICE_ID, -1);
   uint32_t ret = pci_read(pci_rtl8139_device, PCI_BAR0);
+
   rtl8139_device.bar_type = ret & 0x1;
   // get io base or mem base by extracting the high 28/30 bits
   rtl8139_device.io_base = ret & (~0x3);
   rtl8139_device.mem_base = ret & (~0xf);
-  serial_printff("rtl8139 use %s access (base: %x)\n",
-                 (rtl8139_device.bar_type == 0) ? "mem based" : "port based",
-                 (rtl8139_device.bar_type != 0) ? rtl8139_device.io_base
-                                                : rtl8139_device.mem_base);
+  serial_debug("rtl8139 use %s access (base: %x)",
+               (rtl8139_device.bar_type == 0) ? "mem based" : "port based",
+               (rtl8139_device.bar_type != 0) ? rtl8139_device.io_base
+                                              : rtl8139_device.mem_base);
 
   // set current TSAD
   rtl8139_device.tx_cur = 0;
@@ -141,8 +142,7 @@ void rtl8139_init() {
   // register and enable network interrupts
   uint32_t irq_num = pci_read(pci_rtl8139_device, PCI_INTERRUPT_LINE);
   register_interrupt_handler(32 + irq_num, rtl8139_handler);
-  // qemu_printf("Registered irq interrupt for rtl8139, irq num = %d\n",
-  // irq_num);
+  kernel_printf("[] rtl8139 registered on irq = %d\n", irq_num);
 
   read_mac_addr();
 }

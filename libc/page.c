@@ -2,8 +2,10 @@
 #include "drivers/serial.h"
 // https://web.archive.org/web/20160326061042/http://jamesmolloy.co.uk/tutorial_html/6.-Paging.html
 
+/** /
 #undef serial_debug
 #define serial_debug(...)
+/**/
 
 #define kernel_panic(...)                                                      \
   do {                                                                         \
@@ -247,7 +249,10 @@ void page_fault(registers_t *regs) {
   }
 
   serial_printff("page fault! ( %s) at %x", state, faulting_address);
+  kernel_printf(";;;;;;;;;;;;;;;;;\n");
+  kernel_printf("page fault! ( %s) at %x\n", state, faulting_address);
   print_mapped_pages(kernel_directory);
+  kernel_printf(";;;;;;;;;;;;;;;;;\n");
   while (1) {
   }
 }

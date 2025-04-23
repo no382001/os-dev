@@ -24,7 +24,7 @@ void udp_send_packet(uint8_t *dst_ip, uint16_t src_port, uint16_t dst_port,
 
   // copy data over
   memcpy((void *)(packet + sizeof(udp_packet_t)), data, len);
-  serial_printff("UDP Packet sent\n");
+  serial_debug("udp packet sent");
   ip_send_packet(dst_ip, packet, length);
 }
 
@@ -35,7 +35,7 @@ void udp_handle_packet(udp_packet_t *packet) {
 
   void *data_ptr = (void *)(packet + sizeof(udp_packet_t));
   // uint32_t data_len = length;
-  serial_printff("Received UDP packet, dst_port %d, data dump:\n", dst_port);
+  serial_debug("Received UDP packet, dst_port %d, data dump:\n", dst_port);
   // xxd(data_ptr, data_len);
 
   if (ntohs(packet->dst_port) == 68) {

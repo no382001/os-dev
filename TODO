@@ -55,3 +55,10 @@ c9:
  - c9 seems to work, but there is no way to forward COM1 to the internet, id need a network driver, and a socket model, thats pretty overkill rn
 - port the rtl8139, arp, dhcp, udp drivers
 https://github.com/szhou42/osdev/blob/master/src/kernel/network/udp.c#L12
+
+- change everythiung to debug serial
+- actually try it
+- the shit that i changed to use the stack, somewhere could crash, if phsy addresses get passed around like that contantly
+
+- maybe add canaries
+- maybe write some more tests

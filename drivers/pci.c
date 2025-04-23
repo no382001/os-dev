@@ -159,7 +159,7 @@ pci_dev_t pci_get_device(uint16_t vendor_id, uint16_t device_id,
   // Handle multiple pci host controllers
 
   if (pci_reach_end(dev_zero)) {
-    serial_printff("PCI Get device failed...\n");
+    serial_debug("pci_get_device...\n");
   }
   for (int function = 1; function < FUNCTION_PER_DEVICE; function++) {
     pci_dev_t dev = {0};
@@ -178,7 +178,6 @@ pci_dev_t pci_get_device(uint16_t vendor_id, uint16_t device_id,
  * PCI Init, filling size for each field in config space
  * */
 void pci_init() {
-  // Init size map
   pci_size_map[PCI_VENDOR_ID] = 2;
   pci_size_map[PCI_DEVICE_ID] = 2;
   pci_size_map[PCI_COMMAND] = 2;

@@ -7,7 +7,7 @@
 `r` run<br>
 `c` continue to next bpoint<br>
 `si` step to the next instruction<br>
-`s` step to the next line of code<br>
+`s` step to the next line of code / step into<br>
 `ni` step (in)to the next function<br>
 `n` step to next line<br>
 `f` jump out of function<br>

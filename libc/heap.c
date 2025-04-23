@@ -2,8 +2,10 @@
 #include "libc/page.h"
 // https://web.archive.org/web/20160326122206/http://jamesmolloy.co.uk/tutorial_html/7.-The%20Heap.html
 
+/** /
 #undef serial_debug
 #define serial_debug(...)
+/**/
 
 // end is defined in the linker script.
 // extern uint32_t end;
@@ -174,11 +176,21 @@ heap_t *create_heap(uint32_t start, uint32_t end_addr, uint32_t max,
   return heap;
 }
 
+#define assertm(c, ...)                                                        \
+  if (!(c)) {                                                                  \
+    serial_printf(__FILE__, __LINE__, __VA_ARGS__);                            \
+  }
+
 void *alloc(uint32_t size, int8_t page_align, heap_t *heap) {
+  // basic validation
+  assertm(heap != NULL, "heap is null!");
+  assertm(size > 0, "attempting to allocate 0 bytes!");
 
   // make sure we take the size of header/footer into account
   uint32_t new_size = size + sizeof(header_t) + sizeof(footer_t);
-  // find the smallest hole that will fit.
+  assertm(new_size > size, "integer overflow in size calculation!");
+
+  // find the smallest hole that will fit
   int32_t iterator = find_smallest_hole(new_size, page_align, heap);
 
   if (iterator == -1) {
@@ -217,8 +229,10 @@ void *alloc(uint32_t size, int8_t page_align, heap_t *heap) {
     } else {
       // the last header needs adjusting
       header_t *header = lookup_ordered_array(idx, &heap->index);
+      assertm(header->magic == HEAP_MAGIC, "header has invalid magic value!");
+
       header->size += new_length - old_length;
-      // rewrite the footer.
+      // rewrite the footer
       footer_t *footer =
           (footer_t *)((uint32_t)header + header->size - sizeof(footer_t));
       footer->header = header;
@@ -230,8 +244,19 @@ void *alloc(uint32_t size, int8_t page_align, heap_t *heap) {
 
   header_t *orig_hole_header =
       (header_t *)lookup_ordered_array(iterator, &heap->index);
+  assertm(orig_hole_header != NULL, "original hole header is null!");
+  assertm(orig_hole_header->magic == HEAP_MAGIC,
+          "original hole has invalid magic!");
+
   uint32_t orig_hole_pos = (uint32_t)orig_hole_header;
   uint32_t orig_hole_size = orig_hole_header->size;
+
+  // validate hole size to catch corrupted memory early
+  assertm(orig_hole_size >= sizeof(header_t) + sizeof(footer_t),
+          "original hole too small for header/footer!");
+  assertm(orig_hole_size < heap->end_address - heap->start_address,
+          "original hole exceeds heap size!");
+
   // here we work out if we should split the hole we found into two parts.
   // is the original hole size - requested hole size less than the overhead for
   // adding a new hole?
@@ -275,25 +300,127 @@ void *alloc(uint32_t size, int8_t page_align, heap_t *heap) {
 
   // we may need to write a new hole after the allocated block.
   // we do this only if the new hole would have positive size...
-  if (orig_hole_size - new_size > 0) {
-    header_t *hole_header = (header_t *)(orig_hole_pos + sizeof(header_t) +
-                                         size + sizeof(footer_t));
+  if (orig_hole_size > new_size) { // Check for underflow
+    uint32_t remaining_size = orig_hole_size - new_size;
+
+    // Make sure the remaining hole is big enough
+    assertm(remaining_size >= sizeof(header_t) + sizeof(footer_t),
+            "remaining hole too small for header/footer!");
+
+    uint32_t hole_pos =
+        orig_hole_pos + sizeof(header_t) + size + sizeof(footer_t);
+    header_t *hole_header = (header_t *)hole_pos;
     hole_header->magic = HEAP_MAGIC;
     hole_header->is_hole = 1;
-    hole_header->size = orig_hole_size - new_size;
-    footer_t *hole_footer =
-        (footer_t *)((uint32_t)hole_header + orig_hole_size - new_size -
-                     sizeof(footer_t));
+    hole_header->size = remaining_size;
+
+    // Calculate footer position more carefully to avoid the bug
+    uint32_t footer_pos = hole_pos + remaining_size - sizeof(footer_t);
+    assertm(footer_pos + sizeof(footer_t) <= heap->end_address,
+            "new hole footer would exceed heap boundary!");
+
+    footer_t *hole_footer = (footer_t *)footer_pos;
+
     if ((uint32_t)hole_footer < heap->end_address) {
       hole_footer->magic = HEAP_MAGIC;
       hole_footer->header = hole_header;
     }
+
     // put the new hole in the index;
     insert_ordered_array((void *)hole_header, &heap->index);
   }
 
   return (void *)((uint32_t)block_header + sizeof(header_t));
 }
+
+/** /
+something going aroun heap.c:288
+libc/heap.c:17 [kmalloc_int] requested size: 12 bytes, align: 0
+libc/heap.c:27 [kmalloc_int] allocated at: 0xc018100c
+drivers/rtl8139.c:102 rtl8139 use port based access (base: 0xc000)
+libc/heap.c:17 [kmalloc_int] requested size: 9708 bytes, align: 0
+we are here when an already occupied address is returned
+
+and also we page fault later on a +600 allocation
+
+●   288                       sizeof(footer_t));
+    289      if ((uint32_t)hole_footer < heap->end_address) {
+               // hole_footer=0x0009fec8  →  [...]  →  0x123890ab
+ →  290        hole_footer->magic = HEAP_MAGIC;
+    291        hole_footer->header = hole_header;
+    292      }
+    293      // put the new hole in the index;
+    294      insert_ordered_array((void *)hole_header, &heap->index);
+    295    }
+────────────────────────────────────────────────────────────────────────────────
+threads ────
+[#0] Id 1, stopped 0x164d9 in alloc (), reason: SINGLE STEP
+──────────────────────────────────────────────────────────────────────────────────
+trace ────
+[#0] 0x164d9 → alloc(size=0x134, page_align=0x0, heap=0x107000)
+[#1] 0x15c6a → kmalloc_int(sz=0x134, align=0x0, phys=0x0)
+[#2] 0x15e34 → kmalloc(sz=0x134)
+[#3] 0x14f18 → udp_send_packet(dst_ip=0x9ffc4 "\377\377\377\377", src_port=0x44,
+dst_port=0x43, data=0xc018360c, len=0x12c)
+[#4] 0x11b3c → dhcp_discover()
+[#5] 0x100cc → kernel_main()
+[#6] 0x10029 → _start()
+─────────────────────────────────────────────────────────────────────────────────────────────
+(remote) gef➤  p/x hole_header
+$4 = 0xc0183888
+(remote) gef➤  p/x hole_footer
+$5 = 0xc01f0ff8
+(remote) gef➤  p/x heap->end_address
+$6 = 0xc01f1000
+(remote) gef➤
+\
+
+THIS!!!!!!
+
+─────────────────────────────────────────────────────────────────
+source:libc/heap.c+289 ──── 284      hole_header->is_hole = 1; 285
+hole_header->size = orig_hole_size - new_size; 286      footer_t *hole_footer =
+    287          (footer_t *)((uint32_t)hole_header + orig_hole_size - new_size
+- ●   288                       sizeof(footer_t));
+             // hole_footer=0x0009fe88  →  0x3085a1f3, heap=0x0009fed8  →  [...]
+→  0xf000ff53 →  289      if ((uint32_t)hole_footer < heap->end_address) { 290
+hole_footer->magic = HEAP_MAGIC; 291        hole_footer->header = hole_header;
+    292      }
+    293      // put the new hole in the index;
+    294      insert_ordered_array((void *)hole_header, &heap->index);
+────────────────────────────────────────────────────────────────────────────────
+threads ────
+[#0] Id 1, stopped 0x164cc in alloc (), reason: BREAKPOINT
+──────────────────────────────────────────────────────────────────────────────────
+trace ────
+[#0] 0x164cc → alloc(size=0x148, page_align=0x0, heap=0x107000)
+[#1] 0x15c6a → kmalloc_int(sz=0x148, align=0x0, phys=0x0)
+[#2] 0x15e34 → kmalloc(sz=0x148)
+[#3] 0x126a5 → ip_send_packet(dst_ip=0x9ffc4 "\377\377\377\377",
+data=0xc018374c, len=0x134)
+[#4] 0x14fcc → udp_send_packet(dst_ip=0x9ffc4 "\377\377\377\377", src_port=0x44,
+dst_port=0x43, data=0xc018360c, len=0x12c)
+[#5] 0x11b3c → dhcp_discover()
+[#6] 0x100cc → kernel_main()
+[#7] 0x10029 → _start()
+─────────────────────────────────────────────────────────────────────────────────────────────
+(remote) gef➤  p/x  heap->end_address
+$7 = 0xc01f1000
+(remote) gef➤  p/x hole_footer
+$8 = 0x3085a1f3
+(remote) gef➤  p/x hole_header
+$9 = 0xc01839e4
+(remote) gef➤  p/x hole_footer->header
+Cannot access memory at address 0x3085a1f7
+(remote) gef➤
+(remote) gef➤  p/x hole_footer
+$10 = 0x3085a1f3
+(remote) gef➤
+
+p/x orig_hole_size
+$11 = 0x706d6973
+
+/**/
 
 void free(void *p, heap_t *heap) {
   if (p == 0)

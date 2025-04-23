@@ -7,7 +7,7 @@
 #include "udp.h"
 
 char ip_addr[4];
-int is_ip_allocated;
+int is_ip_allocated = 0;
 
 /*
  * getter for IP address obtained from dhcp server
