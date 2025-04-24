@@ -49,3 +49,6 @@ runtime dynamic linker for binaries, instead of implementing userland and syscal
  - when a binary is loaded, the linker would resolve the syscalls or whatever, but how, id need my own exec format, so i can know when and where something unresolved would be called, this can bite me in the back later, and i will need to replace it further down the line. but it seems like a quick and easy way to get `outside` programs running from fs
  https://forum.osdev.org/viewtopic.php?t=57631
  - this guy did something, and can exec shit right away, maybe it would be useful if i could actually run things not specifically compiled for my os only, POSIX compliance? there has to be more than that
+
+
+https://os.phil-opp.com/allocator-designs/
