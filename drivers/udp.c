@@ -14,17 +14,20 @@ uint16_t udp_calculate_checksum(udp_packet_t *packet) {
 
 void udp_send_packet(uint8_t *dst_ip, uint16_t src_port, uint16_t dst_port,
                      void *data, int len) {
+
   int length = sizeof(udp_packet_t) + len;
+
   udp_packet_t *packet = (udp_packet_t *)kmalloc(length);
   memset(packet, 0, sizeof(udp_packet_t));
+
   packet->src_port = htons(src_port);
   packet->dst_port = htons(dst_port);
-  packet->length = htons(length);
+  packet->length = htons(length); // or add 8 for the header??
   packet->checksum = udp_calculate_checksum(packet);
 
   // copy data over
-  memcpy((void *)(packet + sizeof(udp_packet_t)), data, len);
-  serial_debug("udp packet sent");
+  memcpy(packet->data, data, len);
+  // serial_debug("udp packet sent");
   ip_send_packet(dst_ip, packet, length);
 }
 
@@ -38,8 +41,7 @@ void udp_handle_packet(udp_packet_t *packet) {
   serial_debug("Received UDP packet, dst_port %d, data dump:\n", dst_port);
   // xxd(data_ptr, data_len);
 
-  if (ntohs(packet->dst_port) == 68) {
+  if (ntohs(packet->dst_port) == DHCP_CLIENT) {
     dhcp_handle_packet(data_ptr);
   }
-  return;
 }

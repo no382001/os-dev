@@ -1,8 +1,14 @@
 #pragma once
 #include "libc/types.h"
 
-#define DHCP_REQUEST 1
+#define BOOTREQUEST 1
 #define DHCP_REPLY 2
+
+#define DHCP_SERVER 67
+#define DHCP_CLIENT 68
+
+#define DHCP_DISCOVER 1
+#define DHCP_REQUEST 3
 
 #define DHCP_TRANSACTION_IDENTIFIER 0x55555555
 

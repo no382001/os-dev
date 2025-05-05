@@ -28,10 +28,10 @@ void dhcp_discover() {
   uint8_t dst_ip[4];
   memset(request_ip, 0x0, 4);
   memset(dst_ip, 0xff, 4);
-  dhcp_packet_t *packet = (dhcp_packet_t *)kmalloc(sizeof(dhcp_packet_t));
-  memset(packet, 0, sizeof(dhcp_packet_t));
-  make_dhcp_packet(packet, 1, request_ip);
-  udp_send_packet(dst_ip, 68, 67, packet, sizeof(dhcp_packet_t));
+  dhcp_packet_t packet = {0};
+  make_dhcp_packet(&packet, DHCP_DISCOVER, request_ip);
+  udp_send_packet(dst_ip, DHCP_CLIENT, DHCP_SERVER, &packet,
+                  sizeof(dhcp_packet_t));
 }
 
 /*
@@ -43,7 +43,7 @@ void dhcp_request(uint8_t *request_ip) {
   memset(dst_ip, 0xff, 4);
   dhcp_packet_t *packet = (dhcp_packet_t *)kmalloc(sizeof(dhcp_packet_t));
   memset(packet, 0, sizeof(dhcp_packet_t));
-  make_dhcp_packet(packet, 3, request_ip);
+  make_dhcp_packet(packet, DHCP_REQUEST, request_ip);
   udp_send_packet(dst_ip, 68, 67, packet, sizeof(dhcp_packet_t));
 }
 
@@ -87,7 +87,7 @@ void *get_dhcp_options(dhcp_packet_t *packet, uint8_t type) {
 
 void make_dhcp_packet(dhcp_packet_t *packet, uint8_t msg_type,
                       uint8_t *request_ip) {
-  packet->op = DHCP_REQUEST;
+  packet->op = 1;
   packet->hardware_type = HARDWARE_TYPE_ETHERNET;
   packet->hardware_addr_len = 6;
   packet->hops = 0;
@@ -121,16 +121,14 @@ void make_dhcp_packet(dhcp_packet_t *packet, uint8_t msg_type,
   // requested IP address
   *(options++) = 50;
   *(options++) = 0x04;
-  *((uint32_t *)(options)) = htonl(0x0a00020e);
   memcpy((uint32_t *)(options), request_ip, 4);
   options += 4;
 
   // host Name
   *(options++) = 12;
   *(options++) = 0x09;
-  memcpy(options, "simpleos", strlen("simpleos"));
-  options += strlen("simpleos");
-  *(options++) = 0x00;
+  memcpy(options, "os-dev", strlen("os-dev"));
+  options += strlen("os-dev");
 
   // parameter request list
   *(options++) = 55;

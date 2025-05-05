@@ -1,7 +1,7 @@
 #include "libc/heap.h"
 #include "libc/page.h"
 
-/** /
+/**/
 #undef serial_debug
 #define serial_debug(...)
 /**/
@@ -201,8 +201,7 @@ uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys) {
   } else {
     if (align) {
       // for aligned allocations, request extra space and do manual alignment
-      uint32_t extra = PAGE_SIZE;
-      addr = (uint32_t)kernel_heap_bitmap_alloc(kheap, size + extra);
+      addr = (uint32_t)kernel_heap_bitmap_alloc(kheap, size);
 
       if (!addr) {
         assert(0 && "out of memory");

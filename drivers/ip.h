@@ -11,25 +11,20 @@
 #define PROTOCOL_TCP 6
 
 typedef struct ip_packet {
-  // char version_ihl_ptr[0];
-  uint8_t version : 4;
-  uint8_t ihl : 4;
-  uint8_t tos;
-  uint16_t length;
-  uint16_t id;
-  // char flags_fragment_ptr[0];
-  uint8_t flags : 3;
-  uint8_t fragment_offset_high : 5;
-  uint8_t fragment_offset_low;
-  uint8_t ttl;
-  uint8_t protocol;
-  uint16_t header_checksum;
-  uint8_t src_ip[4];
-  uint8_t dst_ip[4];
-  uint8_t data[];
+  uint8_t version_ihl;      // version (4 bits) + IHL (4 bits)
+  uint8_t tos;              // type of service
+  uint16_t length;          // total length
+  uint16_t id;              // identification
+  uint16_t flags_fragment;  // flags (3 bits) + Fragment offset (13 bits)
+  uint8_t ttl;              // time to live
+  uint8_t protocol;         // protocol
+  uint16_t header_checksum; // header checksum
+  uint8_t src_ip[4];        // source IP address
+  uint8_t dst_ip[4];        // destination IP address
+  uint8_t data[];           // variable-length data
 } __attribute__((packed)) ip_packet_t;
 
 void get_ip_str(char *ip_str, uint8_t *ip);
 uint16_t ip_calculate_checksum(ip_packet_t *packet);
-void ip_send_packet(uint8_t *dst_ip, void *data, int len);
+void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len);
 void ip_handle_packet(ip_packet_t *packet);

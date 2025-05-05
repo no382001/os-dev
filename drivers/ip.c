@@ -45,85 +45,71 @@ uint16_t ip_calculate_checksum(ip_packet_t *packet) {
   return ret;
 }
 
-void ip_send_packet(uint8_t *dst_ip, void *data, int len) {
-  int arp_sent = 3;
+void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
+  // Print what we're trying to send
+  serial_debug("Sending IP packet to %d.%d.%d.%d with data length %d",
+               dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], len);
+
+  // Allocate memory for the packet
   ip_packet_t *packet = (ip_packet_t *)kmalloc(sizeof(ip_packet_t) + len);
-  memset(packet, 0, sizeof(ip_packet_t));
-  packet->version = IP_IPV4;
-  // 5 * 4 = 20 byte
-  packet->ihl = 5;
-  // Don't care, set to 0
+
+  // Fill in the IP header
+  packet->version_ihl = (4 << 4) | 5; // IPv4, header length 5 words (20 bytes)
+  serial_debug("version_ihl = 0x%02x", packet->version_ihl);
+
   packet->tos = 0;
-  packet->length = sizeof(ip_packet_t) + len;
-  // Used for ip fragmentation, don't care now
-  packet->id = 0;
-  // Tell router to not divide the packet, and this is packet is the last piece
-  // of the fragments.
-  packet->flags = 0;
-  packet->fragment_offset_high = 0;
-  packet->fragment_offset_low = 0;
 
+  // Total length = header + data
+  uint16_t total_length = sizeof(ip_packet_t) + len;
+  packet->length = htons(total_length);
+  serial_debug("total length = %d (0x%04x in network order)", total_length,
+               packet->length);
+
+  // Set identification field
+  static uint16_t ip_id = 0;
+  packet->id = htons(ip_id++);
+
+  // No fragmentation
+  packet->flags_fragment = htons(0);
+
+  // TTL and protocol
   packet->ttl = 64;
-  // Normally there should be some other protocols embedded in ip protocol, we
-  // set it to udp for now, just for testing, the data could contain strings and
-  // anything Once we test the ip packeting sending works, we'll replace it with
-  // a packet corresponding to some protocol
-  packet->protocol = PROTOCOL_UDP;
+  packet->protocol = PROTOCOL_UDP; // Assuming UDP for DHCP
 
-  gethostaddr((char *)my_ip);
-  memcpy(packet->src_ip, my_ip, 4);
+  uint8_t my_ip_address[4] = {0, 0, 0, 0};
+  // Set source and destination addresses
+  memcpy(packet->src_ip, my_ip_address, 4);
   memcpy(packet->dst_ip, dst_ip, 4);
 
-  void *packet_data = (void *)(packet + packet->ihl * 4);
-  memcpy(packet_data, data, len);
+  // Calculate checksum
+  packet->header_checksum = 0; // Must be zero for calculation
+  packet->header_checksum =
+      ip_calculate_checksum(packet); // Standard IP header is 20 bytes
+  serial_debug("IP checksum = 0x%04x", ntohs(packet->header_checksum));
 
-  // fix packet data order
-  // convert the byte containing version and IHL bitfields
-  uint8_t *version_ihl_byte =
-      (uint8_t *)packet; // address of the byte containing version and IHL
-  *version_ihl_byte = htonb(*version_ihl_byte, 4);
+  // Copy the data
+  memcpy(packet->data, data, len);
 
-  // convert the byte containing flags and fragment_offset_high bitfields
-  uint8_t *flags_fragment_byte =
-      (uint8_t *)packet +
-      6; // address of the byte containing flags and  fragment_offset_high
-  *flags_fragment_byte = htonb(*flags_fragment_byte, 3);
-
-  // Set packet length
-  packet->length = htons(sizeof(ip_packet_t) + len);
-
-  // Make sure checksum is 0 before checksum calculation
-  packet->header_checksum = 0;
-  packet->header_checksum = htons(ip_calculate_checksum(packet));
-
-  // packet->header_checksum = htons(cksum(packet));
-  //  Don't care to pad, because we don't use the option field in ip packet
-  /*
-   * If the ip is in the same network, the destination mac address is the
-   * routers's mac address, the router'll figure out how to route the packet
-   * Now, again, let's assume it's always in the same network, because i want to
-   * test if the simplest ip packet sending works as i write the code
-   * */
-
-  // Now look at the arp, table, if we have the mac address, just send it. If
-  // not, we'll send an arp packet to get the mac address, and wait until its
-  // mac address show up in our arp  table
-
-  uint8_t dst_hardware_addr[6];
-
-  // Loop, until we get the mac address of the destination (this should probably
-  // done in a separate :))
-  while (!arp_lookup(dst_hardware_addr, dst_ip)) {
-    if (arp_sent != 0) {
-      arp_sent--;
-      // Send an arp packet here
-      arp_send_packet(zero_hardware_addr, dst_ip);
-    }
+  // Get the MAC address for the destination IP
+  uint8_t dst_mac[6];
+  if (arp_lookup(dst_ip, dst_mac) != 0) {
+    serial_debug("No MAC found for IP %d.%d.%d.%d - sending ARP request",
+                 dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3]);
+    // Send ARP request
+    uint8_t broadcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    arp_send_packet(broadcast_mac, dst_ip);
+    // We could queue the packet here for later transmission
+    kfree(packet);
+    return;
   }
-  serial_printff("IP Packet Sent...(checksum: %x)", packet->header_checksum);
-  // Got the mac address! Now send an ethernet packet
-  ethernet_send_packet(dst_hardware_addr, (uint8_t *)packet,
-                       htons(packet->length), ETHERNET_TYPE_IP);
+
+  // Send Ethernet frame with the IP packet
+  serial_debug("Sending to MAC %02x:%02x:%02x:%02x:%02x:%02x", dst_mac[0],
+               dst_mac[1], dst_mac[2], dst_mac[3], dst_mac[4], dst_mac[5]);
+
+  ethernet_send_packet(dst_mac, (void *)packet, total_length, ETHERNET_TYPE_IP);
+
+  kfree(packet);
 }
 
 void ip_handle_packet(ip_packet_t *packet) {
@@ -139,10 +125,12 @@ void ip_handle_packet(ip_packet_t *packet) {
   // xxd and display on screen Dump source ip, data, checksum
   char src_ip[20];
 
-  if (packet->version == IP_IPV4) {
+  if ((packet->version_ihl >> 4) == IP_IPV4) {
     get_ip_str(src_ip, packet->src_ip);
 
-    void *data_ptr = (void *)(packet + packet->ihl * 4);
+    // header size from ihl field
+    void *data_ptr =
+        (void *)((uint8_t *)packet + ((packet->version_ihl & 0x0F) * 4));
     // int data_len = ntohs(packet->length) - sizeof(ip_packet_t);
 
     serial_printff("src: %s, data dump: \n", src_ip);

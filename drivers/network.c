@@ -39,15 +39,19 @@ void ethernet_handle_packet(ethernet_frame_t *packet, int len) {
   void *data = (void *)(packet + sizeof(ethernet_frame_t));
   // ARP packet
   if (ntohs(packet->type) == ETHERNET_TYPE_ARP) {
-    serial_printff("(ARP Packet)\n");
+    serial_debug("(ARP Packet)\n");
     arp_handle_packet(data);
+    return;
   }
   // IP packets(could be TCP, UDP or others)
   if (ntohs(packet->type) == ETHERNET_TYPE_IP) {
-    serial_printff("(IP Packet)\n");
+    serial_debug("(IP Packet)\n");
 
     ip_handle_packet(data);
+    return;
   }
+  serial_debug("we dont know what to do with this packet %x",
+               ntohs(packet->type));
 }
 
 uint16_t flip_short(uint16_t short_int) {

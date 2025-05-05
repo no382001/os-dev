@@ -10,6 +10,8 @@ LD = ld -m elf_i386
 CFLAGSNO = -fno-pie -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Wno-error=comment
 CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
 
+NETWORKING = -netdev user,id=mynet0 -device rtl8139,netdev=mynet0 -object filter-dump,id=f1,netdev=mynet0,file=network_dump.pcap
+
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps)
 
 all: format bits $(BUILD_DIR)/kernel.elf disk/fat16.img
@@ -27,8 +29,8 @@ $(BUILD_DIR)/%.bin: %.asm
 	nasm $< -f bin -o $@
 
 run: all
-	qemu-system-i386 -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -netdev user,id=mynet0 -device rtl8139,netdev=mynet0
-
+	sudo qemu-system-i386 -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -netdev tap,id=mynet0,ifname=tap0,script=no,downscript=no -device rtl8139,netdev=mynet0
+	#qemu-system-i386 -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw $(NETWORKING)
 #################
 disk/fat16.img:
 	cd disk && ./make_disk.sh
