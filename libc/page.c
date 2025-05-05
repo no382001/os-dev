@@ -27,14 +27,14 @@ uint32_t nframes = 0;
 #define OFFSET_FROM_BIT(a) (a % (8 * 4))
 
 static void set_frame(uint32_t frame_addr) {
-  uint32_t frame = frame_addr / 0x1000;
+  uint32_t frame = frame_addr / PAGE_SIZE;
   uint32_t idx = INDEX_FROM_BIT(frame);
   uint32_t off = OFFSET_FROM_BIT(frame);
   frames[idx] |= (0x1 << off);
 }
 
 static void clear_frame(uint32_t frame_addr) {
-  uint32_t frame = frame_addr / 0x1000;
+  uint32_t frame = frame_addr / PAGE_SIZE;
   uint32_t idx = INDEX_FROM_BIT(frame);
   uint32_t off = OFFSET_FROM_BIT(frame);
   frames[idx] &= ~(0x1 << off);
@@ -75,7 +75,7 @@ void alloc_frame(page_t *page, int is_kernel, int is_writeable) {
       return;
     }
 
-    set_frame(idx * 0x1000);
+    set_frame(idx * PAGE_SIZE);
     page->present = 1;
     page->rw = 1;
     page->user = 0;
@@ -96,14 +96,14 @@ void free_frame(page_t *page) {
 page_directory_t *kernel_directory = 0;
 page_directory_t *current_directory = 0;
 extern uint32_t placement_address;
-extern heap_t *kheap;
+extern kernel_heap_bitmap_t *kheap;
 
 void print_mapped_pages(page_directory_t *dir);
 
 void initialise_paging() {
   uint32_t mem_end_page = END_OF_MEMORY;
 
-  nframes = mem_end_page / 0x1000;
+  nframes = mem_end_page / PAGE_SIZE;
   frames = (uint32_t *)kmalloc(INDEX_FROM_BIT(nframes));
   memset(frames, 0, INDEX_FROM_BIT(nframes));
 
@@ -115,22 +115,22 @@ void initialise_paging() {
 
   // pre-install pages for heap
   uint32_t i = 0;
-  for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += 0x1000)
+  for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += PAGE_SIZE)
     get_page(i, 1, kernel_directory);
 
   i = 0;
   // this is kinda weird. the first address it wants to give is 0x157000 but
-  // since the prev 0x156000 + 0x1000 only reaches to 0x156fff, 0x157000 will be
-  // unmapped and we page fault on heap creation so just create an additional
+  // since the prev 0x156000 + PAGE_SIZE only reaches to 0x156fff, 0x157000 will
+  // be unmapped and we page fault on heap creation so just create an additional
   // page as a workaround... i guess
-  while (i < placement_address + 0x1000) {
+  while (i < placement_address + PAGE_SIZE) {
     page_t *p = get_page(i, 1, kernel_directory);
     alloc_frame(p, 0, 0);
-    i += 0x1000;
+    i += PAGE_SIZE;
   }
 
   // alloc pages for heap
-  for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += 0x1000)
+  for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += PAGE_SIZE)
     alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
 
   // https://forum.osdev.org/viewtopic.php?t=57400
@@ -138,14 +138,17 @@ void initialise_paging() {
   while (i < 0xC0050000) {
     page_t *p = get_page(i, 1, kernel_directory);
     alloc_frame(p, 0, 0);
-    i += 0x1000;
+    i += PAGE_SIZE;
   }
 
   register_interrupt_handler(14, page_fault);
   switch_page_directory(kernel_directory);
 
-  kheap = create_heap(KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE,
-                      KHEAP_INITIAL_SIZE, 0, 0);
+  kernel_heap_bitmap_init(kheap);
+  if (!kernel_heap_bitmap_add_block(
+          kheap, KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE, PAGE_SIZE)) {
+    assert(0 && "failed to add initial block to heap");
+  }
   print_mapped_pages(kernel_directory);
 }
 
@@ -160,7 +163,7 @@ void switch_page_directory(page_directory_t *dir) {
 
 page_t *get_page(uint32_t address, int make, page_directory_t *dir) {
 
-  address /= 0x1000;
+  address /= PAGE_SIZE;
   uint32_t table_idx = address / 1024;
   if (dir->tables[table_idx]) {
     return &dir->tables[table_idx]->pages[address % 1024];
@@ -187,13 +190,13 @@ void print_mapped_pages(page_directory_t *dir) {
       continue;
     }
 
-    uint32_t page_table_base = i * 1024 * 0x1000;
+    uint32_t page_table_base = i * 1024 * PAGE_SIZE;
 
     for (uint32_t j = 0; j < 1024; j++) {
       page_t *page = &dir->tables[i]->pages[j];
 
       if (page->present) {
-        uint32_t addr = page_table_base + (j * 0x1000);
+        uint32_t addr = page_table_base + (j * PAGE_SIZE);
 
         if (!in_range) {
           start = addr;
@@ -201,14 +204,14 @@ void print_mapped_pages(page_directory_t *dir) {
         }
         end = addr;
       } else if (in_range) {
-        kernel_printf(" %x - %x\n", start, end + 0x1000 - 1);
+        kernel_printf(" %x - %x\n", start, end + PAGE_SIZE - 1);
         in_range = 0;
       }
     }
   }
 
   if (in_range) {
-    kernel_printf(" %x - %x\n", start, end + 0x1000 - 1);
+    kernel_printf(" %x - %x\n", start, end + PAGE_SIZE - 1);
   }
 }
 
@@ -259,10 +262,10 @@ void page_fault(registers_t *regs) {
 
 uint32_t virtual2phys(page_directory_t *dir, void *virtual_addr) {
   uint32_t address = (uint32_t)virtual_addr;
-  uint32_t page_idx = address / 0x1000;
+  uint32_t page_idx = address / PAGE_SIZE;
   uint32_t table_idx = page_idx / 1024;
   uint32_t page_offset = page_idx % 1024;
-  uint32_t offset_in_page = address % 0x1000;
+  uint32_t offset_in_page = address % PAGE_SIZE;
 
   if (!dir->tables[table_idx]) {
     serial_printff("Attempt to translate invalid virtual address %x",
@@ -277,7 +280,7 @@ uint32_t virtual2phys(page_directory_t *dir, void *virtual_addr) {
     return 0; // Error case
   }
 
-  return (page->frame * 0x1000) + offset_in_page;
+  return (page->frame * PAGE_SIZE) + offset_in_page;
 }
 
 uint32_t virt2phys(void *virtual_addr) {

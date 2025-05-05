@@ -2,6 +2,8 @@
 #include "bits.h"
 #include "cpu/isr.h"
 
+#define PAGE_SIZE 0x1000
+
 typedef struct page {
   uint32_t present : 1;
   uint32_t rw : 1;
