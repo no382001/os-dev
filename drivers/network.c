@@ -11,7 +11,7 @@ int ethernet_send_packet(uint8_t *dst_mac_addr, uint8_t *data, int len,
   uint8_t src_mac_addr[6];
   ethernet_frame_t *frame =
       (ethernet_frame_t *)kmalloc(sizeof(ethernet_frame_t) + len);
-  void *frame_data = (void *)(frame + sizeof(ethernet_frame_t));
+  void *frame_data = (void *)((uint8_t *)frame + sizeof(ethernet_frame_t));
 
   // get source mac address from network card driver
   get_mac_addr(src_mac_addr);

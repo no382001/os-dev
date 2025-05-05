@@ -8,138 +8,217 @@
 
 char ip_addr[4];
 int is_ip_allocated = 0;
+uint32_t dhcp_server_ip = 0;
 
-/*
- * getter for IP address obtained from dhcp server
- * */
 int gethostaddr(char *addr) {
   memcpy(addr, ip_addr, 4);
-  if (!is_ip_allocated) {
-    return 0;
-  }
-  return 1;
+  return is_ip_allocated;
 }
 
-/*
- * broadcast a dhcp discover
- * */
+uint8_t *add_dhcp_option(uint8_t *options, uint8_t option, uint8_t len,
+                         void *data) {
+  *(options++) = option;
+  *(options++) = len;
+  memcpy(options, data, len);
+  return options + len;
+}
+
 void dhcp_discover() {
-  uint8_t request_ip[4];
-  uint8_t dst_ip[4];
-  memset(request_ip, 0x0, 4);
-  memset(dst_ip, 0xff, 4);
+  uint8_t dst_ip[4] = {255, 255, 255, 255};
+
   dhcp_packet_t packet = {0};
-  make_dhcp_packet(&packet, DHCP_DISCOVER, request_ip);
+
+  packet.op = BOOTREQUEST;
+  packet.hardware_type = HARDWARE_TYPE_ETHERNET;
+  packet.hardware_addr_len = 6;
+  packet.hops = 0;
+  packet.xid = htonl(DHCP_TRANSACTION_IDENTIFIER);
+  packet.flags = htons(0x8000); // broadcast flag
+  get_mac_addr(packet.client_hardware_addr);
+
+  uint8_t *options = packet.options;
+
+  *((uint32_t *)(options)) = htonl(DHCP_MAGIC_COOKIE);
+  options += 4;
+
+  uint8_t msg_type = DHCP_DISCOVER;
+  options = add_dhcp_option(options, DHCP_OPT_MSG_TYPE, 1, &msg_type);
+
+  uint8_t client_id[7];
+  client_id[0] = 1; // hardware type (Ethernet)
+  get_mac_addr(client_id + 1);
+  options = add_dhcp_option(options, DHCP_OPT_CLIENT_ID, 7, client_id);
+
+  char hostname[] = "os-dev";
+  options =
+      add_dhcp_option(options, DHCP_OPT_HOST_NAME, strlen(hostname), hostname);
+
+  uint8_t params[] = {
+      DHCP_OPT_SUBNET_MASK, // subnet mask
+      DHCP_OPT_ROUTER,      // router
+      DHCP_OPT_DNS,         // DNS server
+      15,                   // domain name
+      44,                   // NETBIOS name server
+      46,                   // NETBIOS node type
+      47,                   // NETBIOS scope
+      57                    // maximum DHCP message size
+  };
+  options =
+      add_dhcp_option(options, DHCP_OPT_PARAM_REQ_LIST, sizeof(params), params);
+  *(options++) = DHCP_OPT_END;
+
   udp_send_packet(dst_ip, DHCP_CLIENT, DHCP_SERVER, &packet,
                   sizeof(dhcp_packet_t));
 }
 
-/*
- * broadcast a dhcp request
- * */
-// uint8_t??
-void dhcp_request(uint8_t *request_ip) {
-  uint8_t dst_ip[4];
-  memset(dst_ip, 0xff, 4);
-  dhcp_packet_t *packet = (dhcp_packet_t *)kmalloc(sizeof(dhcp_packet_t));
-  memset(packet, 0, sizeof(dhcp_packet_t));
-  make_dhcp_packet(packet, DHCP_REQUEST, request_ip);
-  udp_send_packet(dst_ip, 68, 67, packet, sizeof(dhcp_packet_t));
-}
+void dhcp_request(uint8_t *requested_ip) {
+  uint8_t dst_ip[4] = {255, 255, 255, 255};
 
-/*
- * handle DHCP offer packet
- * */
-void dhcp_handle_packet(dhcp_packet_t *packet) {
-  // uint8_t *options = packet->options + 4;
-  if (packet->op == DHCP_REPLY) {
-    // DHCP Offer or ACK ?
-    uint8_t *type = get_dhcp_options(packet, 53);
-    if (*type == 2) {
-      // offer, return a request
-      dhcp_request((uint8_t *)&packet->your_ip); // uint8_t??
-    } else if (*type == 5) {
-      // ACK, save necessary info(IP for example)
-      memcpy(ip_addr, &packet->your_ip, 4);
-      is_ip_allocated = 1;
-    }
+  dhcp_packet_t packet = {0};
+
+  packet.op = BOOTREQUEST;
+  packet.hardware_type = HARDWARE_TYPE_ETHERNET;
+  packet.hardware_addr_len = 6;
+  packet.hops = 0;
+  packet.xid = htonl(DHCP_TRANSACTION_IDENTIFIER);
+  packet.flags = htons(0x8000); // broadcast flag
+  get_mac_addr(packet.client_hardware_addr);
+
+  uint8_t *options = packet.options;
+
+  // Magic cookie
+  *((uint32_t *)(options)) = htonl(DHCP_MAGIC_COOKIE);
+  options += 4;
+
+  // Message type (REQUEST)
+  uint8_t msg_type = DHCP_REQUEST;
+  options = add_dhcp_option(options, DHCP_OPT_MSG_TYPE, 1, &msg_type);
+
+  // Client identifier
+  uint8_t client_id[7];
+  client_id[0] = 1; // Hardware type (Ethernet)
+  get_mac_addr(client_id + 1);
+  options = add_dhcp_option(options, DHCP_OPT_CLIENT_ID, 7, client_id);
+
+  // Requested IP address
+  if (requested_ip) {
+    options = add_dhcp_option(options, DHCP_OPT_REQUESTED_IP, 4, requested_ip);
   }
+
+  // Server identifier (if we have it)
+  if (dhcp_server_ip != 0) {
+    options =
+        add_dhcp_option(options, 54, 4, &dhcp_server_ip); // 54 = Server ID
+  }
+
+  // Host name (optional)
+  char hostname[] = "os-dev";
+  options =
+      add_dhcp_option(options, DHCP_OPT_HOST_NAME, strlen(hostname), hostname);
+
+  // Parameter request list
+  uint8_t params[] = {
+      DHCP_OPT_SUBNET_MASK, // Subnet mask
+      DHCP_OPT_ROUTER,      // Router
+      DHCP_OPT_DNS          // DNS server
+  };
+  options =
+      add_dhcp_option(options, DHCP_OPT_PARAM_REQ_LIST, sizeof(params), params);
+
+  // End option
+  *(options++) = DHCP_OPT_END;
+
+  // Send the packet
+  udp_send_packet(dst_ip, DHCP_CLIENT, DHCP_SERVER, &packet,
+                  sizeof(dhcp_packet_t));
 }
 
-/*
- * search for the value of a type in options
- * */
-void *get_dhcp_options(dhcp_packet_t *packet, uint8_t type) {
-  uint8_t *options = packet->options + 4;
-  uint8_t curr_type = *options;
-  while (curr_type != 0xff) {
-    uint8_t len = *(options + 1);
-    if (curr_type == type) {
-      // found type, return value
-      void *ret = (void *)kmalloc(len);
-      memcpy(ret, options + 2, len);
-      return ret;
+void *get_dhcp_option(dhcp_packet_t *packet, uint8_t type) {
+  if (ntohl(*(uint32_t *)packet->options) != DHCP_MAGIC_COOKIE) {
+    return NULL;
+  }
+
+  uint8_t *options = packet->options + 4; // Skip magic cookie
+
+  while (options < packet->options + sizeof(packet->options)) {
+    uint8_t curr_type = *options;
+
+    if (curr_type == DHCP_OPT_END) {
+      break;
     }
+
+    if (curr_type == DHCP_OPT_PAD) {
+      options++;
+      continue;
+    }
+
+    uint8_t len = *(options + 1);
+
+    if (curr_type == type) {
+      return options + 2;
+    }
+
     options += (2 + len);
   }
-  return 0;
+
+  return NULL;
 }
 
-void make_dhcp_packet(dhcp_packet_t *packet, uint8_t msg_type,
-                      uint8_t *request_ip) {
-  packet->op = 1;
-  packet->hardware_type = HARDWARE_TYPE_ETHERNET;
-  packet->hardware_addr_len = 6;
-  packet->hops = 0;
-  packet->xid = htonl(DHCP_TRANSACTION_IDENTIFIER);
-  packet->flags = htons(0x8000);
-  get_mac_addr(packet->client_hardware_addr);
+void dhcp_handle_packet(dhcp_packet_t *packet) {
+  if (packet->op != DHCP_REPLY) {
+    return;
+  }
 
-  // send dhcp packet using UDP
-  uint8_t dst_ip[4];
-  memset(dst_ip, 0xff, 4);
+  if (ntohl(packet->xid) != DHCP_TRANSACTION_IDENTIFIER) {
+    return;
+  }
 
-  // Ooptions specific to DHCP Discover (required)
+  // Get message type
+  uint8_t *type_ptr = get_dhcp_option(packet, DHCP_OPT_MSG_TYPE);
+  if (!type_ptr) {
+    return; // No message type option
+  }
 
-  // magic cookie
-  uint8_t *options = packet->options;
-  *((uint32_t *)(options)) = htonl(0x63825363);
-  options += 4;
+  uint8_t msg_type = *type_ptr;
 
-  // first option, message type = DHCP_DISCOVER/DHCP_REQUEST
-  *(options++) = 53;
-  *(options++) = 1;
-  *(options++) = msg_type;
+  switch (msg_type) {
+  case DHCP_MSG_OFFER: {
 
-  // client identifier
-  *(options++) = 61;
-  *(options++) = 0x07;
-  *(options++) = 0x01;
-  get_mac_addr(options);
-  options += 6;
+    uint8_t *server_id = get_dhcp_option(packet, 54); // 54 = Server ID
+    if (server_id) {
+      memcpy(&dhcp_server_ip, server_id, 4);
+    }
 
-  // requested IP address
-  *(options++) = 50;
-  *(options++) = 0x04;
-  memcpy((uint32_t *)(options), request_ip, 4);
-  options += 4;
+    dhcp_request((uint8_t *)&packet->your_ip);
+  } break;
 
-  // host Name
-  *(options++) = 12;
-  *(options++) = 0x09;
-  memcpy(options, "os-dev", strlen("os-dev"));
-  options += strlen("os-dev");
+  case DHCP_MSG_ACK:
+    memcpy(ip_addr, &packet->your_ip, 4);
+    is_ip_allocated = 1;
 
-  // parameter request list
-  *(options++) = 55;
-  *(options++) = 8;
-  *(options++) = 0x1;
-  *(options++) = 0x3;
-  *(options++) = 0x6;
-  *(options++) = 0xf;
-  *(options++) = 0x2c;
-  *(options++) = 0x2e;
-  *(options++) = 0x2f;
-  *(options++) = 0x39;
-  *(options++) = 0xff;
+    // process other configuration options (subnet, router, DNS)
+    uint8_t *subnet_mask = get_dhcp_option(packet, DHCP_OPT_SUBNET_MASK);
+    uint8_t *router = get_dhcp_option(packet, DHCP_OPT_ROUTER);
+    uint8_t *dns = get_dhcp_option(packet, DHCP_OPT_DNS);
+
+    // configure the network with these values (implementation needed)
+    if (subnet_mask) {
+      // set_subnet_mask(subnet_mask);
+    }
+
+    if (router) {
+      // set_default_gateway(router);
+    }
+
+    if (dns) {
+      // set_dns_server(dns);
+    }
+    break;
+
+  case DHCP_MSG_NAK:
+    // start over with DISCOVER
+    is_ip_allocated = 0;
+    dhcp_discover();
+    break;
+  }
 }

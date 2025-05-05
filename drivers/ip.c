@@ -62,7 +62,7 @@ void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
   // Total length = header + data
   uint16_t total_length = sizeof(ip_packet_t) + len;
   packet->length = htons(total_length);
-  serial_debug("total length = %d (0x%04x in network order)", total_length,
+  serial_debug("total length = %d (%x in network order)", total_length,
                packet->length);
 
   // Set identification field
