@@ -7,6 +7,7 @@ void fvm_test(void);
 semaphore_t task_semaphore = {0};
 
 void kernel_main(void) {
+  serial_debug("starting up...");
   kernel_clear_screen();
 
   isr_install();
@@ -14,10 +15,13 @@ void kernel_main(void) {
 
   initialise_paging();
 
-  selftest();
+  serial_debug("paging done...");
+
+  // selftest();
 
   kernel_printf("- initializing pci...\n");
   pci_init();
+  serial_debug("pci done...");
 
   // set_vga_mode12();
   // init_vga12h();
@@ -25,8 +29,12 @@ void kernel_main(void) {
   // vga12h_gradient_demo();
 
   kernel_printf("- initializing network driver...\n");
+
   rtl8139_init();
+  serial_debug("rtl8139 done...");
+
   arp_init();
+  serial_debug("arp done...");
 
   uint8_t mac_addr[6];
   mac_addr[0] = 0xAA;

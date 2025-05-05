@@ -120,7 +120,7 @@ void ip_send_packet(uint8_t *dst_ip, void *data, int len) {
       arp_send_packet(zero_hardware_addr, dst_ip);
     }
   }
-  serial_printff("IP Packet Sent...(checksum: %x)\n", packet->header_checksum);
+  serial_printff("IP Packet Sent...(checksum: %x)", packet->header_checksum);
   // Got the mac address! Now send an ethernet packet
   ethernet_send_packet(dst_hardware_addr, (uint8_t *)packet,
                        htons(packet->length), ETHERNET_TYPE_IP);

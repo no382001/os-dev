@@ -45,10 +45,10 @@ void rtl8139_handler(registers_t *reg) {
   uint16_t status = port_word_in(rtl8139_device.io_base + 0x3e);
 
   if (status & TOK) {
-    serial_debug("Packet sent");
+    serial_debug("packet sent");
   }
   if (status & ROK) {
-    // qemu_printf("Received packet\n");
+    serial_debug("packet recieved!");
     receive_packet();
   }
 

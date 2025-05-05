@@ -61,7 +61,6 @@ static uint8_t kernel_heap_bitmap_get_next_id(uint8_t left_id,
     ;
   return new_id;
 }
-
 void *kernel_heap_bitmap_alloc(kernel_heap_bitmap_t *heap, uint32_t size) {
   kernel_heap_bitmap_block_t *block;
   uint8_t *bitmap;
@@ -85,14 +84,15 @@ void *kernel_heap_bitmap_alloc(kernel_heap_bitmap_t *heap, uint32_t size) {
               : size / block->allocation_unit_size;
       bitmap = (uint8_t *)&block[1];
 
-      for (i = (block->last_free_block + 1 >= block_count
-                    ? 0
-                    : block->last_free_block + 1);
-           i < block->last_free_block; ++i) {
-        /* wrap around if needed */
-        if (i >= block_count) {
-          i = 0;
-        }
+      // start search from last free block as an optimization
+      uint32_t start_idx = (block->last_free_block + 1 >= block_count)
+                               ? 0
+                               : block->last_free_block + 1;
+
+      // search the entire bitmap, not just up to last_free_block
+      for (uint32_t search_count = 0; search_count < block_count;
+           ++search_count) {
+        i = (start_idx + search_count) % block_count;
 
         if (bitmap[i] == 0) {
           /* count consecutive free blocks */
@@ -124,8 +124,8 @@ void *kernel_heap_bitmap_alloc(kernel_heap_bitmap_t *heap, uint32_t size) {
                             (uintptr_t)&block[1]);
           }
 
-          /* skip ahead (will be incremented once more in the loop) */
-          i += (consecutive_blocks - 1);
+          /* skip ahead */
+          search_count += (consecutive_blocks - 1);
           continue;
         }
       }
@@ -180,10 +180,13 @@ void kernel_heap_bitmap_free(kernel_heap_bitmap_t *heap, void *ptr) {
 }
 
 uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys) {
+  serial_debug("somebody wants %d bytes aligned: %d w/ phys %x", size, align,
+               phys);
+  uint32_t addr;
   if (kheap == NULL) {
     // early allocations before heap is initialized
     // use placement allocator instead
-    uint32_t addr = placement_address;
+    addr = placement_address;
 
     if (align && (addr & 0xFFF)) {
       // align to page boundary (4KB)
@@ -195,16 +198,14 @@ uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys) {
     }
 
     placement_address = addr + size;
-    return addr;
   } else {
-    void *addr;
-
     if (align) {
       // for aligned allocations, request extra space and do manual alignment
       uint32_t extra = PAGE_SIZE;
-      addr = kernel_heap_bitmap_alloc(kheap, size + extra);
+      addr = (uint32_t)kernel_heap_bitmap_alloc(kheap, size + extra);
 
       if (!addr) {
+        assert(0 && "out of memory");
         return 0; // OOM
       }
 
@@ -219,21 +220,21 @@ uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys) {
 
       // store adjustment before aligned address
       *((uint32_t *)(aligned_addr - sizeof(uint32_t))) = (uint32_t)addr;
-      addr = (void *)aligned_addr;
+      addr = aligned_addr;
     } else {
-      addr = kernel_heap_bitmap_alloc(kheap, size);
+      addr = (uint32_t)kernel_heap_bitmap_alloc(kheap, size);
     }
 
     if (phys && addr) {
       // convert virtual to physical address
-      *phys = virt2phys(addr);
+      *phys = virt2phys((void *)addr);
     }
-
-    return (uint32_t)addr;
   }
+  serial_debug("giving them the address %x", addr);
+  return (uint32_t)addr;
 }
 
-uint32_t kmalloc_a(uint32_t size) { return kmalloc_int(size, 1, NULL); }
+uint32_t kmalloc_a(uint32_t size) { return kmalloc_int(size, 1, 0); }
 
 uint32_t kmalloc_p(uint32_t size, uint32_t *phys) {
   return kmalloc_int(size, 0, phys);
@@ -243,10 +244,11 @@ uint32_t kmalloc_ap(uint32_t size, uint32_t *phys) {
   return kmalloc_int(size, 1, phys);
 }
 
-uint32_t kmalloc(uint32_t size) { return kmalloc_int(size, 0, NULL); }
+uint32_t kmalloc(uint32_t size) { return kmalloc_int(size, 0, 0); }
 
 void kfree(void *addr) {
   if (kheap == NULL || addr == NULL) {
+    serial_debug("nothing to free");
     return; // Can't free memory before heap initialization or null pointer
   }
 

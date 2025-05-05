@@ -6,6 +6,6 @@ void sleep(uint32_t milliseconds);
   do {                                                                         \
     if (c) {                                                                   \
     } else {                                                                   \
-      serial_debug("assert failed on " #c "!")                                 \
+      serial_debug("[ASSERT] failed on " #c "!")                               \
     }                                                                          \
   } while (0);
