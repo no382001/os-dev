@@ -16,7 +16,7 @@ void udp_send_packet(uint8_t *dst_ip, uint16_t src_port, uint16_t dst_port,
                      void *data, int len) {
   int length = sizeof(udp_packet_t) + len;
   serial_debug(
-      "UDP send: dst_ip=%d.%d.%d.%d, src_port=%d, dst_port=%d, length=%d",
+      "udp send: dst_ip=%d.%d.%d.%d, src_port=%d, dst_port=%d, length=%d",
       dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], src_port, dst_port, length);
 
   udp_packet_t *packet = (udp_packet_t *)kmalloc(length);

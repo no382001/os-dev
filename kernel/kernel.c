@@ -44,7 +44,6 @@ void kernel_main(void) {
   mac_addr[4] = 0xEE;
   mac_addr[5] = 0xFF;
   get_mac_addr(mac_addr);
-  serial_debug("copied mac addr...");
 
   uint8_t ip_addr[6];
   ip_addr[0] = 10;
@@ -56,7 +55,6 @@ void kernel_main(void) {
   // ip_send_packet(ip_addr, str, strlen(str));
 
   kernel_printf("- asking for an ip...\n");
-  serial_debug("dhcp discover...");
   dhcp_discover();
   // If IP is ready, send a UDP message from simpleos to a host machine running
   // Ubuntu

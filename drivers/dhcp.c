@@ -24,6 +24,7 @@ uint8_t *add_dhcp_option(uint8_t *options, uint8_t option, uint8_t len,
 }
 
 void dhcp_discover() {
+  serial_debug("dhcp discover...");
   uint8_t dst_ip[4] = {255, 255, 255, 255};
 
   dhcp_packet_t packet = {0};

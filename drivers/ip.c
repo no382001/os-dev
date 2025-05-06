@@ -47,7 +47,7 @@ uint16_t ip_calculate_checksum(ip_packet_t *packet) {
 
 void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
   // Print what we're trying to send
-  serial_debug("Sending IP packet to %d.%d.%d.%d with data length %d",
+  serial_debug("sending ip packet to %d.%d.%d.%d with data length %d",
                dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], len);
 
   // Allocate memory for the packet
@@ -55,7 +55,7 @@ void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
 
   // Fill in the IP header
   packet->version_ihl = (4 << 4) | 5; // IPv4, header length 5 words (20 bytes)
-  serial_debug("version_ihl = 0x%02x", packet->version_ihl);
+  serial_debug("version_ihl = %x", packet->version_ihl);
 
   packet->tos = 0;
 
@@ -85,7 +85,7 @@ void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
   packet->header_checksum = 0; // Must be zero for calculation
   packet->header_checksum =
       ip_calculate_checksum(packet); // Standard IP header is 20 bytes
-  serial_debug("IP checksum = 0x%04x", ntohs(packet->header_checksum));
+  serial_debug("ip checksum = %x", ntohs(packet->header_checksum));
 
   // Copy the data
   memcpy(packet->data, data, len);
@@ -93,19 +93,18 @@ void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
   // Get the MAC address for the destination IP
   uint8_t dst_mac[6];
   if (arp_lookup(dst_ip, dst_mac) != 0) {
-    serial_debug("No MAC found for IP %d.%d.%d.%d - sending ARP request",
+    serial_debug("no MAC found for IP %d.%d.%d.%d - sending ARP request",
                  dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3]);
-    // Send ARP request
+
     uint8_t broadcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     arp_send_packet(broadcast_mac, dst_ip);
-    // We could queue the packet here for later transmission
+    // we could queue the packet here for later transmission
     kfree(packet);
     return;
   }
 
-  // Send Ethernet frame with the IP packet
-  serial_debug("Sending to MAC %02x:%02x:%02x:%02x:%02x:%02x", dst_mac[0],
-               dst_mac[1], dst_mac[2], dst_mac[3], dst_mac[4], dst_mac[5]);
+  serial_debug("sending to mac %x:%x:%x:%x:%x:%x", dst_mac[0], dst_mac[1],
+               dst_mac[2], dst_mac[3], dst_mac[4], dst_mac[5]);
 
   ethernet_send_packet(dst_mac, (void *)packet, total_length, ETHERNET_TYPE_IP);
 
@@ -120,9 +119,6 @@ void ip_handle_packet(ip_packet_t *packet) {
   uint8_t *flags_fragment_byte = (uint8_t *)packet + 6;
   *flags_fragment_byte = ntohb(*flags_fragment_byte, 3);
 
-  serial_printff("Receive: the whole ip packet \n");
-  // now, the ip packet handler simply dumps ip header info and the data with
-  // xxd and display on screen Dump source ip, data, checksum
   char src_ip[20];
 
   if ((packet->version_ihl >> 4) == IP_IPV4) {
@@ -145,5 +141,9 @@ void ip_handle_packet(ip_packet_t *packet) {
     // What ? that's it ? that's ip packet handling ??
     // not really... u need to handle ip fragmentation... but let's make sure we
     // can handle one ip packet first
+  } else {
+    uint8_t *bytes = (uint8_t *)packet;
+    serial_debug("we dont know what this is: %02x %02x %02x %02x %02x %02x",
+                 bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]);
   }
 }

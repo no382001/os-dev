@@ -48,7 +48,6 @@ void rtl8139_handler(registers_t *reg) {
     serial_debug("packet sent");
   }
   if (status & ROK) {
-    serial_debug("packet recieved!");
     receive_packet();
   }
 
@@ -65,7 +64,7 @@ void read_mac_addr() {
 
   rtl8139_device.mac_addr[4] = mac_part2 >> 0;
   rtl8139_device.mac_addr[5] = mac_part2 >> 8;
-  serial_debug("mac: %01x:%01x:%01x:%01x:%01x:%01x", rtl8139_device.mac_addr[0],
+  serial_debug("our mac is: %x:%x:%x:%x:%x:%x", rtl8139_device.mac_addr[0],
                rtl8139_device.mac_addr[1], rtl8139_device.mac_addr[2],
                rtl8139_device.mac_addr[3], rtl8139_device.mac_addr[4],
                rtl8139_device.mac_addr[5]);

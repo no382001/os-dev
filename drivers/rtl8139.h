@@ -76,4 +76,4 @@ void rtl8139_handler(registers_t *reg);
 void rtl8139_init();
 void read_mac_addr();
 void receive_packet();
-void get_mac_addr();
+void get_mac_addr(uint8_t *src_mac_addr);
