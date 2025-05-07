@@ -4,6 +4,29 @@
 #include "libc/mem.h"
 #include "network.h"
 
+static uint16_t icmp_calculate_checksum(void *buffer, uint16_t size) {
+  uint32_t sum = 0;
+  uint16_t *ptr = (uint16_t *)buffer;
+
+  // sum all 16-bit words
+  for (int i = 0; i < size / 2; i++) {
+    sum += ntohs(ptr[i]);
+  }
+
+  // handle odd byte if present
+  if (size % 2) {
+    sum += ((uint8_t *)buffer)[size - 1];
+  }
+
+  // add carry bits and fold to 16 bits
+  while (sum >> 16) {
+    sum = (sum & 0xFFFF) + (sum >> 16);
+  }
+
+  // return ones complement
+  return htons(~sum);
+}
+
 void icmp_send_packet(uint8_t *dst_ip, uint8_t type, uint8_t code, uint16_t id,
                       uint16_t sequence, void *data, uint32_t data_len) {
   serial_debug("sending icmp packet %d to %d.%d.%d.%d", type, dst_ip[0],
@@ -27,7 +50,7 @@ void icmp_send_packet(uint8_t *dst_ip, uint8_t type, uint8_t code, uint16_t id,
     memcpy(packet->data, data, data_len);
   }
 
-  packet->checksum = _ip_calculate_checksum((ip_packet_t *)packet, icmp_size);
+  packet->checksum = icmp_calculate_checksum(packet, icmp_size);
 
   _ip_send_packet(dst_ip, packet, icmp_size, PROTOCOL_ICMP);
 
@@ -37,29 +60,6 @@ void icmp_send_packet(uint8_t *dst_ip, uint8_t type, uint8_t code, uint16_t id,
 void icmp_send_echo_request(uint8_t *dst_ip, uint16_t id, uint16_t sequence,
                             void *data, uint32_t data_len) {
   icmp_send_packet(dst_ip, ICMP_ECHO_REQUEST, 0, id, sequence, data, data_len);
-}
-
-static uint16_t icmp_calculate_checksum(void *buffer, uint16_t size) {
-  uint32_t sum = 0;
-  uint16_t *ptr = (uint16_t *)buffer;
-
-  // sum all 16-bit words
-  for (int i = 0; i < size / 2; i++) {
-    sum += ntohs(ptr[i]);
-  }
-
-  // handle odd byte if present
-  if (size % 2) {
-    sum += ((uint8_t *)buffer)[size - 1];
-  }
-
-  // add carry bits and fold to 16 bits
-  while (sum >> 16) {
-    sum = (sum & 0xFFFF) + (sum >> 16);
-  }
-
-  // return ones complement
-  return htons(~sum);
 }
 
 void icmp_handle_packet(icmp_packet_t *packet, uint16_t length,

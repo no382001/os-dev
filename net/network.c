@@ -42,6 +42,8 @@ void ethernet_handle_packet(ethernet_frame_t *packet, int len) {
   get_mac_addr(our_mac);
 
   // serial_debug("rec eth of type %x", type);
+
+  // !!!
   for (int i = 0; i < 6; i++) {
     if (packet->dst_mac_addr[i] != our_mac[i] &&
         !(packet->dst_mac_addr[0] == 0xFF && packet->dst_mac_addr[1] == 0xFF &&
