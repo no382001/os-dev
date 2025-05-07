@@ -27,6 +27,7 @@ networking:
   - ethernet
   - dhcp not working
   - full of memory leaks, no queue to handle requests
+  - sync issues with icmp
 
 build disk:
   (if i have 9p this is kind of irrelevant)

@@ -79,9 +79,9 @@ void *memmove(void *dest, const void *src, size_t num_bytes) {
 uint32_t memcmp(uint8_t *data1, uint8_t *data2, uint32_t n) {
   while (n--) {
     if (*data1 != *data2)
-      return 0;
+      return 1;
     data1++;
     data2++;
   }
-  return 1;
+  return 0;
 }

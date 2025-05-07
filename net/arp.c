@@ -11,6 +11,8 @@ int arp_table_curr;
 
 uint8_t broadcast_mac_address[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
+extern uint8_t my_ip[4];
+
 void arp_handle_packet(arp_packet_t *arp_packet) {
 
   uint8_t dst_hardware_addr[6];
@@ -21,17 +23,11 @@ void arp_handle_packet(arp_packet_t *arp_packet) {
   // reply arp request, if the ip address matches(have to hard code the IP
   // eveywhere, because I don't have dhcp yet)
   if (ntohs(arp_packet->opcode) == ARP_REQUEST) {
-    serial_debug("ARP_REQUEST......................");
-    uint32_t my_ip = 0x0e02000a;
-    if (memcmp(arp_packet->dst_protocol_addr, (uint8_t *)&my_ip, 4)) {
-
+    if (!memcmp(arp_packet->dst_protocol_addr, my_ip, 4)) {
       // set source MAC address, IP address (hardcode the IP address as 10.2.2.3
       // until we really get one..)
       get_mac_addr(arp_packet->src_hardware_addr);
-      arp_packet->src_protocol_addr[0] = 10;
-      arp_packet->src_protocol_addr[1] = 0;
-      arp_packet->src_protocol_addr[2] = 2;
-      arp_packet->src_protocol_addr[3] = 14;
+      memcpy(arp_packet->src_protocol_addr, my_ip, 4);
 
       // set destination MAC address, IP address
       memcpy(arp_packet->dst_hardware_addr, dst_hardware_addr, 6);
@@ -53,8 +49,10 @@ void arp_handle_packet(arp_packet_t *arp_packet) {
       // now send it with ethernet
       ethernet_send_packet(dst_hardware_addr, (uint8_t *)arp_packet,
                            sizeof(arp_packet_t), ETHERNET_TYPE_ARP);
-
-      // qemu_printf("Replied Arp, the reply looks like this\n");
+      serial_debug(
+          "sent an arp reply to %d.%d.%d.%d", arp_packet->dst_protocol_addr[0],
+          arp_packet->dst_protocol_addr[1], arp_packet->dst_protocol_addr[2],
+          arp_packet->dst_protocol_addr[3]);
     }
   } else if (ntohs(arp_packet->opcode) == ARP_REPLY) {
     return; // reply

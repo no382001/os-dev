@@ -25,11 +25,5 @@
 ## other
 `nm -S _build/drivers/screen.o | grep backbuffer`<br>
 `dump memory dump.bin 0xADDRESS_START 0xADDRESS_END`
-```sudo ip tuntap add dev tap0 mode tap
- sudo ip link set dev tap0 up
- sudo ip addr add 192.168.100.1/24 dev tap0
- ip a
- 
- sudo tcpdump -i tap0 -n -v
- 
- sudo wireshark -i tap0```
+
+`sudo ping -I tap0 10.0.2.14`

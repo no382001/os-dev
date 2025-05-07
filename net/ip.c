@@ -6,8 +6,6 @@
 #include "network.h"
 
 uint8_t my_ip[] = {10, 0, 2, 14};
-uint8_t test_target_ip[] = {10, 0, 2, 15};
-uint8_t zero_hardware_addr[] = {0, 0, 0, 0, 0, 0};
 
 void get_ip_str(char *ip_str, uint8_t *ip) {
   char temp[4];
@@ -82,9 +80,7 @@ void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
   packet->ttl = 64;
   packet->protocol = protocol;
 
-  uint8_t my_ip_address[4] = {0, 0, 0, 0};
-
-  memcpy(packet->src_ip, my_ip_address, 4);
+  memcpy(packet->src_ip, my_ip, 4);
   memcpy(packet->dst_ip, dst_ip, 4);
 
   packet->header_checksum = 0;
@@ -114,12 +110,8 @@ void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
 }
 
 void ip_handle_packet(ip_packet_t *packet) {
-  // fix packet data order (be careful with the endiness problem within a byte)
-  uint8_t *version_ihl_byte = (uint8_t *)packet;
-  *version_ihl_byte = ntohb(*version_ihl_byte, 4);
-
-  uint8_t *flags_fragment_byte = (uint8_t *)packet + 6;
-  *flags_fragment_byte = ntohb(*flags_fragment_byte, 3);
+  serial_debug("got ip packet w/ type %x ver %x", packet->protocol,
+               (packet->version_ihl >> 4));
 
   char src_ip[20];
 
@@ -129,14 +121,12 @@ void ip_handle_packet(ip_packet_t *packet) {
     // header size from ihl field
     void *data_ptr =
         (void *)((uint8_t *)packet + ((packet->version_ihl & 0x0F) * 4));
-    // int data_len = ntohs(packet->length) - sizeof(ip_packet_t);
+    int data_len = ntohs(packet->length) - sizeof(ip_packet_t);
 
-    serial_printff("src: %s, data dump: \n", src_ip);
-    // xxd(data_ptr, data_len);
-
-    // If this is a UDP packet
     if (packet->protocol == PROTOCOL_UDP) {
       udp_handle_packet(data_ptr);
+    } else if (packet->protocol == PROTOCOL_ICMP) {
+      icmp_handle_packet((icmp_packet_t *)data_ptr, data_len, packet->src_ip);
     }
 
     // TODO

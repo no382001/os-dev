@@ -40,7 +40,7 @@ void udp_handle_packet(udp_packet_t *packet) {
 
   void *data_ptr = (void *)(packet + sizeof(udp_packet_t));
   // uint32_t data_len = length;
-  serial_debug("Received UDP packet, dst_port %d, data dump:\n", dst_port);
+  serial_debug("received UDP packet, dst_port %d, data dump:\n", dst_port);
   // xxd(data_ptr, data_len);
 
   if (ntohs(packet->dst_port) == DHCP_CLIENT) {

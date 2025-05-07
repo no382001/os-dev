@@ -39,16 +39,17 @@ void kernel_main(void) {
   uint8_t mac_addr[] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
   get_mac_addr(mac_addr);
 
-  uint8_t ip_addr[] = {10, 0, 2, 15};
-  char *str = "this is a message sent from the OS";
-
   /*
   ethernet_send_packet(mac_addr, (void *)str, strlen(str), 0x0021);
   ip_send_packet(ip_addr, (void *)str, strlen(str));
   */
 
-  uint8_t host_ip[] = {10, 0, 2, 2};
-  icmp_send_echo_request(host_ip, 1234, 1, "Test ping to host", 16);
+  extern uint8_t my_ip[4];
+  arp_lookup_add(mac_addr, my_ip);
+
+  uint8_t dst_ip[] = {127, 0, 0, 1};
+  icmp_send_echo_request(dst_ip, 1234, 1, 0,
+                         0); // checksum should be the other way
 
   // this does not work i cant seem to set up the network on wsl2 qemu
   // the packet looks okay, but i cant reach the dhcp server
@@ -57,8 +58,7 @@ void kernel_main(void) {
   while (gethostaddr((char *)mac_addr) == 0){};
   */
 
-  serial_debug("sending dummy...");
-  udp_send_packet(ip_addr, 1234, 1153, str, strlen(str));
+  // udp_send_packet(ip_addr, 1234, 1153, str, strlen(str));
   for (;;)
     ;
 }

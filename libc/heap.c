@@ -179,6 +179,7 @@ void kernel_heap_bitmap_free(kernel_heap_bitmap_t *heap, void *ptr) {
   return;
 }
 
+// TODO 0xc0200014 what is the this offset?
 uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys) {
   serial_debug("somebody wants %d bytes aligned: %d w/ phys %x", size, align,
                phys);
@@ -203,7 +204,8 @@ uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys) {
       // for aligned allocations, request extra space and do manual alignment
       addr = (uint32_t)kernel_heap_bitmap_alloc(kheap, size);
 
-      if (!addr) {
+      if (!addr) { // TODO this does not really work, maybe if we want more mem
+                   // than available, it gives it out
         assert(0 && "out of memory");
         return 0; // OOM
       }

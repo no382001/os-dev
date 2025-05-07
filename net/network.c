@@ -35,17 +35,20 @@ int ethernet_send_packet(uint8_t *dst_mac_addr, uint8_t *data, int len,
 }
 
 void ethernet_handle_packet(ethernet_frame_t *packet, int len) {
-  void *data = (void *)(packet + sizeof(ethernet_frame_t));
+  // void *data = (void *)(packet + sizeof(ethernet_frame_t));
   uint16_t type = ntohs(packet->type);
 
   uint8_t our_mac[6] = {0};
   get_mac_addr(our_mac);
 
+  // serial_debug("rec eth of type %x", type);
   for (int i = 0; i < 6; i++) {
     if (packet->dst_mac_addr[i] != our_mac[i] &&
         !(packet->dst_mac_addr[0] == 0xFF && packet->dst_mac_addr[1] == 0xFF &&
           packet->dst_mac_addr[2] == 0xFF && packet->dst_mac_addr[3] == 0xFF &&
           packet->dst_mac_addr[4] == 0xFF && packet->dst_mac_addr[5] == 0xFF)) {
+      // serial_debug("not for us tho, ignoring...");
+      kfree(packet);
       /*
       serial_debug(
         "not for us! from: %x:%x:%x:%x:%x:%x to:   %x:%x:%x:%x:%x:%x",
@@ -64,15 +67,13 @@ void ethernet_handle_packet(ethernet_frame_t *packet, int len) {
 
   // ARP packet
   if (type == ETHERNET_TYPE_ARP) {
-    serial_debug("(ARP Packet)");
-    arp_handle_packet(data);
+    serial_debug("arp packet)");
+    arp_handle_packet((void *)packet->data);
     return;
   } else
     // IP packets(could be TCP, UDP or others)
     if (type == ETHERNET_TYPE_IP) {
-      serial_debug("(IP Packet)");
-
-      ip_handle_packet(data);
+      ip_handle_packet((void *)packet->data);
       return;
     }
   serial_debug("we dont know what to do with this packet %x",
