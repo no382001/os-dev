@@ -21,6 +21,7 @@ vfs:
   https://blog.aqwari.net/9p/parsing/
   https://git.sr.ht/~ft/c9/tree
   - can connect to outside atleast on qemu com1 
+  - 9p could use udp
 
 build disk:
   (if i have 9p this is kind of irrelevant)

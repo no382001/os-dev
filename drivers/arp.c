@@ -12,6 +12,7 @@ int arp_table_curr;
 uint8_t broadcast_mac_address[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 void arp_handle_packet(arp_packet_t *arp_packet) {
+
   uint8_t dst_hardware_addr[6];
   uint8_t dst_protocol_addr[4];
   // save some packet field
@@ -20,7 +21,7 @@ void arp_handle_packet(arp_packet_t *arp_packet) {
   // reply arp request, if the ip address matches(have to hard code the IP
   // eveywhere, because I don't have dhcp yet)
   if (ntohs(arp_packet->opcode) == ARP_REQUEST) {
-    // qemu_printf("Got ARP REQUEST......................");
+    serial_debug("ARP_REQUEST......................");
     uint32_t my_ip = 0x0e02000a;
     if (memcmp(arp_packet->dst_protocol_addr, (uint8_t *)&my_ip, 4)) {
 
@@ -56,11 +57,9 @@ void arp_handle_packet(arp_packet_t *arp_packet) {
       // qemu_printf("Replied Arp, the reply looks like this\n");
     }
   } else if (ntohs(arp_packet->opcode) == ARP_REPLY) {
-    // may be we can handle the case where we get a reply after sending a
-    // request, but i don't think my os will ever need to do so...
-    // qemu_printf("Got ARP REPLY......................");
+    return; // reply
   } else {
-    serial_printff("Got unknown ARP, opcode = %d\n", arp_packet->opcode);
+    return; // not for us
   }
 
   // now, store the ip-mac address mapping relation
