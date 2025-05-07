@@ -1,9 +1,9 @@
 #include "ip.h"
 #include "arp.h"
 #include "dhcp.h"
+#include "drivers/serial.h"
 #include "libc/string.h"
 #include "network.h"
-#include "serial.h"
 
 uint8_t my_ip[] = {10, 0, 2, 14};
 uint8_t test_target_ip[] = {10, 0, 2, 15};
@@ -46,30 +46,25 @@ uint16_t ip_calculate_checksum(ip_packet_t *packet) {
 }
 
 void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
-  // Print what we're trying to send
   serial_debug("sending ip packet to %d.%d.%d.%d with data length %d",
                dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], len);
 
-  // Allocate memory for the packet
   ip_packet_t *packet = (ip_packet_t *)kmalloc(sizeof(ip_packet_t) + len);
 
-  // Fill in the IP header
   packet->version_ihl = (4 << 4) | 5; // IPv4, header length 5 words (20 bytes)
   serial_debug("version_ihl = %x", packet->version_ihl);
 
   packet->tos = 0;
 
-  // Total length = header + data
   uint16_t total_length = sizeof(ip_packet_t) + len;
   packet->length = htons(total_length);
   serial_debug("total length = %d (%x in network order)", total_length,
                packet->length);
 
-  // Set identification field
   static uint16_t ip_id = 0;
   packet->id = htons(ip_id++);
 
-  // No fragmentation
+  // no fragmentation
   packet->flags_fragment = htons(0);
 
   // TTL and protocol
@@ -77,20 +72,17 @@ void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
   packet->protocol = PROTOCOL_UDP; // Assuming UDP for DHCP
 
   uint8_t my_ip_address[4] = {0, 0, 0, 0};
-  // Set source and destination addresses
+
   memcpy(packet->src_ip, my_ip_address, 4);
   memcpy(packet->dst_ip, dst_ip, 4);
 
-  // Calculate checksum
-  packet->header_checksum = 0; // Must be zero for calculation
+  packet->header_checksum = 0;
   packet->header_checksum =
-      ip_calculate_checksum(packet); // Standard IP header is 20 bytes
+      ip_calculate_checksum(packet);
   serial_debug("ip checksum = %x", ntohs(packet->header_checksum));
 
-  // Copy the data
   memcpy(packet->data, data, len);
 
-  // Get the MAC address for the destination IP
   uint8_t dst_mac[6];
   if (arp_lookup(dst_ip, dst_mac) != 0) {
     serial_debug("no MAC found for IP %d.%d.%d.%d - sending ARP request",

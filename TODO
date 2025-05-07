@@ -23,6 +23,11 @@ vfs:
   - can connect to outside atleast on qemu com1 
   - 9p could use udp
 
+networking:
+  - ethernet
+  - dhcp not working
+  - full of memory leaks, no queue to handle requests
+
 build disk:
   (if i have 9p this is kind of irrelevant)
   on generation save the img, remove it from clean and keep backups

@@ -1,8 +1,8 @@
 #include "rtl8139.h"
 
+#include "drivers/low_level.h"
+#include "drivers/pci.h"
 #include "libc/string.h"
-#include "low_level.h"
-#include "pci.h"
 
 pci_dev_t pci_rtl8139_device;
 rtl8139_dev_t rtl8139_device;

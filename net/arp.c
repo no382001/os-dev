@@ -1,9 +1,9 @@
 #include "arp.h"
+#include "drivers/serial.h"
 #include "libc/heap.h"
 #include "libc/mem.h"
 #include "network.h"
 #include "rtl8139.h"
-#include "serial.h"
 
 arp_table_entry_t arp_table[512];
 int arp_table_size;

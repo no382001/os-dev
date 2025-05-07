@@ -51,7 +51,7 @@ void kernel_main(void) {
   ip_addr[2] = 2;
   ip_addr[3] = 15;
   char *str = "this is a message sent from the OS";
-  
+
   /*
   ethernet_send_packet(mac_addr, (void *)str, strlen(str), 0x0021);
   ip_send_packet(ip_addr, (void *)str, strlen(str));

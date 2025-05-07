@@ -1,10 +1,10 @@
 #include "network.h"
 #include "arp.h"
+#include "drivers/serial.h"
 #include "ip.h"
 #include "libc/heap.h"
 #include "libc/mem.h"
 #include "rtl8139.h"
-#include "serial.h"
 
 int ethernet_send_packet(uint8_t *dst_mac_addr, uint8_t *data, int len,
                          uint16_t protocol) {

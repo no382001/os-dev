@@ -87,49 +87,46 @@ void dhcp_request(uint8_t *requested_ip) {
 
   uint8_t *options = packet.options;
 
-  // Magic cookie
+  // magic cookie
   *((uint32_t *)(options)) = htonl(DHCP_MAGIC_COOKIE);
   options += 4;
 
-  // Message type (REQUEST)
+  // message type (REQUEST)
   uint8_t msg_type = DHCP_REQUEST;
   options = add_dhcp_option(options, DHCP_OPT_MSG_TYPE, 1, &msg_type);
 
-  // Client identifier
+  // client identifier
   uint8_t client_id[7];
-  client_id[0] = 1; // Hardware type (Ethernet)
+  client_id[0] = 0x1; // hardware type (Ethernet)
   get_mac_addr(client_id + 1);
   options = add_dhcp_option(options, DHCP_OPT_CLIENT_ID, 7, client_id);
 
-  // Requested IP address
   if (requested_ip) {
     options = add_dhcp_option(options, DHCP_OPT_REQUESTED_IP, 4, requested_ip);
   }
 
-  // Server identifier (if we have it)
+  // server identifier (if we have it)
   if (dhcp_server_ip != 0) {
     options =
         add_dhcp_option(options, 54, 4, &dhcp_server_ip); // 54 = Server ID
   }
 
-  // Host name (optional)
+  // host name (optional)
   char hostname[] = "os-dev";
   options =
       add_dhcp_option(options, DHCP_OPT_HOST_NAME, strlen(hostname), hostname);
 
-  // Parameter request list
+  // parameter request list
   uint8_t params[] = {
-      DHCP_OPT_SUBNET_MASK, // Subnet mask
-      DHCP_OPT_ROUTER,      // Router
+      DHCP_OPT_SUBNET_MASK, // subnet mask
+      DHCP_OPT_ROUTER,      // router
       DHCP_OPT_DNS          // DNS server
   };
   options =
       add_dhcp_option(options, DHCP_OPT_PARAM_REQ_LIST, sizeof(params), params);
 
-  // End option
   *(options++) = DHCP_OPT_END;
 
-  // Send the packet
   udp_send_packet(dst_ip, DHCP_CLIENT, DHCP_SERVER, &packet,
                   sizeof(dhcp_packet_t));
 }
@@ -139,7 +136,7 @@ void *get_dhcp_option(dhcp_packet_t *packet, uint8_t type) {
     return NULL;
   }
 
-  uint8_t *options = packet->options + 4; // Skip magic cookie
+  uint8_t *options = packet->options + 4; // skip magic cookie
 
   while (options < packet->options + sizeof(packet->options)) {
     uint8_t curr_type = *options;
@@ -174,10 +171,9 @@ void dhcp_handle_packet(dhcp_packet_t *packet) {
     return;
   }
 
-  // Get message type
   uint8_t *type_ptr = get_dhcp_option(packet, DHCP_OPT_MSG_TYPE);
   if (!type_ptr) {
-    return; // No message type option
+    return;
   }
 
   uint8_t msg_type = *type_ptr;

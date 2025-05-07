@@ -1,10 +1,10 @@
 #include "udp.h"
 #include "dhcp.h"
+#include "drivers/serial.h"
 #include "ip.h"
 #include "libc/heap.h"
 #include "libc/mem.h"
 #include "network.h"
-#include "serial.h"
 
 uint16_t udp_calculate_checksum(udp_packet_t *packet) {
   (void)packet;
