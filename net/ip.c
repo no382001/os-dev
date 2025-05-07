@@ -24,16 +24,18 @@ void get_ip_str(char *ip_str, uint8_t *ip) {
   }
 }
 
-uint16_t ip_calculate_checksum(ip_packet_t *packet) {
+uint16_t _ip_calculate_checksum(ip_packet_t *packet, int size) {
   // treat the packet header as a 2-byte-integer array
   // sum all integers up and flip all bits
-  int array_size = sizeof(ip_packet_t) / 2;
+  if (size == 0) {
+    size = sizeof(ip_packet_t) / 2;
+  }
   uint32_t sum = 0;
   uint16_t value;
 
   uint8_t *byte_ptr = (uint8_t *)packet;
 
-  for (int i = 0; i < array_size; i++) {
+  for (int i = 0; i < size; i++) {
     memcpy(&value, &byte_ptr[i * 2], sizeof(uint16_t));
     sum += flip_short(value);
   }
@@ -45,7 +47,16 @@ uint16_t ip_calculate_checksum(ip_packet_t *packet) {
   return ret;
 }
 
+uint16_t ip_calculate_checksum(ip_packet_t *packet) {
+  return _ip_calculate_checksum(packet, 0);
+}
+
 void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
+  _ip_send_packet(dst_ip, data, len, PROTOCOL_UDP); // Assuming UDP for DHCP
+}
+
+void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
+                     uint8_t protocol) {
   serial_debug("sending ip packet to %d.%d.%d.%d with data length %d",
                dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], len);
 
@@ -69,7 +80,7 @@ void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
 
   // TTL and protocol
   packet->ttl = 64;
-  packet->protocol = PROTOCOL_UDP; // Assuming UDP for DHCP
+  packet->protocol = protocol;
 
   uint8_t my_ip_address[4] = {0, 0, 0, 0};
 
@@ -77,8 +88,7 @@ void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
   memcpy(packet->dst_ip, dst_ip, 4);
 
   packet->header_checksum = 0;
-  packet->header_checksum =
-      ip_calculate_checksum(packet);
+  packet->header_checksum = ip_calculate_checksum(packet);
   serial_debug("ip checksum = %x", ntohs(packet->header_checksum));
 
   memcpy(packet->data, data, len);

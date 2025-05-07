@@ -36,26 +36,19 @@ void kernel_main(void) {
   arp_init();
   serial_debug("arp done...");
 
-  uint8_t mac_addr[6];
-  mac_addr[0] = 0xAA;
-  mac_addr[1] = 0xBB;
-  mac_addr[2] = 0xCC;
-  mac_addr[3] = 0xDD;
-  mac_addr[4] = 0xEE;
-  mac_addr[5] = 0xFF;
+  uint8_t mac_addr[] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
   get_mac_addr(mac_addr);
 
-  uint8_t ip_addr[6];
-  ip_addr[0] = 10;
-  ip_addr[1] = 0;
-  ip_addr[2] = 2;
-  ip_addr[3] = 15;
+  uint8_t ip_addr[] = {10, 0, 2, 15};
   char *str = "this is a message sent from the OS";
 
   /*
   ethernet_send_packet(mac_addr, (void *)str, strlen(str), 0x0021);
   ip_send_packet(ip_addr, (void *)str, strlen(str));
   */
+
+  uint8_t host_ip[] = {10, 0, 2, 2};
+  icmp_send_echo_request(host_ip, 1234, 1, "Test ping to host", 16);
 
   // this does not work i cant seem to set up the network on wsl2 qemu
   // the packet looks okay, but i cant reach the dhcp server
