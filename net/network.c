@@ -29,8 +29,6 @@ int ethernet_send_packet(uint8_t *dst_mac_addr, uint8_t *data, int len,
   rtl8139_send_packet(frame, sizeof(ethernet_frame_t) + len);
   kfree(frame);
 
-  // qemu_printf("Sent an ethernet packet, it looks like this\n");
-
   return len;
 }
 

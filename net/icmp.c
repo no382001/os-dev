@@ -83,6 +83,8 @@ void icmp_handle_packet(icmp_packet_t *packet, uint16_t length,
                  src_ip[0], src_ip[1], src_ip[2], src_ip[3], ntohs(packet->id),
                  ntohs(packet->sequence));
 
+    // TODO i could use the same packet and send it back
+    // what the fuck is wrong with the destination mac tho?
     icmp_send_packet(src_ip, ICMP_ECHO_REPLY, 0, packet->id, packet->sequence,
                      packet->data, length - sizeof(icmp_packet_t));
     break;

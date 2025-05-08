@@ -5,9 +5,9 @@
 #include "network.h"
 #include "rtl8139.h"
 
-arp_table_entry_t arp_table[512];
-int arp_table_size;
-int arp_table_curr;
+#define ARP_TABLE_MAX 16
+arp_table_entry_t arp_table[ARP_TABLE_MAX] = {0};
+int arp_table_curr = 0;
 
 uint8_t broadcast_mac_address[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -20,12 +20,10 @@ void arp_handle_packet(arp_packet_t *arp_packet) {
   // save some packet field
   memcpy(dst_hardware_addr, arp_packet->src_hardware_addr, 6);
   memcpy(dst_protocol_addr, arp_packet->src_protocol_addr, 4);
-  // reply arp request, if the ip address matches(have to hard code the IP
-  // eveywhere, because I don't have dhcp yet)
+
   if (ntohs(arp_packet->opcode) == ARP_REQUEST) {
     if (!memcmp(arp_packet->dst_protocol_addr, my_ip, 4)) {
-      // set source MAC address, IP address (hardcode the IP address as 10.2.2.3
-      // until we really get one..)
+
       get_mac_addr(arp_packet->src_hardware_addr);
       memcpy(arp_packet->src_protocol_addr, my_ip, 4);
 
@@ -50,24 +48,22 @@ void arp_handle_packet(arp_packet_t *arp_packet) {
       ethernet_send_packet(dst_hardware_addr, (uint8_t *)arp_packet,
                            sizeof(arp_packet_t), ETHERNET_TYPE_ARP);
       serial_debug(
-          "sent an arp reply to %d.%d.%d.%d", arp_packet->dst_protocol_addr[0],
-          arp_packet->dst_protocol_addr[1], arp_packet->dst_protocol_addr[2],
-          arp_packet->dst_protocol_addr[3]);
+          "sent an arp reply to %d.%d.%d.%d %x:%x:%x:%x",
+          arp_packet->dst_protocol_addr[0], arp_packet->dst_protocol_addr[1],
+          arp_packet->dst_protocol_addr[2], arp_packet->dst_protocol_addr[3],
+          arp_packet->dst_hardware_addr[0], arp_packet->dst_hardware_addr[1],
+          arp_packet->dst_hardware_addr[2], arp_packet->dst_hardware_addr[3]);
     }
   } else if (ntohs(arp_packet->opcode) == ARP_REPLY) {
-    return; // reply
+    // reply
   } else {
     return; // not for us
   }
-
-  // now, store the ip-mac address mapping relation
-  memcpy(&arp_table[arp_table_curr].ip_addr, dst_protocol_addr, 4);
-  memcpy(&arp_table[arp_table_curr].mac_addr, dst_hardware_addr, 6);
-  if (arp_table_size < 512)
-    arp_table_size++;
-  // wrap around
-  if (arp_table_curr >= 512)
-    arp_table_curr = 0;
+  uint8_t mac[6] = {0};
+  if (arp_lookup(mac, arp_packet->src_protocol_addr) == 0) {
+    arp_lookup_add(arp_packet->src_hardware_addr,
+                   arp_packet->src_protocol_addr);
+  }
 }
 
 void arp_send_packet(uint8_t *dst_hardware_addr, uint8_t *dst_protocol_addr) {
@@ -76,6 +72,7 @@ void arp_send_packet(uint8_t *dst_hardware_addr, uint8_t *dst_protocol_addr) {
   // set source MAC address, IP address (hardcode the IP address as 10.2.2.3
   // until we really get one..)
   get_mac_addr(arp_packet.src_hardware_addr);
+  // TODO
   arp_packet.src_protocol_addr[0] = 10;
   arp_packet.src_protocol_addr[1] = 0;
   arp_packet.src_protocol_addr[2] = 2;
@@ -103,20 +100,20 @@ void arp_send_packet(uint8_t *dst_hardware_addr, uint8_t *dst_protocol_addr) {
                        sizeof(arp_packet_t), ETHERNET_TYPE_ARP);
 }
 
-void arp_lookup_add(uint8_t *ret_hardware_addr, uint8_t *ip_addr) {
+void arp_lookup_add(uint8_t *hardware_addr, uint8_t *ip_addr) {
   memcpy(&arp_table[arp_table_curr].ip_addr, ip_addr, 4);
-  memcpy(&arp_table[arp_table_curr].mac_addr, ret_hardware_addr, 6);
-  if (arp_table_size < 512)
-    arp_table_size++;
+  memcpy(&arp_table[arp_table_curr].mac_addr, hardware_addr, 6);
+  arp_table_curr++;
   // wrap around
-  if (arp_table_curr >= 512)
+  if (arp_table_curr >= ARP_TABLE_MAX)
     arp_table_curr = 0;
 }
 
+// supply a destination mac and an ip to search
+// 0 not found
 int arp_lookup(uint8_t *ret_hardware_addr, uint8_t *ip_addr) {
-  uint32_t ip_entry = *((uint32_t *)(ip_addr));
   for (int i = 0; i < 512; i++) {
-    if (arp_table[i].ip_addr == ip_entry) {
+    if (!memcmp((uint8_t *)&arp_table[i].ip_addr, ip_addr, 4)) {
       memcpy(ret_hardware_addr, &arp_table[i].mac_addr, 6);
       return 1;
     }
@@ -125,10 +122,8 @@ int arp_lookup(uint8_t *ret_hardware_addr, uint8_t *ip_addr) {
 }
 
 void arp_init() {
-  uint8_t broadcast_ip[4];
-  uint8_t broadcast_mac[6];
+  uint8_t broadcast_ip[4] = {0xff};
+  uint8_t broadcast_mac[6] = {0xff};
 
-  memset(broadcast_ip, 0xff, 4);
-  memset(broadcast_mac, 0xff, 6);
   arp_lookup_add(broadcast_mac, broadcast_ip);
 }

@@ -60,18 +60,20 @@ void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
 
   ip_packet_t *packet = (ip_packet_t *)kmalloc(sizeof(ip_packet_t) + len);
 
-  packet->version_ihl = (4 << 4) | 5; // IPv4, header length 5 words (20 bytes)
+  packet->version_ihl =
+      (IP_IPV4 << 4) | 5; // IPv4, header length 5 words (20 bytes)
   serial_debug("version_ihl = %x", packet->version_ihl);
 
   packet->tos = 0;
 
   uint16_t total_length = sizeof(ip_packet_t) + len;
   packet->length = htons(total_length);
-  serial_debug("total length = %d (%x in network order)", total_length,
-               packet->length);
+  // serial_debug("total length = %d (%x in network order)", total_length,
+  // packet->length);
 
-  static uint16_t ip_id = 0;
-  packet->id = htons(ip_id++);
+  static uint16_t ip_packet_id = 0;
+
+  packet->id = htons(ip_packet_id++);
 
   // no fragmentation
   packet->flags_fragment = htons(0);
@@ -85,22 +87,24 @@ void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
 
   packet->header_checksum = 0;
   packet->header_checksum = ip_calculate_checksum(packet);
-  serial_debug("ip checksum = %x", ntohs(packet->header_checksum));
+  // serial_debug("ip checksum = %x", ntohs(packet->header_checksum));
 
   memcpy(packet->data, data, len);
 
-  uint8_t dst_mac[6];
-  if (arp_lookup(dst_ip, dst_mac) != 0) {
+  uint8_t dst_mac[6] = {0};
+  if (arp_lookup(dst_mac, dst_ip) == 0) {
     serial_debug("no MAC found for IP %d.%d.%d.%d - sending ARP request",
                  dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3]);
 
     uint8_t broadcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     arp_send_packet(broadcast_mac, dst_ip);
-    // we could queue the packet here for later transmission
+    // TODO we could queue the packet here for later transmission
+    // cuz we miss a packet now
+    // also i should add the mac to the lut when it arrives
     kfree(packet);
     return;
   }
-
+  // arp_print_table();
   serial_debug("sending to mac %x:%x:%x:%x:%x:%x", dst_mac[0], dst_mac[1],
                dst_mac[2], dst_mac[3], dst_mac[4], dst_mac[5]);
 

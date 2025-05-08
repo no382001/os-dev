@@ -26,3 +26,4 @@ void arp_send_packet(uint8_t *dst_hardware_addr, uint8_t *dst_protocol_addr);
 int arp_lookup(uint8_t *ret_hardware_addr, uint8_t *ip_addr);
 void arp_lookup_add(uint8_t *ret_hardware_addr, uint8_t *ip_addr);
 void arp_init();
+void arp_print_table();
