@@ -1,189 +1,270 @@
-#include "libc/heap.h"
-#include "libc/page.h"
+#include "heap.h"
+#include "page.h"
 
-/**/
-#undef serial_debug
-#define serial_debug(...)
-/**/
+// adapted from
+// https://git.9front.org/plan9front/plan9front/0861d0d0f283a9917721214fa3dc1c51a778213d/sys/src/9/port/xalloc.c/f.html
+// i have no idea what license it is
 
-// end is defined in the linker script.
-// extern uint32_t end;
-uint32_t placement_address = PLACEMENT_ADDRESS; //(uint32_t)&end;
-extern page_directory_t *kernel_directory;
+#define nil 0
+#define nelem(x) (sizeof(x) / sizeof((x)[0]))
 
-kernel_heap_bitmap_t *kheap = 0;
-
-void kernel_heap_bitmap_init(kernel_heap_bitmap_t *heap) {
-  kheap = (kernel_heap_bitmap_t *)kmalloc(sizeof(kernel_heap_bitmap_t));
-  heap->first_block = 0;
+uintptr_t paddr(void *va) {
+  if ((uintptr_t)va >= KHEAP_START)
+    return (uintptr_t)va - KHEAP_START;
+  assert(0 && "kernel pannic!");
+  return 0;
 }
 
-int kernel_heap_bitmap_add_block(kernel_heap_bitmap_t *heap, uintptr_t addr,
-                                 uint32_t size, uint32_t block_size) {
-  kernel_heap_bitmap_block_t *block;
-  uint32_t block_count;
-  uint32_t i;
-  uint8_t *bitmap;
+void *kaddr(uintptr_t pa) {
+  if (pa < (uintptr_t)-KHEAP_START)
+    return (void *)(pa + KHEAP_START);
+  assert(0 && "kernel pannic!");
+  return 0;
+}
 
-  block = (kernel_heap_bitmap_block_t *)addr;
-  block->block_size = size - sizeof(kernel_heap_bitmap_block_t);
-  block->allocation_unit_size = block_size;
+enum {
+  nhole = 8,
+  magichole = 0x484F4C45, /* HOLE */
+};
 
-  block->next = heap->first_block;
-  heap->first_block = block;
+typedef struct hole_t hole_t;
+typedef struct heap_allocator_t heap_allocator_t;
+typedef struct block_header_t block_header_t;
 
-  block_count = block->block_size / block->allocation_unit_size;
-  bitmap = (uint8_t *)&block[1];
+struct hole_t {
+  uintptr_t addr;
+  uintptr_t size;
+  uintptr_t top;
+  hole_t *link;
+};
 
-  /* clear bitmap */
-  for (i = 0; i < block_count; ++i) {
-    bitmap[i] = 0;
+struct block_header_t {
+  uint16_t size;
+  uint16_t magix;
+  char data[]; // needs to be [] for offsetof
+};
+
+struct heap_allocator_t {
+  hole_t hole[nhole];
+  hole_t *flist;
+  hole_t *table;
+};
+
+static heap_allocator_t xlists;
+void *kheap = NULL;
+
+void xinit(void) {
+  hole_t *h, *eh;
+
+  eh = &xlists.hole[nhole - 1];
+  for (h = xlists.hole; h < eh; h++)
+    h->link = h + 1;
+
+  h->link = NULL; // ensure the last hole has NULL link
+  xlists.flist = xlists.hole;
+
+  // set up the initial memory hole that represents our available heap
+  h = xlists.flist;
+  if (h == NULL) {
+    return;
   }
 
-  /* reserve room for bitmap */
-  block_count = (block_count / block_size) * block_size < block_count
-                    ? block_count / block_size + 1
-                    : block_count / block_size;
-  for (i = 0; i < block_count; ++i) {
-    bitmap[i] = 5;
-  }
+  xlists.flist = h->link;
 
-  block->last_free_block = block_count - 1;
-  block->used_blocks = block_count;
+  h->addr = paddr((void *)KHEAP_START);
+  h->size = KHEAP_INITIAL_SIZE;
+  h->top = h->addr + h->size;
+  h->link = NULL;
 
-  return 1;
+  // set this as our only table
+  xlists.table = h;
+
+  serial_debug("initial heap memory: paddr=%x vaddr=%x size=%x top=%x", h->addr,
+               KHEAP_START, h->size, h->top);
+  kheap = (void *)1;
 }
 
-static uint8_t kernel_heap_bitmap_get_next_id(uint8_t left_id,
-                                              uint8_t right_id) {
-  uint8_t new_id;
-  for (new_id = left_id + 1; new_id == right_id || new_id == 0; ++new_id)
-    ;
-  return new_id;
+void *xspanalloc(uint16_t size, int align, uint16_t span) {
+  uintptr_t a, v, t;
+
+  a = (uintptr_t)xalloc(size + align + span);
+  if (a == 0)
+    serial_debug("xspanalloc: %xd %d %xx", size, align, span);
+
+  if (span > 2) {
+    v = (a + span) & ~((uintptr_t)span - 1);
+    t = v - a;
+    if (t > 0)
+      xhole(paddr((void *)a), t);
+    t = a + span - v;
+    if (t > 0)
+      xhole(paddr((void *)(v + size + align)), t);
+  } else
+    v = a;
+
+  if (align > 1)
+    v = (v + align) & ~((uintptr_t)align - 1);
+
+  return (void *)v;
 }
-void *kernel_heap_bitmap_alloc(kernel_heap_bitmap_t *heap, uint32_t size) {
-  kernel_heap_bitmap_block_t *block;
-  uint8_t *bitmap;
-  uint32_t block_count;
-  uint32_t i, consecutive_blocks, z;
-  uint32_t blocks_needed;
-  uint8_t next_id;
 
-  /* iterate through blocks */
-  for (block = heap->first_block; block; block = block->next) {
-    /* check if block has enough room */
-    if (block->block_size -
-            (block->used_blocks * block->allocation_unit_size) >=
-        size) {
+void *xallocz(uint16_t size, int zero) {
+  block_header_t *p;
+  hole_t *h, **l;
 
-      block_count = block->block_size / block->allocation_unit_size;
-      blocks_needed =
-          (size / block->allocation_unit_size) * block->allocation_unit_size <
-                  size
-              ? size / block->allocation_unit_size + 1
-              : size / block->allocation_unit_size;
-      bitmap = (uint8_t *)&block[1];
+  /* add room for magix & size overhead, round up to nearest vlong */
+  size += BY2V + offsetof(block_header_t, data[0]);
+  size &= ~(BY2V - 1);
 
-      // start search from last free block as an optimization
-      uint32_t start_idx = (block->last_free_block + 1 >= block_count)
-                               ? 0
-                               : block->last_free_block + 1;
-
-      // search the entire bitmap, not just up to last_free_block
-      for (uint32_t search_count = 0; search_count < block_count;
-           ++search_count) {
-        i = (start_idx + search_count) % block_count;
-
-        if (bitmap[i] == 0) {
-          /* count consecutive free blocks */
-          for (consecutive_blocks = 0; bitmap[i + consecutive_blocks] == 0 &&
-                                       consecutive_blocks < blocks_needed &&
-                                       (i + consecutive_blocks) < block_count;
-               ++consecutive_blocks)
-            ;
-
-          /* we have enough consecutive blocks, allocate them */
-          if (consecutive_blocks == blocks_needed) {
-            /* find ID that does not match left or right neighbors */
-            next_id = kernel_heap_bitmap_get_next_id(
-                bitmap[i - 1], bitmap[i + consecutive_blocks]);
-
-            /* mark blocks as allocated with the new ID */
-            for (z = 0; z < consecutive_blocks; ++z) {
-              bitmap[i + z] = next_id;
-            }
-
-            /* update last free block for optimization */
-            block->last_free_block = (i + blocks_needed) - 2;
-
-            /* update count of used blocks */
-            block->used_blocks += consecutive_blocks;
-
-            /* return pointer to the allocated memory */
-            return (void *)(i * block->allocation_unit_size +
-                            (uintptr_t)&block[1]);
-          }
-
-          /* skip ahead */
-          search_count += (consecutive_blocks - 1);
-          continue;
-        }
+  // ilock(&xlists);
+  l = &xlists.table;
+  for (h = *l; h; h = h->link) {
+    if (h->size >= size) {
+      p = (block_header_t *)kaddr(h->addr);
+      h->addr += size;
+      h->size -= size;
+      if (h->size == 0) {
+        *l = h->link;
+        h->link = xlists.flist;
+        xlists.flist = h;
       }
+      // iunlock(&xlists);
+      if (zero)
+        memset(p, 0, size);
+      p->magix = (uint16_t)magichole;
+      p->size = size;
+      xsummary();
+      serial_debug("returning %x", p->data);
+      return p->data;
     }
+    l = &h->link;
   }
-
-  /* no memory available */
-  return NULL;
+  // iunlock(&xlists);
+  assert(0 && "out of memory");
+  return nil;
 }
 
-void kernel_heap_bitmap_free(kernel_heap_bitmap_t *heap, void *ptr) {
-  kernel_heap_bitmap_block_t *block;
-  uintptr_t ptr_offset;
-  uint32_t block_index, i;
-  uint8_t *bitmap;
-  uint8_t id;
-  uint32_t max_blocks;
+void *xalloc(uint16_t size) { return xallocz(size, 1); }
 
-  /* find which block contains this pointer */
-  for (block = heap->first_block; block; block = block->next) {
-    if ((uintptr_t)ptr > (uintptr_t)block &&
-        (uintptr_t)ptr < (uintptr_t)block + sizeof(kernel_heap_bitmap_block_t) +
-                             block->block_size) {
-      /* calculate offset from start of data area */
-      ptr_offset = (uintptr_t)ptr - (uintptr_t)&block[1];
+void xfree(void *p) {
+  block_header_t *x;
 
-      /* calculate block index in bitmap */
-      block_index = ptr_offset / block->allocation_unit_size;
+  x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t, data[0]));
+  if (x->magix != (uint16_t)magichole) {
+    xsummary();
+    serial_debug("xfree(%x) %x != %x", p, magichole, x->magix);
+  }
+  xhole(paddr(x), x->size);
+  serial_debug("freed %x", p);
+}
 
-      /* get bitmap pointer */
-      bitmap = (uint8_t *)&block[1];
+int xmerge(void *vp, void *vq) {
+  block_header_t *p, *q;
 
-      /* get allocation ID */
-      id = bitmap[block_index];
+  p = (block_header_t *)(((uintptr_t)vp - offsetof(block_header_t, data[0])));
+  q = (block_header_t *)(((uintptr_t)vq - offsetof(block_header_t, data[0])));
+  if (p->magix != (uint16_t)magichole || q->magix != (uint16_t)magichole) {
+    int i;
+    uint16_t *wd;
+    void *badp;
 
-      /* maximum number of blocks */
-      max_blocks = block->block_size / block->allocation_unit_size;
+    xsummary();
+    badp = (p->magix != (uint16_t)magichole ? p : q);
+    wd = (uint16_t *)badp - 12;
+    for (i = 24; i-- > 0;) {
+      serial_debug("%x: %xx", wd, *wd);
+      if (wd == badp)
+        serial_debug(" <-");
+      serial_debug("");
+      wd++;
+    }
+    serial_debug("xmerge(%x, %x) bad magic %xx, %xx", vp, vq, p->magix,
+                 q->magix);
+  }
+  if ((uint8_t *)p + p->size == (uint8_t *)q) {
+    p->size += q->size;
+    return 1;
+  }
+  return 0;
+}
 
-      /* clear all blocks with matching ID */
-      for (i = block_index; bitmap[i] == id && i < max_blocks; ++i) {
-        bitmap[i] = 0;
+void xhole(uintptr_t addr, uintptr_t size) {
+  hole_t *h, *c, **l;
+  uintptr_t top;
+
+  if (size == 0)
+    return;
+
+  top = addr + size;
+  // ilock(&xlists);
+  l = &xlists.table;
+  for (h = *l; h; h = h->link) {
+    if (h->top == addr) {
+      h->size += size;
+      h->top = h->addr + h->size;
+      c = h->link;
+      if (c && h->top == c->addr) {
+        h->top += c->size;
+        h->size += c->size;
+        h->link = c->link;
+        c->link = xlists.flist;
+        xlists.flist = c;
       }
-
-      /* update count of used blocks */
-      block->used_blocks -= i - block_index;
+      // iunlock(&xlists);
       return;
     }
+    if (h->addr > addr)
+      break;
+    l = &h->link;
+  }
+  if (h && top == h->addr) {
+    h->addr -= size;
+    h->size += size;
+    // iunlock(&xlists);
+    return;
   }
 
-  /* error: pointer not found in any block */
-  return;
+  if (xlists.flist == nil) {
+    // iunlock(&xlists);
+    serial_debug("xfree: no free holes, leaked %dd bytes", size);
+    return;
+  }
+
+  h = xlists.flist;
+  xlists.flist = h->link;
+  h->addr = addr;
+  h->top = top;
+  h->size = size;
+  h->link = *l;
+  *l = h;
+  // iunlock(&xlists);
 }
 
-// TODO 0xc0200014 what is the this offset?
+void xsummary(void) {
+  int i;
+  hole_t *h;
+  uintptr_t s;
+
+  serial_printff("xsummary:");
+  i = 0;
+  for (h = xlists.flist; h; h = h->link)
+    i++;
+  serial_printff(" %d holes free", i);
+
+  s = 0;
+  for (h = xlists.table; h; h = h->link) {
+    serial_printff(" %x %x %dd", h->addr, h->top, h->size);
+    s += h->size;
+  }
+  serial_printff(" %d bytes free", s);
+}
+
+int placement_address = PLACEMENT_ADDRESS;
+
 uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys) {
   serial_debug("somebody wants %d bytes aligned: %d w/ phys %x", size, align,
                phys);
-  uint32_t addr;
+  uint32_t addr = 0;
   if (kheap == NULL) {
     // early allocations before heap is initialized
     // use placement allocator instead
@@ -201,38 +282,25 @@ uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys) {
     placement_address = addr + size;
   } else {
     if (align) {
-      // for aligned allocations, request extra space and do manual alignment
-      addr = (uint32_t)kernel_heap_bitmap_alloc(kheap, size);
-
-      if (!addr) { // TODO this does not really work, maybe if we want more mem
-                   // than available, it gives it out
-        assert(0 && "out of memory");
-        return 0; // OOM
-      }
-
-      uint32_t aligned_addr = ((uint32_t)addr + PAGE_SIZE) & ~0xFFF;
-      uint32_t offset = aligned_addr - (uint32_t)addr;
-
-      // if offset is too small, we can't store adjustment info
-      if (offset < sizeof(uint32_t)) {
-        offset += PAGE_SIZE;
-        aligned_addr += PAGE_SIZE;
-      }
-
-      // store adjustment before aligned address
-      *((uint32_t *)(aligned_addr - sizeof(uint32_t))) = (uint32_t)addr;
-      addr = aligned_addr;
+      addr = (uint32_t)xspanalloc(size, PAGE_SIZE, 0);
     } else {
-      addr = (uint32_t)kernel_heap_bitmap_alloc(kheap, size);
+      addr = (uint32_t)xalloc(size);
     }
 
     if (phys && addr) {
-      // convert virtual to physical address
       *phys = virt2phys((void *)addr);
     }
   }
   serial_debug("giving them the address %x", addr);
   return (uint32_t)addr;
+}
+
+void kfree(void *addr) {
+  if (kheap == NULL || addr == NULL) {
+    serial_debug("nothing to free, kheap is not active");
+    return;
+  }
+  xfree(addr);
 }
 
 uint32_t kmalloc_a(uint32_t size) { return kmalloc_int(size, 1, 0); }
@@ -246,26 +314,3 @@ uint32_t kmalloc_ap(uint32_t size, uint32_t *phys) {
 }
 
 uint32_t kmalloc(uint32_t size) { return kmalloc_int(size, 0, 0); }
-
-void kfree(void *addr) {
-  if (kheap == NULL || addr == NULL) {
-    serial_debug("nothing to free");
-    return; // Can't free memory before heap initialization or null pointer
-  }
-
-  // Check if this was an aligned allocation
-  uint32_t addr_val = (uint32_t)addr;
-  if (addr_val % PAGE_SIZE == 0) {
-    // Could be aligned - check if we have adjustment stored
-    uint32_t *adjustment_ptr = (uint32_t *)(addr_val - sizeof(uint32_t));
-    uint32_t adjustment = *adjustment_ptr;
-
-    // Heuristic: if adjustment looks like a valid heap address and
-    // is within reasonable range, assume this was aligned
-    if (adjustment < addr_val && addr_val - adjustment < 0x2000) {
-      addr = (void *)adjustment;
-    }
-  }
-
-  kernel_heap_bitmap_free(kheap, addr);
-}

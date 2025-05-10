@@ -1,5 +1,6 @@
 
 #include "task.h"
+#include "cpu/semaphore.h"
 #include "libc/mem.h"
 
 volatile int current_task_idx = 0;
@@ -8,7 +9,6 @@ static task_t tasks[MAX_TASK] = {0};
 
 void switch_stack_and_jump(uint32_t stack, uint32_t task);
 void switch_stack(uint32_t esp, uint32_t ebp);
-#include "cpu/semaphore.h"
 extern semaphore_t task_semaphore;
 
 void schedule(registers_t *regs) {
@@ -31,7 +31,7 @@ void schedule(registers_t *regs) {
     switch_stack_and_jump(task_to_run->esp, (uint32_t)task_to_run->task);
     return;
   } else if (task_to_run->status != TASK_RUNNING) {
-    return; // Skip this task
+    return; // skip this task
   }
 
   memcpy(regs, &task_to_run->ctx, sizeof(registers_t));

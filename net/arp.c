@@ -59,8 +59,8 @@ void arp_handle_packet(arp_packet_t *arp_packet) {
   } else {
     return; // not for us
   }
-  uint8_t mac[6] = {0};
-  if (arp_lookup(mac, arp_packet->src_protocol_addr) == 0) {
+  uint8_t _[6] = {0};
+  if (arp_lookup(_, arp_packet->src_protocol_addr) == 0) {
     arp_lookup_add(arp_packet->src_hardware_addr,
                    arp_packet->src_protocol_addr);
   }
@@ -103,6 +103,12 @@ void arp_send_packet(uint8_t *dst_hardware_addr, uint8_t *dst_protocol_addr) {
 void arp_lookup_add(uint8_t *hardware_addr, uint8_t *ip_addr) {
   memcpy(&arp_table[arp_table_curr].ip_addr, ip_addr, 4);
   memcpy(&arp_table[arp_table_curr].mac_addr, hardware_addr, 6);
+
+  serial_debug("new entry in arp table: %d.%d.%d.%d %x:%x:%x:%x:%x:%x",
+               ip_addr[0], ip_addr[1], ip_addr[2], ip_addr[3], hardware_addr[0],
+               hardware_addr[1], hardware_addr[2], hardware_addr[3],
+               hardware_addr[4], hardware_addr[5]);
+
   arp_table_curr++;
   // wrap around
   if (arp_table_curr >= ARP_TABLE_MAX)
@@ -122,8 +128,8 @@ int arp_lookup(uint8_t *ret_hardware_addr, uint8_t *ip_addr) {
 }
 
 void arp_init() {
-  uint8_t broadcast_ip[4] = {0xff};
-  uint8_t broadcast_mac[6] = {0xff};
+  uint8_t broadcast_ip[4] = {0xff, 0xff, 0xff, 0xff};
+  uint8_t broadcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
   arp_lookup_add(broadcast_mac, broadcast_ip);
 }

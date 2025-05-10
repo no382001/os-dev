@@ -7,7 +7,7 @@
 pci_dev_t pci_rtl8139_device;
 rtl8139_dev_t rtl8139_device;
 
-uint32_t current_packet_ptr;
+uint32_t current_packet_ptr = 0;
 
 // four TXAD register, you must use a different one to send packet each time(for
 // example, use the first one, second... fourth and back to the first)
@@ -41,7 +41,6 @@ void receive_packet() {
 
 void rtl8139_handler(registers_t *reg) {
   (void)reg;
-  // qemu_printf("RTL8139 interript was fired !!!! \n");
   uint16_t status = port_word_in(rtl8139_device.io_base + 0x3e);
 
   if (status & TOK) {

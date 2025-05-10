@@ -17,8 +17,6 @@ void kernel_main(void) {
 
   serial_debug("paging done...");
 
-  // selftest();
-
   kernel_printf("- initializing pci...\n");
   pci_init();
   serial_debug("pci done...");
@@ -28,8 +26,9 @@ void kernel_main(void) {
   // vga_demo_terminal();
   // vga12h_gradient_demo();
 
-  kernel_printf("- initializing network driver...\n");
+  xinit();
 
+  kernel_printf("- initializing network driver...\n");
   rtl8139_init();
   serial_debug("rtl8139 done...");
 
@@ -38,6 +37,8 @@ void kernel_main(void) {
 
   uint8_t mac_addr[] = {0};
   get_mac_addr(mac_addr);
+  /*
+   */
 
   /*
   ethernet_send_packet(mac_addr, (void *)str, strlen(str), 0x0021);

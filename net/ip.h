@@ -1,6 +1,7 @@
 #pragma once
 
 #include "libc/types.h"
+#include "network.h"
 
 #define IP_IPV4 4
 
@@ -31,4 +32,4 @@ uint16_t _ip_calculate_checksum(ip_packet_t *packet, int size);
 void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len);
 void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
                      uint8_t protocol);
-void ip_handle_packet(ip_packet_t *packet);
+void ip_handle_packet(ethernet_frame_t *frame);

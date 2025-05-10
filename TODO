@@ -71,3 +71,9 @@ https://github.com/szhou42/osdev/blob/master/src/kernel/network/udp.c#L12
 - maybe write some more tests
 
 https://os.phil-opp.com/allocator-designs/
+
+
+
+TODO:
+  fix the scheduler, provide a wrapper so fns can finish
+  thread the ehternet packets

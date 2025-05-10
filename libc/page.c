@@ -96,7 +96,6 @@ void free_frame(page_t *page) {
 page_directory_t *kernel_directory = 0;
 page_directory_t *current_directory = 0;
 extern uint32_t placement_address;
-extern kernel_heap_bitmap_t *kheap;
 
 void print_mapped_pages(page_directory_t *dir);
 
@@ -144,11 +143,6 @@ void initialise_paging() {
   register_interrupt_handler(14, page_fault);
   switch_page_directory(kernel_directory);
 
-  kernel_heap_bitmap_init(kheap);
-  if (!kernel_heap_bitmap_add_block(
-          kheap, KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE, PAGE_SIZE)) {
-    assert(0 && "failed to add initial block to heap");
-  }
   print_mapped_pages(kernel_directory);
 }
 

@@ -73,7 +73,7 @@ void ethernet_handle_packet(ethernet_frame_t *packet, int len) {
   } else
     // IP packets(could be TCP, UDP or others)
     if (type == ETHERNET_TYPE_IP) {
-      ip_handle_packet((void *)packet->data);
+      ip_handle_packet(packet);
       return;
     }
   serial_debug("we dont know what to do with this packet %x",

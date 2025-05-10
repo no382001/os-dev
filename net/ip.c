@@ -113,7 +113,17 @@ void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
   kfree(packet);
 }
 
-void ip_handle_packet(ip_packet_t *packet) {
+void ip_handle_packet(ethernet_frame_t *frame) {
+
+  ip_packet_t *packet = (ip_packet_t *)frame->data;
+
+  {
+    uint8_t _[6] = {0};
+    if (arp_lookup(_, packet->src_ip) == 0) {
+      arp_lookup_add(frame->src_mac_addr, packet->src_ip);
+    }
+  }
+
   serial_debug("got ip packet w/ type %x ver %x", packet->protocol,
                (packet->version_ihl >> 4));
 
