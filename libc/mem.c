@@ -7,18 +7,23 @@ void *memcpy(void *dest, const void *src, size_t num_bytes) {
   uint8_t *d = (uint8_t *)dest;
   const uint8_t *s = (const uint8_t *)src;
 
+  // align destination to 4 bytes if possible
   while (((uintptr_t)d % 4) && num_bytes) {
     *d++ = *s++;
     num_bytes--;
   }
 
-  while (num_bytes >= 4) {
-    *((uint32_t *)d) = *((uint32_t *)s);
-    d += 4;
-    s += 4;
-    num_bytes -= 4;
+  // use 4-byte copies if both pointers are aligned
+  if (((uintptr_t)s % 4) == 0) {
+    while (num_bytes >= 4) {
+      *((uint32_t *)d) = *((uint32_t *)s);
+      d += 4;
+      s += 4;
+      num_bytes -= 4;
+    }
   }
 
+  // byte-by-byte for remaining or unaligned portions
   while (num_bytes--) {
     *d++ = *s++;
   }

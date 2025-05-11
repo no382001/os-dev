@@ -47,7 +47,7 @@ static uint32_t first_frame() { // free frame
     {
       // at least one bit is free
       for (j = 0; j < 32; j++) {
-        uint32_t toTest = 0x1 << j;
+        uint32_t toTest = 0x1 << j; // TODO shift out of bounds
         if (!(frames[i] & toTest)) {
           return (i * 4 * 8 + j);
         }

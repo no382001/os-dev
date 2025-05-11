@@ -34,17 +34,12 @@ build disk:
   on generation save the img, remove it from clean and keep backups
   when trying to generate new one, make a file comparator that shows the differences in file
 
-notes:
-- make sure that the function really takes va_list and not just ... bc its UB
-
 adjustments:
  - adjust the linker file, put heap on _end
  - inconsistent type usage
 
 multitaskin:
  - im not confident that semaphore actually does what it should, and the interruption logic could be improved with a better model like having priorities, placing currently io-blocked tasks to top-prio, right now its just a hack, wasting some cycles for sure
- - detach the timer from the scheduler put it on the separate 0x30 interrupt vecotr
- - wrapper so functions can return properly, completed state and de-schedule
  - signalling, recovery strategies
 
 forking should work now?
@@ -63,19 +58,15 @@ c9:
 - port the rtl8139, arp, dhcp, udp drivers
 https://github.com/szhou42/osdev/blob/master/src/kernel/network/udp.c#L12
 
-- change everythiung to debug serial
-- actually try it
 - the shit that i changed to use the stack, somewhere could crash, if phsy addresses get passed around like that contantly
-
-- maybe add canaries
-- maybe write some more tests
-
-https://os.phil-opp.com/allocator-designs/
-
+  - what?
 
 
 TODO:
   [x] fix the scheduler, provide a wrapper so fns can finish
-  watchdog for thread stack and kheap magic
-  thread the ehternet packets
-  add some log groups for debugging
+  [x] usan
+  [ ] asan
+  [x] watchdog for thread stack and kheap magic
+  [ ] more comprehensive thread reg/unreg
+  [ ] thread the ehternet packets
+  [ ] add some log groups for debugging

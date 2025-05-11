@@ -33,7 +33,7 @@ void selftest() {
 
   uint32_t ss = 1024;
   void *fnstack = kmalloc_a(ss);
-  create_task(1, "sched_test", &sched_test_fn, fnstack, ss);
+  create_task(3, "sched_test", &sched_test_fn, fnstack, ss);
   int i = 1000000;
   while (1 != sem) {
     i--;
@@ -42,6 +42,7 @@ void selftest() {
     }
   }
   kfree(fnstack);
+  serial_debug("selftest finished!");
 }
 
 void kernel_main(void) {

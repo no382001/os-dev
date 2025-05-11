@@ -8,9 +8,10 @@ CC = gcc
 GDB = gdb
 LD = ld -m elf_i386
 CFLAGSNO = -fno-pie -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Wno-error=comment
+USAN = -fsanitize=undefined -fno-sanitize=shift
 CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
-
 NETWORKING = -netdev tap,id=my_tap0,ifname=tap0 -device rtl8139,netdev=my_tap0
+RUN = qemu-system-i386 -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps $(BUILD_DIR)/net)
 
@@ -28,8 +29,11 @@ $(BUILD_DIR)/%.o: %.asm
 $(BUILD_DIR)/%.bin: %.asm
 	nasm $< -f bin -o $@
 
+net: all
+	$(RUN) $(NETWORKING)
 run: all
-	qemu-system-i386 -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw $(NETWORKING)
+	$(RUN)
+
 #################
 disk/fat16.img:
 	cd disk && ./make_disk.sh
@@ -46,7 +50,7 @@ bits:
 	find . -type f -name "*.h" 2>/dev/null | sed 's|^./||' | awk '{print "#include \"" $$0 "\""}' >> $(OUTPUT_FILE)
 
 debug: all
-	qemu-system-i386 -m 4 -serial stdio -s -S -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -netdev user,id=mynet0 -device rtl8139,netdev=mynet0
+	$(RUN) $(NETWORKING)
 
 attach:
 	${GDB} -ex "target remote localhost:1234" -ex "symbol-file $(BUILD_DIR)/kernel.elf"

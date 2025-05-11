@@ -1,17 +1,20 @@
 
 #include "task.h"
+#include "apps/hexdump.h"
 #include "cpu/semaphore.h"
 #include "drivers/keyboard.h"
 #include "drivers/serial.h"
 #include "libc/mem.h"
 #include "libc/utils.h"
 
+/**/
 #undef serial_debug
 #define serial_debug(...)
+/**/
 
 volatile int current_task_idx = 0;
 volatile int active_tasks = 0;
-static task_t tasks[MAX_TASK] = {0};
+task_t tasks[MAX_TASK] = {0};
 
 void switch_stack_and_jump(uint32_t stack, uint32_t task);
 void switch_stack(uint32_t esp, uint32_t ebp);
@@ -54,8 +57,6 @@ void schedule(registers_t *regs) {
   if (current_task_idx >= active_tasks) {
     current_task_idx = 0;
   }
-  serial_debug("schedule pass from %s to %s", tasks[old_task_idx].name,
-               tasks[current_task_idx].name);
 
   task_t *task_to_run = &tasks[current_task_idx];
 
@@ -64,8 +65,13 @@ void schedule(registers_t *regs) {
     switch_stack_and_jump(task_to_run->esp, (uint32_t)task_wrapper);
     return;
   } else if (task_to_run->status != TASK_RUNNING) {
+
+  } else if (task_to_run->status != TASK_RUNNING) {
     return; // skip this task
   }
+  serial_debug("schedule pass from %d:%s to %d:%s", old_task_idx,
+               tasks[old_task_idx].name, current_task_idx,
+               tasks[current_task_idx].name);
 
   memcpy(regs, &task_to_run->ctx, sizeof(registers_t));
 
@@ -73,7 +79,8 @@ void schedule(registers_t *regs) {
 }
 
 bool check_stack_overflow(int task_id) {
-  void *stack_bottom = (void *)(tasks[task_id].ebp - tasks[task_id].stack_size);
+  void *stack_bottom =
+      (void *)(tasks[task_id].ebp - tasks[task_id].stack_size + 4);
   return (*(uint32_t *)stack_bottom != STACK_CANARY);
 }
 
@@ -86,11 +93,8 @@ void create_task(int task_id, char *name, task_function_t f, void *stack,
   memcpy(task.name, name, strlen(name));
   task.status = TASK_WAITING_FOR_START;
 
-  uint32_t stack_top = (uint32_t)stack - stack_size;
-  uint32_t stack_bottom = (uint32_t)stack; // leave space for canary
-
-  serial_debug("stack_top: %x, stack_bottom: %x, size: %d", stack_top,
-               stack_bottom, stack_size);
+  uint32_t stack_bottom = (uint32_t)stack;
+  uint32_t stack_top = (uint32_t)stack + stack_size - 4; // canary
 
   *(uint32_t *)stack_bottom = STACK_CANARY;
 
@@ -115,9 +119,32 @@ void create_task(int task_id, char *name, task_function_t f, void *stack,
   memcpy((void *)&tasks[task_id], (void *)&task, sizeof(task_t));
   active_tasks++;
 
+  serial_debug("task %d created: name='%s', status=%d, function=%x, "
+               "stack=%x-%x, esp=%x, ebp=%x, stack_size=%d, canary=%x",
+               task_id, task.name, task.status, (uint32_t)task.task,
+               stack_bottom, stack_top, task.esp, task.ebp, task.stack_size);
+  // hexdump(stack, 16, 8);
   asm volatile("sti");
 }
 
+void task_stack_check() {
+  while (1) {
+    // dont do anything with main
+    for (int i = 2; i < active_tasks; i++) {
+      if (check_stack_overflow(i)) {
+        serial_printff("stack overflow in task %d:%s ebp was at %x", i,
+                       tasks[i].name, tasks[i].ebp);
+        asm volatile("cli");
+        void *stack_bottom = (void *)(tasks[i].ebp - tasks[i].stack_size);
+        hexdump(stack_bottom, 64, 8);
+        while (1) {
+        }
+      }
+    }
+  }
+}
+
+void kheap_watchdog();
 void init_tasking() {
   memset(tasks, 0, sizeof(tasks));
 
@@ -127,4 +154,10 @@ void init_tasking() {
 
   current_task_idx = 0;
   active_tasks = 1;
+
+  void *ss = kmalloc(1024);
+  create_task(1, "task_stack_check", task_stack_check, ss, 1024);
+
+  void *s2 = kmalloc(5000);
+  create_task(2, "kheap_watchdog", kheap_watchdog, s2, 5000);
 }

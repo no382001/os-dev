@@ -5,6 +5,9 @@
 // https://git.9front.org/plan9front/plan9front/0861d0d0f283a9917721214fa3dc1c51a778213d/sys/src/9/port/xalloc.c/f.html
 // i have no idea what license it is
 
+#undef serial_printff
+#define serial_printff(...)
+
 #define nil 0
 #define nelem(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -314,3 +317,123 @@ void *kmalloc_ap(uint32_t size, uint32_t *phys) {
 }
 
 void *kmalloc(uint32_t size) { return kmalloc_int(size, 0, 0); }
+
+void kheap_watchdog() {
+  serial_debug("heap watchdog started");
+
+  while (1) {
+
+    hole_t *h;
+    int free_chunks = 0;
+    uintptr_t free_memory = 0;
+    bool free_list_corrupted = false;
+
+    for (h = xlists.table; h != NULL; h = h->link) {
+      free_chunks++;
+      free_memory += h->size;
+
+      if (h->addr + h->size != h->top) {
+        serial_printff("FREE LIST CORRUPTION: Hole at %x has inconsistent "
+                       "bounds (addr=%x, size=%d, top=%x)",
+                       (uintptr_t)h, h->addr, h->size, h->top);
+        free_list_corrupted = true;
+      }
+
+      if (h->link != NULL &&
+          ((uintptr_t)h->link < KHEAP_START ||
+           (uintptr_t)h->link >= KHEAP_START + KHEAP_INITIAL_SIZE)) {
+        serial_printff("FREE LIST CORRUPTION: Hole at %x has invalid link %x",
+                       (uintptr_t)h, (uintptr_t)h->link);
+        free_list_corrupted = true;
+      }
+    }
+
+// create a map of free regions to avoid checking them for allocated blocks
+#define MAX_FREE_REGIONS 32
+    struct {
+      uintptr_t start;
+      uintptr_t end;
+    } free_regions[MAX_FREE_REGIONS];
+    int free_region_count = 0;
+
+    for (h = xlists.table; h != NULL && free_region_count < MAX_FREE_REGIONS;
+         h = h->link) {
+      free_regions[free_region_count].start = KHEAP_START + h->addr;
+      free_regions[free_region_count].end = KHEAP_START + h->top;
+      free_region_count++;
+    }
+
+    uintptr_t current_addr = KHEAP_START;
+    int corrupted_blocks = 0;
+    int valid_blocks = 0;
+    uintptr_t allocated_memory = 0;
+
+    while (current_addr < KHEAP_START + KHEAP_INITIAL_SIZE) {
+      // check if current address is in a free region
+      bool in_free_region = false;
+      for (int i = 0; i < free_region_count; i++) {
+        if (current_addr >= free_regions[i].start &&
+            current_addr < free_regions[i].end) {
+          // skip to the end of this free region
+          current_addr = free_regions[i].end;
+          in_free_region = true;
+          break;
+        }
+      }
+
+      if (in_free_region) {
+        continue;
+      }
+
+      block_header_t *block = (block_header_t *)current_addr;
+
+      // Basic validation for what might be a block header
+      if (block->size >= sizeof(block_header_t) &&
+          block->size < 65535 && // Max reasonable block size for uint16_t
+          (current_addr + block->size) <= (KHEAP_START + KHEAP_INITIAL_SIZE)) {
+
+        if (block->magix == (uint16_t)magichole) {
+          // this looks like a valid block
+          valid_blocks++;
+          allocated_memory += block->size;
+
+          current_addr += block->size;
+        } else {
+          if ((block->size & 0x3) == 0 && // size should be aligned to 4 bytes
+              block->size > 0) {
+
+            serial_printff("POSSIBLE CORRUPTED BLOCK at %x: size=%d, magix=%x "
+                           "(expected %x)",
+                           current_addr, block->size, block->magix,
+                           (uint16_t)magichole);
+
+            hexdump((const char *)current_addr - 16, 64, 16);
+            corrupted_blocks++;
+
+            current_addr += block->size;
+          } else {
+            current_addr += 4;
+          }
+        }
+      } else {
+        current_addr += 4;
+      }
+    }
+
+    serial_printff("heap watchdog stats: %d valid blocks (%d bytes), %d "
+                   "corrupted blocks, %d free holes (%d bytes)",
+                   valid_blocks, allocated_memory, corrupted_blocks,
+                   free_chunks, free_memory);
+
+    if (free_list_corrupted) {
+      serial_printff("WARNING: Free list integrity check failed!");
+    }
+
+    serial_printff("heap summary from xlists:");
+    xsummary();
+
+    for (volatile int i = 0; i < 5000000; i++) {
+      asm volatile("nop");
+    }
+  }
+}
