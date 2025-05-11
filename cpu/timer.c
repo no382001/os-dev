@@ -5,12 +5,13 @@
 #include "drivers/serial.h"
 #include "isr.h"
 
+// one tick is one schedule pass
 uint32_t tick = 0;
 
+extern volatile int active_tasks;
 static void timer_callback(registers_t *regs) {
-  (void)regs;
   tick++;
-  // schedule(regs);
+  schedule(regs);
 }
 
 void init_timer(uint32_t freq) {
@@ -24,6 +25,8 @@ void init_timer(uint32_t freq) {
   port_byte_out(0x43, 0x36); /* command port */
   port_byte_out(0x40, low);
   port_byte_out(0x40, high);
+
+  kernel_printf("- timer set\n");
 }
 
 uint32_t get_tick() { return tick; }

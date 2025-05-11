@@ -29,7 +29,7 @@ void semaphore_signal(semaphore_t *sem) {
 
   if (!atomic_flag_test_and_set_explicit(&sem->lock, memory_order_acquire)) {
     asm volatile("sti");
-    asm volatile("int $0x20"); // we dont have it, yield
+    // asm volatile("int $0x20"); // we dont have it, yield
   }
 
   sem->count++;
@@ -39,6 +39,8 @@ void semaphore_signal(semaphore_t *sem) {
   asm volatile("sti");
   asm volatile("int $0x20");
 }
+
+uint32_t semaphore_count(semaphore_t *sem) { return (uint32_t)sem->count; }
 
 void acquire(atomic_flag *lock) {
   while (atomic_flag_test_and_set_explicit(lock, memory_order_acquire)) {

@@ -134,7 +134,7 @@ void *xallocz(uint16_t size, int zero) {
       p->magix = (uint16_t)magichole;
       p->size = size;
       xsummary();
-      serial_debug("returning %x", p->data);
+      // serial_debug("returning %x", p->data);
       return p->data;
     }
     l = &h->link;
@@ -152,7 +152,7 @@ void xfree(void *p) {
   x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t, data[0]));
   if (x->magix != (uint16_t)magichole) {
     xsummary();
-    serial_debug("xfree(%x) %x != %x", p, magichole, x->magix);
+    serial_debug("corrupted magic(%x) %x != %x", p, magichole, x->magix);
   }
   xhole(paddr(x), x->size);
   serial_debug("freed %x", p);
@@ -261,7 +261,7 @@ void xsummary(void) {
 
 int placement_address = PLACEMENT_ADDRESS;
 
-uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys) {
+void *kmalloc_int(uint32_t size, int align, uint32_t *phys) {
   serial_debug("somebody wants %d bytes aligned: %d w/ phys %x", size, align,
                phys);
   uint32_t addr = 0;
@@ -292,7 +292,7 @@ uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys) {
     }
   }
   serial_debug("giving them the address %x", addr);
-  return (uint32_t)addr;
+  return (void *)addr;
 }
 
 void kfree(void *addr) {
@@ -303,14 +303,14 @@ void kfree(void *addr) {
   xfree(addr);
 }
 
-uint32_t kmalloc_a(uint32_t size) { return kmalloc_int(size, 1, 0); }
+void *kmalloc_a(uint32_t size) { return kmalloc_int(size, 1, 0); }
 
-uint32_t kmalloc_p(uint32_t size, uint32_t *phys) {
+void *kmalloc_p(uint32_t size, uint32_t *phys) {
   return kmalloc_int(size, 0, phys);
 }
 
-uint32_t kmalloc_ap(uint32_t size, uint32_t *phys) {
+void *kmalloc_ap(uint32_t size, uint32_t *phys) {
   return kmalloc_int(size, 1, phys);
 }
 
-uint32_t kmalloc(uint32_t size) { return kmalloc_int(size, 0, 0); }
+void *kmalloc(uint32_t size) { return kmalloc_int(size, 0, 0); }

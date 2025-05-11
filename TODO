@@ -75,5 +75,7 @@ https://os.phil-opp.com/allocator-designs/
 
 
 TODO:
-  fix the scheduler, provide a wrapper so fns can finish
+  [x] fix the scheduler, provide a wrapper so fns can finish
+  watchdog for thread stack and kheap magic
   thread the ehternet packets
+  add some log groups for debugging

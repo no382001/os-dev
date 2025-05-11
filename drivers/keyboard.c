@@ -4,7 +4,7 @@
 #include "low_level.h"
 #include "screen.h"
 
-static keyboard_ctx_t kb_ctx = {0};
+keyboard_ctx_t kb_ctx = {0};
 
 #define SC_MAX 57
 const char sc_ascii[] = {
@@ -99,6 +99,7 @@ void init_keyboard(void) {
   kb_ctx.alt_pressed = 0;
 
   register_interrupt_handler(IRQ1, keyboard_callback);
+  kernel_printf("- keyboard installed\n");
 }
 
 keyboard_ctx_t *get_kb_ctx(void) { return &kb_ctx; }

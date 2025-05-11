@@ -19,9 +19,9 @@ int xmerge(void *vp, void *vq);
 void xhole(uintptr_t addr, uintptr_t size);
 void xsummary(void);
 
-uint32_t kmalloc_int(uint32_t size, int align, uint32_t *phys);
-uint32_t kmalloc_a(uint32_t size);
-uint32_t kmalloc_p(uint32_t size, uint32_t *phys);
-uint32_t kmalloc_ap(uint32_t size, uint32_t *phys);
-uint32_t kmalloc(uint32_t size);
+void *kmalloc_int(uint32_t size, int align, uint32_t *phys);
+void *kmalloc_a(uint32_t size);
+void *kmalloc_p(uint32_t size, uint32_t *phys);
+void *kmalloc_ap(uint32_t size, uint32_t *phys);
+void *kmalloc(uint32_t size);
 void kfree(void *addr);

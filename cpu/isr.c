@@ -150,6 +150,6 @@ void irq_handler(registers_t r) {
 void irq_install() {
   kernel_printf("- installing irq\n");
   asm volatile("sti");
-  init_timer(1);
+  init_timer(50);
   init_keyboard();
 }

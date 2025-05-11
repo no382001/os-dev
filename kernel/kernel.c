@@ -6,6 +6,44 @@ void fvm_test(void);
 
 semaphore_t task_semaphore = {0};
 
+static volatile int sem = 0;
+
+static void sched_test_fn() {
+  // semaphore_signal(&selftest_sem);
+  kernel_printf("sched_test_fn ");
+  sem = 1;
+  kernel_printf("this is now %d\n", sem);
+  return;
+}
+
+void selftest() {
+  void *p = kmalloc(26);
+  assert(p && "malloc does not work");
+  kfree(p);
+  void *p1 = kmalloc(26);
+  assert(p == p1 && "not the same address");
+  kernel_printf("- kmalloc looks good...\n");
+  kfree(p1);
+
+  int t1 = get_tick();
+  sleep(100);
+  int t2 = get_tick();
+  assert(t1 != t2 && "ticks are the same");
+  kernel_printf("- ticks are good...\n");
+
+  uint32_t ss = 1024;
+  void *fnstack = kmalloc_a(ss);
+  create_task(1, "sched_test", &sched_test_fn, fnstack, ss);
+  int i = 1000000;
+  while (1 != sem) {
+    i--;
+    if (i < 0) {
+      assert("scheduler timed out");
+    }
+  }
+  kfree(fnstack);
+}
+
 void kernel_main(void) {
   serial_debug("starting up...");
   kernel_clear_screen();
@@ -27,6 +65,10 @@ void kernel_main(void) {
   // vga12h_gradient_demo();
 
   xinit();
+  init_tasking();
+  selftest();
+
+  /*
 
   kernel_printf("- initializing network driver...\n");
   rtl8139_init();
@@ -37,7 +79,6 @@ void kernel_main(void) {
 
   uint8_t mac_addr[] = {0};
   get_mac_addr(mac_addr);
-  /*
    */
 
   /*
@@ -53,6 +94,7 @@ void kernel_main(void) {
   */
 
   // udp_send_packet(ip_addr, 1234, 1153, str, strlen(str));
-  for (;;)
+  while (1) {
     ;
+  }
 }
