@@ -67,6 +67,8 @@ TODO:
   [x] usan
   [ ] asan
   [x] watchdog for thread stack and kheap magic
-  [ ] more comprehensive thread reg/unreg
+  [x] more comprehensive thread reg/unreg
+  [ ] kfree corruption
   [ ] thread the ehternet packets
   [ ] add some log groups for debugging
+  [ ] write a readme and collect main features and quirks

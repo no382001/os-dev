@@ -318,7 +318,8 @@ void *kmalloc_ap(uint32_t size, uint32_t *phys) {
 
 void *kmalloc(uint32_t size) { return kmalloc_int(size, 0, 0); }
 
-void kheap_watchdog() {
+void kheap_watchdog(void *data) {
+  (void)data;
   serial_debug("heap watchdog started");
 
   while (1) {

@@ -20,13 +20,18 @@ void switch_stack_and_jump(uint32_t stack, uint32_t task);
 void switch_stack(uint32_t esp, uint32_t ebp);
 extern semaphore_t task_semaphore;
 
-void task_wrapper(task_function_t f) {
+void task_wrapper(task_fn_t f) {
   (void)f;
   serial_debug("task %d fired!", current_task_idx);
-  task_function_t fn = tasks[current_task_idx].task;
-  fn();
+  task_fn_t fn = tasks[current_task_idx].f;
+  fn(tasks[current_task_idx].data);
 
   asm volatile("cli");
+
+  task_destructor_fn_t df = tasks[current_task_idx].df;
+  if (df) {
+    df(tasks[current_task_idx].df_data);
+  }
 
   tasks[current_task_idx].status = TASK_DEAD;
   active_tasks--;
@@ -36,7 +41,6 @@ void task_wrapper(task_function_t f) {
   asm volatile("sti");
   // asm volatile("int $0x20");
 
-  // should be never reached
   while (1) {
     asm volatile("hlt");
   }
@@ -84,10 +88,26 @@ bool check_stack_overflow(int task_id) {
   return (*(uint32_t *)stack_bottom != STACK_CANARY);
 }
 
-void create_task(int task_id, char *name, task_function_t f, void *stack,
-                 uint32_t stack_size) {
+int find_next_task_slot() {
+  for (int i = 1; i < MAX_TASK; i++) {
+    if (tasks[i].status == TASK_INACTIVE || tasks[i].status == TASK_DEAD) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+void create_task(char *name, task_fn_t f, void *data, task_destructor_fn_t df,
+                 void *df_data, void *stack, uint32_t stack_size) {
+  assert(f && stack);
   asm volatile("cli");
 
+  int task_id = find_next_task_slot();
+  if (task_id == -1) {
+    assert(0 && "no more slots for tasks");
+    asm volatile("sti");
+    return;
+  }
   task_t task = {0};
   assert(strlen(name) <= 16);
   memcpy(task.name, name, strlen(name));
@@ -112,7 +132,10 @@ void create_task(int task_id, char *name, task_function_t f, void *stack,
   // push parameter for task_wrapper
   task.esp -= 4;
   *(uint32_t *)task.esp = (uint32_t)f;
-  task.task = f;
+  task.f = f;
+  task.data = data;
+  task.df = df;
+  task.df_data = df_data;
   task.ebp = stack_top;
   task.stack_size = stack_size;
 
@@ -150,14 +173,13 @@ void init_tasking() {
 
   memcpy(tasks[0].name, "main", 5);
   tasks[0].status = TASK_RUNNING;
-  tasks[0].task = NULL;
 
   current_task_idx = 0;
   active_tasks = 1;
 
   void *ss = kmalloc(1024);
-  create_task(1, "task_stack_check", task_stack_check, ss, 1024);
+  create_task("task_stack_check", task_stack_check, ss, 0, 0, 0, 1024);
 
   void *s2 = kmalloc(5000);
-  create_task(2, "kheap_watchdog", kheap_watchdog, s2, 5000);
+  create_task("kheap_watchdog", kheap_watchdog, s2, 0, 0, 0, 5000);
 }

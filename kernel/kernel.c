@@ -8,11 +8,16 @@ semaphore_t task_semaphore = {0};
 
 static volatile int sem = 0;
 
-static void sched_test_fn() {
+static void sched_test_fn(void *data) {
+  (void)data;
   // semaphore_signal(&selftest_sem);
-  kernel_printf("sched_test_fn ");
   sem = 1;
-  kernel_printf("this is now %d\n", sem);
+  kernel_printf("- scheduler looks good\n");
+  return;
+}
+
+static void sched_test_dfn(void *df_data) {
+  kfree(df_data);
   return;
 }
 
@@ -31,9 +36,10 @@ void selftest() {
   assert(t1 != t2 && "ticks are the same");
   kernel_printf("- ticks are good...\n");
 
-  uint32_t ss = 1024;
+  uint32_t ss = 1025;
   void *fnstack = kmalloc_a(ss);
-  create_task(3, "sched_test", &sched_test_fn, fnstack, ss);
+  create_task("sched_test", &sched_test_fn, fnstack, &sched_test_dfn, fnstack,
+              0, ss);
   int i = 1000000;
   while (1 != sem) {
     i--;
@@ -41,7 +47,6 @@ void selftest() {
       assert("scheduler timed out");
     }
   }
-  kfree(fnstack);
   serial_debug("selftest finished!");
 }
 

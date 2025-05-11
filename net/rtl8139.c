@@ -21,7 +21,6 @@ void receive_packet() {
 
   // skip, packet header and packet length, now t points to the packet data
   t = t + 2;
-  // qemu_printf("Printing packet at addr 0x%x\n", (uint32_t)t);
 
   // now, ethernet layer starts to handle the packet(be sure to make a copy of
   // the packet, insteading of using the buffer) and probabbly this should be
