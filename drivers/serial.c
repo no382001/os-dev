@@ -65,7 +65,21 @@ void serial_put_hex(uint32_t num) {
   serial_puts(hex_str);
 }
 
-void serial_printf(char *file, int line, const char *fmt, ...) {
+void serial_printf(int cycl, char *file, int line, const char *fmt, ...) {
+  cli();
+  char c[24] = {0};
+
+  int_to_ascii(cycl, c);
+  int pad = 8 - strlen(c);
+
+  serial_puts("[");
+  serial_puts(c);
+
+  for (int i = 0; i < pad; i++) {
+    serial_write(' ');
+  }
+  serial_puts("]");
+
   if (file) {
     serial_puts(file);
     serial_puts(":");
@@ -84,4 +98,5 @@ void serial_printf(char *file, int line, const char *fmt, ...) {
   va_end(args);
 
   serial_puts("\n");
+  sti();
 }

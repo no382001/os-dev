@@ -7,7 +7,7 @@
 #include "libc/mem.h"
 #include "libc/utils.h"
 
-/**/
+/** /
 #undef serial_debug
 #define serial_debug(...)
 /**/
@@ -26,7 +26,7 @@ void task_wrapper(task_fn_t f) {
   task_fn_t fn = tasks[current_task_idx].f;
   fn(tasks[current_task_idx].data);
 
-  asm volatile("cli");
+  cli();
 
   task_destructor_fn_t df = tasks[current_task_idx].df;
   if (df) {
@@ -38,7 +38,7 @@ void task_wrapper(task_fn_t f) {
   serial_debug("task %d completed, now %d active tasks", current_task_idx,
                active_tasks - 1);
 
-  asm volatile("sti");
+  sti();
   // asm volatile("int $0x20");
 
   while (1) {
@@ -78,14 +78,12 @@ void schedule(registers_t *regs) {
                tasks[current_task_idx].name);
 
   memcpy(regs, &task_to_run->ctx, sizeof(registers_t));
-
-  // no need for switch_stack - the interrupt return will handle it
 }
 
 bool check_stack_overflow(int task_id) {
   void *stack_bottom =
       (void *)(tasks[task_id].ebp - tasks[task_id].stack_size + 4);
-  return (*(uint32_t *)stack_bottom != STACK_CANARY);
+  return (*(uint32_t *)stack_bottom != CANARY);
 }
 
 int find_next_task_slot() {
@@ -100,12 +98,12 @@ int find_next_task_slot() {
 void create_task(char *name, task_fn_t f, void *data, task_destructor_fn_t df,
                  void *df_data, void *stack, uint32_t stack_size) {
   assert(f && stack);
-  asm volatile("cli");
+  cli();
 
   int task_id = find_next_task_slot();
   if (task_id == -1) {
     assert(0 && "no more slots for tasks");
-    asm volatile("sti");
+    sti();
     return;
   }
   task_t task = {0};
@@ -116,7 +114,7 @@ void create_task(char *name, task_fn_t f, void *data, task_destructor_fn_t df,
   uint32_t stack_bottom = (uint32_t)stack;
   uint32_t stack_top = (uint32_t)stack + stack_size - 4; // canary
 
-  *(uint32_t *)stack_bottom = STACK_CANARY;
+  *(uint32_t *)stack_bottom = CANARY;
 
   task.esp = stack_top - sizeof(registers_t);
 
@@ -129,9 +127,6 @@ void create_task(char *name, task_fn_t f, void *data, task_destructor_fn_t df,
   initial_context->esp = task.esp;
   initial_context->ss = 0x10;
 
-  // push parameter for task_wrapper
-  task.esp -= 4;
-  *(uint32_t *)task.esp = (uint32_t)f;
   task.f = f;
   task.data = data;
   task.df = df;
@@ -144,10 +139,10 @@ void create_task(char *name, task_fn_t f, void *data, task_destructor_fn_t df,
 
   serial_debug("task %d created: name='%s', status=%d, function=%x, "
                "stack=%x-%x, esp=%x, ebp=%x, stack_size=%d, canary=%x",
-               task_id, task.name, task.status, (uint32_t)task.task,
-               stack_bottom, stack_top, task.esp, task.ebp, task.stack_size);
+               task_id, task.name, task.status, (uint32_t)task.f, stack_bottom,
+               stack_top, task.esp, task.ebp, task.stack_size, CANARY);
   // hexdump(stack, 16, 8);
-  asm volatile("sti");
+  sti();
 }
 
 void task_stack_check() {
@@ -157,7 +152,7 @@ void task_stack_check() {
       if (check_stack_overflow(i)) {
         serial_printff("stack overflow in task %d:%s ebp was at %x", i,
                        tasks[i].name, tasks[i].ebp);
-        asm volatile("cli");
+        cli();
         void *stack_bottom = (void *)(tasks[i].ebp - tasks[i].stack_size);
         hexdump(stack_bottom, 64, 8);
         while (1) {
@@ -177,9 +172,12 @@ void init_tasking() {
   current_task_idx = 0;
   active_tasks = 1;
 
+  // the PF is here
+  /*
   void *ss = kmalloc(1024);
   create_task("task_stack_check", task_stack_check, ss, 0, 0, 0, 1024);
 
   void *s2 = kmalloc(5000);
   create_task("kheap_watchdog", kheap_watchdog, s2, 0, 0, 0, 5000);
+  */
 }

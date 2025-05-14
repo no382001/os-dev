@@ -36,10 +36,10 @@ void selftest() {
   assert(t1 != t2 && "ticks are the same");
   kernel_printf("- ticks are good...\n");
 
-  uint32_t ss = 1025;
+  uint32_t ss = 1024;
   void *fnstack = kmalloc_a(ss);
-  create_task("sched_test", &sched_test_fn, fnstack, &sched_test_dfn, fnstack,
-              0, ss);
+  create_task("sched_test", &sched_test_fn, 0, &sched_test_dfn, fnstack,
+              fnstack, ss);
   int i = 1000000;
   while (1 != sem) {
     i--;
@@ -51,7 +51,8 @@ void selftest() {
 }
 
 void kernel_main(void) {
-  serial_debug("starting up...");
+  // be very careful, sometimes un-inited modules work even in kvm, for some
+  // time, then they 3F
   kernel_clear_screen();
 
   isr_install();
@@ -74,8 +75,6 @@ void kernel_main(void) {
   init_tasking();
   selftest();
 
-  /*
-
   kernel_printf("- initializing network driver...\n");
   rtl8139_init();
   serial_debug("rtl8139 done...");
@@ -85,6 +84,7 @@ void kernel_main(void) {
 
   uint8_t mac_addr[] = {0};
   get_mac_addr(mac_addr);
+  /*
    */
 
   /*

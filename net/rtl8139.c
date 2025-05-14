@@ -46,8 +46,14 @@ void rtl8139_handler(registers_t *reg) {
     serial_debug("packet sent");
   }
   if (status & ROK) {
+    serial_debug("packet received");
     receive_packet();
   }
+  // so the problem seems to be that the rtl8139_handler is triggered multiple
+  // times, bc of the scheduler but its cli, inside the irq interrupt no? how
+  // could that be
+  // i reenable with prinf or whatever, fuck!
+  // so i need a specialized cli/sti for when im in the interrupt
 
   port_word_out(rtl8139_device.io_base + 0x3E, 0x5);
 }

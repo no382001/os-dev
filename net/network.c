@@ -39,8 +39,6 @@ void ethernet_handle_packet(ethernet_frame_t *packet, int len) {
   uint8_t our_mac[6] = {0};
   get_mac_addr(our_mac);
 
-  // serial_debug("rec eth of type %x", type);
-
   // !!!
   for (int i = 0; i < 6; i++) {
     if (packet->dst_mac_addr[i] != our_mac[i] &&

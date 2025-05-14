@@ -175,7 +175,7 @@ void _vga_enable_display() {
 }
 
 void set_vga_mode12() {
-  asm volatile("cli");
+  cli();
 
   _vga_unlock_crt_regs(); // unlock VGA registers for modification
 
@@ -226,7 +226,7 @@ void set_vga_mode12() {
 
   _vga_enable_display();
 
-  asm volatile("sti");
+  sti();
 }
 
 uint8_t *vga_bb = 0;

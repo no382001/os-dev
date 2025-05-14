@@ -26,7 +26,7 @@ typedef struct {
 } task_t;
 
 #define MAX_TASK 4
-#define STACK_CANARY 0xDEADBEEF
+#define CANARY 0xBAADF00D
 
 void schedule(registers_t *regs);
 

@@ -9,8 +9,8 @@ void serial_put_hex(uint32_t num);
 void serial_debug_impl(char *file, int line, char *message);
 
 // dont use this directly
-void serial_printf(char *file, int line, const char *fmt, ...);
-
-#define serial_debug(...) serial_printf(__FILE__, __LINE__, __VA_ARGS__);
+void serial_printf(int cycl, char *file, int line, const char *fmt, ...);
+extern uint32_t tick;
+#define serial_debug(...) serial_printf(tick, __FILE__, __LINE__, __VA_ARGS__);
 // format to the serial
-#define serial_printff(...) serial_printf(0, 0, __VA_ARGS__);
+#define serial_printff(...) serial_printf(tick, 0, 0, __VA_ARGS__);

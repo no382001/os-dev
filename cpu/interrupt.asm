@@ -1,6 +1,7 @@
 extern isr_handler
 extern irq_handler
-
+extern enter_interrupt_context
+extern exit_interrupt_context
 
 %macro ISR_NOERR 1
     global isr%1
@@ -62,7 +63,9 @@ isr_common_stub:
     mov fs, ax
     mov gs, ax
 
+    call enter_interrupt_context
     call isr_handler
+    call exit_interrupt_context
 
     pop ebx ; restore original data segment
     mov ds, bx
@@ -112,7 +115,9 @@ irq_common_stub:
     mov fs, ax
     mov gs, ax
 
+    call enter_interrupt_context
     call irq_handler
+    call exit_interrupt_context
 
     pop ebx ; restore original data segment
     mov ds, bx

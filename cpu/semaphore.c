@@ -1,4 +1,5 @@
 #include "cpu/semaphore.h"
+#include "libc/utils.h"
 
 void semaphore_init(semaphore_t *sem, int initial_count) {
   sem->count = initial_count;
@@ -7,7 +8,7 @@ void semaphore_init(semaphore_t *sem, int initial_count) {
 
 void semaphore_wait(semaphore_t *sem) {
   while (1) {
-    asm volatile("cli");
+    cli();
 
     if (!atomic_flag_test_and_set_explicit(&sem->lock, memory_order_acquire)) {
       if (sem->count > 0) {
@@ -19,16 +20,16 @@ void semaphore_wait(semaphore_t *sem) {
       atomic_flag_clear_explicit(&sem->lock, memory_order_release);
     }
 
-    asm volatile("sti");
+    sti();
     asm volatile("int $0x20");
   }
 }
 
 void semaphore_signal(semaphore_t *sem) {
-  asm volatile("cli");
+  cli();
 
   if (!atomic_flag_test_and_set_explicit(&sem->lock, memory_order_acquire)) {
-    asm volatile("sti");
+    sti();
     // asm volatile("int $0x20"); // we dont have it, yield
   }
 
@@ -36,7 +37,7 @@ void semaphore_signal(semaphore_t *sem) {
 
   atomic_flag_clear_explicit(&sem->lock, memory_order_release);
 
-  asm volatile("sti");
+  sti();
   asm volatile("int $0x20");
 }
 

@@ -5,9 +5,12 @@
 // https://git.9front.org/plan9front/plan9front/0861d0d0f283a9917721214fa3dc1c51a778213d/sys/src/9/port/xalloc.c/f.html
 // i have no idea what license it is
 
+/*
 #undef serial_printff
 #define serial_printff(...)
-
+*/
+#undef offsetof
+#define offsetof(a, b) ((int)(&(((a *)(0))->b)))
 #define nil 0
 #define nelem(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -43,7 +46,7 @@ struct hole_t {
 
 struct block_header_t {
   uint16_t size;
-  uint16_t magix;
+  uint32_t magix;
   char data[]; // needs to be [] for offsetof
 };
 
@@ -134,7 +137,7 @@ void *xallocz(uint16_t size, int zero) {
       // iunlock(&xlists);
       if (zero)
         memset(p, 0, size);
-      p->magix = (uint16_t)magichole;
+      p->magix = magichole;
       p->size = size;
       xsummary();
       // serial_debug("returning %x", p->data);
@@ -148,17 +151,57 @@ void *xallocz(uint16_t size, int zero) {
 }
 
 void *xalloc(uint16_t size) { return xallocz(size, 1); }
+/*
+    157    block_header_t *x;
+    158
+    159    x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t, data[0]));
+    160    if (x->magix != magichole) {
+    161      xsummary();
+                          // p=0xc0101350  →  [...]  →  0xbaadf00d, x=0xc010133c  →  [...]  →  0xf000ff53
+●→  162      serial_debug("corrupted magic(%x) %x != %x", p, magichole, x->magix);
+    163      // x is 0 ??????
+    164      hexdump((const char *)p - offsetof(block_header_t, data[0]) - 16, 64, 8);
+    165    }
+    166    xhole(paddr(x), x->size);
+    167    serial_debug("freed %x", p);
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────── threads ────
+[#0] Id 1, stopped 0x13bd9 in xfree (), reason: BREAKPOINT
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────── trace ────
+[#0] 0x13bd9 → xfree(p=0xc0101000)
+[#1] 0x141a7 → kfree(addr=0xc0101000)
+[#2] 0x1005f → sched_test_dfn(df_data=0xc0101000)
+[#3] 0x12f7e → task_wrapper(f=0x0)
+[#4] 0x0 → push ebx
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+(remote) gef➤  p/x x
+$1 = 0xc0100ff8
+(remote) gef➤  p/x *x
+$2 = {
+  size = 0x0,
+  magix = 0x0,
+  data = 0xc0101000
+}
+(remote) gef➤
 
+
+yet it complains
+libc/heap.c:162 corrupted magic(0xc0101000) 0x484f4c45 != 0x084f4c45
+what the hell?
+*/
 void xfree(void *p) {
+  cli();
   block_header_t *x;
 
   x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t, data[0]));
-  if (x->magix != (uint16_t)magichole) {
+  if (x->magix != magichole) {
     xsummary();
     serial_debug("corrupted magic(%x) %x != %x", p, magichole, x->magix);
+    // x is 0 ??????
+    hexdump((const char *)p - offsetof(block_header_t, data[0]) - 16, 64, 8);
   }
   xhole(paddr(x), x->size);
   serial_debug("freed %x", p);
+  sti();
 }
 
 int xmerge(void *vp, void *vq) {
@@ -166,13 +209,13 @@ int xmerge(void *vp, void *vq) {
 
   p = (block_header_t *)(((uintptr_t)vp - offsetof(block_header_t, data[0])));
   q = (block_header_t *)(((uintptr_t)vq - offsetof(block_header_t, data[0])));
-  if (p->magix != (uint16_t)magichole || q->magix != (uint16_t)magichole) {
+  if (p->magix != magichole || q->magix != magichole) {
     int i;
     uint16_t *wd;
     void *badp;
 
     xsummary();
-    badp = (p->magix != (uint16_t)magichole ? p : q);
+    badp = (p->magix != magichole ? p : q);
     wd = (uint16_t *)badp - 12;
     for (i = 24; i-- > 0;) {
       serial_debug("%x: %xx", wd, *wd);
@@ -299,8 +342,11 @@ void *kmalloc_int(uint32_t size, int align, uint32_t *phys) {
 }
 
 void kfree(void *addr) {
-  if (kheap == NULL || addr == NULL) {
-    serial_debug("nothing to free, kheap is not active");
+  if (addr == NULL) {
+    serial_debug("nothing to free");
+    return;
+  } else if (kheap == NULL) {
+    serial_debug("kheap is not active");
     return;
   }
   xfree(addr);
@@ -393,7 +439,7 @@ void kheap_watchdog(void *data) {
           block->size < 65535 && // Max reasonable block size for uint16_t
           (current_addr + block->size) <= (KHEAP_START + KHEAP_INITIAL_SIZE)) {
 
-        if (block->magix == (uint16_t)magichole) {
+        if (block->magix == magichole) {
           // this looks like a valid block
           valid_blocks++;
           allocated_memory += block->size;
@@ -405,8 +451,7 @@ void kheap_watchdog(void *data) {
 
             serial_printff("POSSIBLE CORRUPTED BLOCK at %x: size=%d, magix=%x "
                            "(expected %x)",
-                           current_addr, block->size, block->magix,
-                           (uint16_t)magichole);
+                           current_addr, block->size, block->magix, magichole);
 
             hexdump((const char *)current_addr - 16, 64, 16);
             corrupted_blocks++;
