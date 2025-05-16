@@ -30,7 +30,7 @@ void *kaddr(uintptr_t pa) {
 
 enum {
   nhole = 8,
-  magichole = 0x484F4C45, /* HOLE */
+  magichole = 0x454C4F48, /* HOLE */
 };
 
 typedef struct hole_t hole_t;
@@ -154,19 +154,18 @@ void *xalloc(uint16_t size) { return xallocz(size, 1); }
 /*
     157    block_header_t *x;
     158
-    159    x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t, data[0]));
-    160    if (x->magix != magichole) {
-    161      xsummary();
-                          // p=0xc0101350  →  [...]  →  0xbaadf00d, x=0xc010133c  →  [...]  →  0xf000ff53
-●→  162      serial_debug("corrupted magic(%x) %x != %x", p, magichole, x->magix);
-    163      // x is 0 ??????
-    164      hexdump((const char *)p - offsetof(block_header_t, data[0]) - 16, 64, 8);
-    165    }
-    166    xhole(paddr(x), x->size);
-    167    serial_debug("freed %x", p);
-─────────────────────────────────────────────────────────────────────────────────────────────────────────────── threads ────
+    159    x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t,
+data[0])); 160    if (x->magix != magichole) { 161      xsummary();
+                          // p=0xc0101350  →  [...]  →  0xbaadf00d, x=0xc010133c
+→  [...]  →  0xf000ff53 ●→  162      serial_debug("corrupted magic(%x) %x !=
+%x", p, magichole, x->magix); 163      // x is 0 ?????? 164      hexdump((const
+char *)p - offsetof(block_header_t, data[0]) - 16, 64, 8); 165    } 166
+xhole(paddr(x), x->size); 167    serial_debug("freed %x", p);
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────
+threads ────
 [#0] Id 1, stopped 0x13bd9 in xfree (), reason: BREAKPOINT
-───────────────────────────────────────────────────────────────────────────────────────────────────────────────── trace ────
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+trace ────
 [#0] 0x13bd9 → xfree(p=0xc0101000)
 [#1] 0x141a7 → kfree(addr=0xc0101000)
 [#2] 0x1005f → sched_test_dfn(df_data=0xc0101000)
@@ -193,11 +192,11 @@ void xfree(void *p) {
   block_header_t *x;
 
   x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t, data[0]));
+  hexdump((void *)x, 16, 8);
   if (x->magix != magichole) {
     xsummary();
     serial_debug("corrupted magic(%x) %x != %x", p, magichole, x->magix);
     // x is 0 ??????
-    hexdump((const char *)p - offsetof(block_header_t, data[0]) - 16, 64, 8);
   }
   xhole(paddr(x), x->size);
   serial_debug("freed %x", p);

@@ -39,7 +39,6 @@ void task_wrapper(task_fn_t f) {
                active_tasks - 1);
 
   sti();
-  // asm volatile("int $0x20");
 
   while (1) {
     asm volatile("hlt");
@@ -66,10 +65,10 @@ void schedule(registers_t *regs) {
 
   if (task_to_run->status == TASK_WAITING_FOR_START) {
     task_to_run->status = TASK_RUNNING;
+    exit_interrupt_context();
     switch_stack_and_jump(task_to_run->esp, (uint32_t)task_wrapper);
+    // we never return
     return;
-  } else if (task_to_run->status != TASK_RUNNING) {
-
   } else if (task_to_run->status != TASK_RUNNING) {
     return; // skip this task
   }
@@ -106,6 +105,9 @@ void create_task(char *name, task_fn_t f, void *data, task_destructor_fn_t df,
     sti();
     return;
   }
+
+  memset(stack, 0x6B636174, stack_size);
+
   task_t task = {0};
   assert(strlen(name) <= 16);
   memcpy(task.name, name, strlen(name));
@@ -141,7 +143,7 @@ void create_task(char *name, task_fn_t f, void *data, task_destructor_fn_t df,
                "stack=%x-%x, esp=%x, ebp=%x, stack_size=%d, canary=%x",
                task_id, task.name, task.status, (uint32_t)task.f, stack_bottom,
                stack_top, task.esp, task.ebp, task.stack_size, CANARY);
-  // hexdump(stack, 16, 8);
+  // maybe the heap struct gets overwritten...
   sti();
 }
 

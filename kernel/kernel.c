@@ -36,7 +36,7 @@ void selftest() {
   assert(t1 != t2 && "ticks are the same");
   kernel_printf("- ticks are good...\n");
 
-  uint32_t ss = 1024;
+  uint32_t ss = 1024 * 5 * 2;
   void *fnstack = kmalloc_a(ss);
   create_task("sched_test", &sched_test_fn, 0, &sched_test_dfn, fnstack,
               fnstack, ss);
