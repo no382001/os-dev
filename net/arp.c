@@ -5,7 +5,8 @@
 #include "network.h"
 #include "rtl8139.h"
 
-/**/
+/*
+ */
 #undef serial_debug
 #define serial_debug(...)
 
@@ -59,8 +60,10 @@ void arp_handle_packet(arp_packet_t *arp_packet) {
           arp_packet->dst_hardware_addr[2], arp_packet->dst_hardware_addr[3]);
     }
   } else if (ntohs(arp_packet->opcode) == ARP_REPLY) {
+    serial_debug("arp reply");
     // reply
   } else {
+    serial_debug("arp not for us");
     return; // not for us
   }
   uint8_t _[6] = {0};

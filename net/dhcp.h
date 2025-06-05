@@ -54,7 +54,7 @@ typedef struct dhcp_packet {
 
 int gethostaddr(char *addr);
 void dhcp_discover();
-void dhcp_request(uint8_t *request_ip);
+void dhcp_request(uint8_t *requested_ip);
 void dhcp_handle_packet(dhcp_packet_t *packet);
 void *get_dhcp_options(dhcp_packet_t *packet, uint8_t type);
 void make_dhcp_packet(dhcp_packet_t *packet, uint8_t msg_type,

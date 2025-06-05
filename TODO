@@ -73,3 +73,11 @@ TODO:
   [ ] add some log groups for debugging
   [ ] write a readme and collect main features and quirks 
   [ ] ip packets are inefficient, it works but...
+  [ ] vfs based on 9p
+  [ ] sockets, for udp
+
+
+`
+brctl show  
+sudo brctl addif virbr0 tap0
+`

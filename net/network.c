@@ -6,6 +6,8 @@
 #include "libc/mem.h"
 #include "rtl8139.h"
 
+/*
+ */
 #undef serial_debug
 #define serial_debug(...)
 
@@ -41,33 +43,33 @@ void ethernet_handle_packet(ethernet_frame_t *packet, int len) {
 
   uint8_t our_mac[6] = {0};
   get_mac_addr(our_mac);
+  serial_debug(
+      " dst=%02x:%02x:%02x:%02x:%02x:%02x src=%02x:%02x:%02x:%02x:%02x:%02x",
+      packet->dst_mac_addr[0], packet->dst_mac_addr[1], packet->dst_mac_addr[2],
+      packet->dst_mac_addr[3], packet->dst_mac_addr[4], packet->dst_mac_addr[5],
+      packet->src_mac_addr[0], packet->src_mac_addr[1], packet->src_mac_addr[2],
+      packet->src_mac_addr[3], packet->src_mac_addr[4],
+      packet->src_mac_addr[5]);
 
-  // !!!
-  for (int i = 0; i < 6; i++) {
-    if (packet->dst_mac_addr[i] != our_mac[i] &&
-        !(packet->dst_mac_addr[0] == 0xFF && packet->dst_mac_addr[1] == 0xFF &&
-          packet->dst_mac_addr[2] == 0xFF && packet->dst_mac_addr[3] == 0xFF &&
-          packet->dst_mac_addr[4] == 0xFF && packet->dst_mac_addr[5] == 0xFF)) {
-      // serial_debug("not for us tho, ignoring...");
-      /*
-      serial_debug(
-        "not for us! from: %x:%x:%x:%x:%x:%x to:   %x:%x:%x:%x:%x:%x",
-        packet->src_mac_addr[0], packet->src_mac_addr[1],
-        packet->src_mac_addr[2], packet->src_mac_addr[3],
-        packet->src_mac_addr[4], packet->src_mac_addr[5],
-        packet->dst_mac_addr[0], packet->dst_mac_addr[1],
-        packet->dst_mac_addr[2], packet->dst_mac_addr[3],
-        packet->dst_mac_addr[4], packet->dst_mac_addr[5]);
-      */
-      return; // not for us
-    }
+  serial_debug("our_mac=%02x:%02x:%02x:%02x:%02x:%02x", our_mac[0], our_mac[1],
+               our_mac[2], our_mac[3], our_mac[4], our_mac[5]);
+
+  bool is_broadcast =
+      (packet->dst_mac_addr[0] == 0xFF && packet->dst_mac_addr[1] == 0xFF &&
+       packet->dst_mac_addr[2] == 0xFF && packet->dst_mac_addr[3] == 0xFF &&
+       packet->dst_mac_addr[4] == 0xFF && packet->dst_mac_addr[5] == 0xFF);
+
+  bool is_for_us = memcmp(packet->dst_mac_addr, our_mac, 6) == 0;
+
+  if (!is_broadcast && !is_for_us) {
+    serial_debug("not for us");
+    return; // not for us
   }
 
   serial_debug("type: %x, length: %d", type, len);
 
   // ARP packet
   if (type == ETHERNET_TYPE_ARP) {
-    serial_debug("arp packet)");
     arp_handle_packet((void *)packet->data);
     return;
   } else

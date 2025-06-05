@@ -6,6 +6,8 @@
 #include "libc/mem.h"
 #include "network.h"
 
+/*
+ */
 #undef serial_debug
 #define serial_debug(...)
 
@@ -41,12 +43,11 @@ void udp_handle_packet(udp_packet_t *packet) {
   uint16_t dst_port = ntohs(packet->dst_port);
   // uint16_t length = ntohs(packet->length);
 
-  void *data_ptr = (void *)(packet + sizeof(udp_packet_t));
-  // uint32_t data_len = length;
-  serial_debug("received UDP packet, dst_port %d, data dump:\n", dst_port);
-  // xxd(data_ptr, data_len);
+  void *data_ptr = (void *)((uint8_t *)packet + sizeof(udp_packet_t));
+  serial_debug("received UDP packet, dst_port %d", dst_port);
 
-  if (ntohs(packet->dst_port) == DHCP_CLIENT) {
+  if (dst_port == DHCP_CLIENT) {
+    serial_debug("dhcp!");
     dhcp_handle_packet(data_ptr);
   }
 }

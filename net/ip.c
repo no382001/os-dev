@@ -5,10 +5,12 @@
 #include "libc/string.h"
 #include "network.h"
 
+/*
+ */
 #undef serial_debug
 #define serial_debug(...)
 
-uint8_t my_ip[] = {10, 0, 2, 14};
+uint8_t my_ip[] = {0, 0, 0, 0};
 
 void get_ip_str(char *ip_str, uint8_t *ip) {
   char temp[4];

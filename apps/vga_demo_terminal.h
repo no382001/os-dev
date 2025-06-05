@@ -1,8 +1,8 @@
 #pragma once
 
-#include "drivers/fat16.h"
 #include "drivers/keyboard.h"
 #include "drivers/screen.h"
+#include "fs/fat16.h"
 #include "libc/bdf.h"
 
 typedef struct {

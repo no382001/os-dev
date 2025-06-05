@@ -4,6 +4,8 @@
 #include "drivers/pci.h"
 #include "libc/string.h"
 
+/*
+ */
 #undef serial_debug
 #define serial_debug(...)
 
@@ -53,24 +55,35 @@ void rtl8139_handler(registers_t *reg) {
   port_word_out(rtl8139_device.io_base + 0x3E, 0x5);
 }
 
+static uint8_t cached_mac[6] = {0};
+static bool mac_read = false;
+
 void read_mac_addr() {
+  if (mac_read)
+    return;
+
   uint32_t mac_part1 = port_long_in(rtl8139_device.io_base + 0x00);
   uint16_t mac_part2 = port_word_in(rtl8139_device.io_base + 0x04);
-  rtl8139_device.mac_addr[0] = mac_part1 >> 0;
-  rtl8139_device.mac_addr[1] = mac_part1 >> 8;
-  rtl8139_device.mac_addr[2] = mac_part1 >> 16;
-  rtl8139_device.mac_addr[3] = mac_part1 >> 24;
 
-  rtl8139_device.mac_addr[4] = mac_part2 >> 0;
-  rtl8139_device.mac_addr[5] = mac_part2 >> 8;
-  serial_debug("our mac is: %x:%x:%x:%x:%x:%x", rtl8139_device.mac_addr[0],
-               rtl8139_device.mac_addr[1], rtl8139_device.mac_addr[2],
-               rtl8139_device.mac_addr[3], rtl8139_device.mac_addr[4],
-               rtl8139_device.mac_addr[5]);
+  cached_mac[0] = mac_part1 >> 0;
+  cached_mac[1] = mac_part1 >> 8;
+  cached_mac[2] = mac_part1 >> 16;
+  cached_mac[3] = mac_part1 >> 24;
+  cached_mac[4] = mac_part2 >> 0;
+  cached_mac[5] = mac_part2 >> 8;
+
+  memcpy(rtl8139_device.mac_addr, cached_mac, 6);
+
+  mac_read = true;
+  serial_debug("our mac is %02x:%02x:%02x:%02x:%02x:%02x", cached_mac[0],
+               cached_mac[1], cached_mac[2], cached_mac[3], cached_mac[4],
+               cached_mac[5]);
 }
 
-void get_mac_addr(uint8_t *src_mac_addr) {
-  memcpy(src_mac_addr, rtl8139_device.mac_addr, 6);
+void get_mac_addr(uint8_t *addr) {
+  if (!mac_read)
+    read_mac_addr();
+  memcpy(addr, cached_mac, 6);
 }
 
 void rtl8139_send_packet(void *data, uint32_t len) {

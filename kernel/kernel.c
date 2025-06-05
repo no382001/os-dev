@@ -84,22 +84,27 @@ void kernel_main(void) {
 
   uint8_t mac_addr[] = {0};
   get_mac_addr(mac_addr);
-  /*
-   */
-
-  /*
-  ethernet_send_packet(mac_addr, (void *)str, strlen(str), 0x0021);
-  ip_send_packet(ip_addr, (void *)str, strlen(str));
-  */
 
   // this does not work i cant seem to set up the network on wsl2 qemu
   // the packet looks okay, but i cant reach the dhcp server
-  /*
-  dhcp_discover();
-  while (gethostaddr((char *)mac_addr) == 0){};
-  */
 
-  // udp_send_packet(ip_addr, 1234, 1153, str, strlen(str));
+  // maybe put this in a state machine?
+  dhcp_discover();
+  extern int is_ip_allocated;
+  extern int is_ip_offered;
+
+  while (!is_ip_offered) {
+  }
+
+  while (!is_ip_allocated) {
+    sleep(1000);
+    extern uint32_t prev_requested_ip;
+    dhcp_request((uint8_t *)&prev_requested_ip);
+  }
+  extern uint8_t my_ip[4];
+  serial_debug("we got a dynamic ip!  %d.%d.%d.%d", my_ip[0], my_ip[1],
+               my_ip[2], my_ip[3]);
+
   while (1) {
     ;
   }
