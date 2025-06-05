@@ -77,7 +77,15 @@ TODO:
   [ ] sockets, for udp
 
 
-`
-brctl show  
-sudo brctl addif virbr0 tap0
-`
+working:
+  paging
+  dynamic mem alloc
+  some libc
+  fat16
+  keyboard
+  text 03h mode
+  vga 12h mode
+  serial
+  barebones bdf glyphs
+  arp, ip, dhcp, icmp, udp, rtl8139 driver
+  multitasking
