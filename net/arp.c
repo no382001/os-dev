@@ -5,6 +5,10 @@
 #include "network.h"
 #include "rtl8139.h"
 
+/**/
+#undef serial_debug
+#define serial_debug(...)
+
 #define ARP_TABLE_MAX 16
 arp_table_entry_t arp_table[ARP_TABLE_MAX] = {0};
 int arp_table_curr = 0;
@@ -118,7 +122,7 @@ void arp_lookup_add(uint8_t *hardware_addr, uint8_t *ip_addr) {
 // supply a destination mac and an ip to search
 // 0 not found
 int arp_lookup(uint8_t *ret_hardware_addr, uint8_t *ip_addr) {
-  for (int i = 0; i < 512; i++) {
+  for (int i = 0; i < ARP_TABLE_MAX; i++) {
     if (!memcmp((uint8_t *)&arp_table[i].ip_addr, ip_addr, 4)) {
       memcpy(ret_hardware_addr, &arp_table[i].mac_addr, 6);
       return 1;

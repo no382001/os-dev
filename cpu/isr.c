@@ -45,8 +45,8 @@ void isr_install() {
   port_byte_out(0xA1, 0x02);
   port_byte_out(0x21, 0x01);
   port_byte_out(0xA1, 0x01);
-  port_byte_out(0x21, 0x0);
-  port_byte_out(0xA1, 0x0);
+  port_byte_out(0x21, 0x0); // unmask master interrupt
+  port_byte_out(0xA1, 0x0); // unmask slave interrupt
 
   set_idt_gate(32, (uint32_t)irq0);
   set_idt_gate(33, (uint32_t)irq1);

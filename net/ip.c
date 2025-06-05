@@ -5,6 +5,9 @@
 #include "libc/string.h"
 #include "network.h"
 
+#undef serial_debug
+#define serial_debug(...)
+
 uint8_t my_ip[] = {10, 0, 2, 14};
 
 void get_ip_str(char *ip_str, uint8_t *ip) {
@@ -21,32 +24,24 @@ void get_ip_str(char *ip_str, uint8_t *ip) {
     strcat(ip_str, temp);
   }
 }
-
-uint16_t _ip_calculate_checksum(ip_packet_t *packet, int size) {
-  // treat the packet header as a 2-byte-integer array
-  // sum all integers up and flip all bits
-  if (size == 0) {
-    size = sizeof(ip_packet_t) / 2;
-  }
-  uint32_t sum = 0;
-  uint16_t value;
-
-  uint8_t *byte_ptr = (uint8_t *)packet;
-
-  for (int i = 0; i < size; i++) {
-    memcpy(&value, &byte_ptr[i * 2], sizeof(uint16_t));
-    sum += flip_short(value);
-  }
-
-  uint32_t carry = sum >> 16;
-  sum = sum & 0x0000ffff;
-  sum = sum + carry;
-  uint16_t ret = ~sum;
-  return ret;
-}
-
 uint16_t ip_calculate_checksum(ip_packet_t *packet) {
-  return _ip_calculate_checksum(packet, 0);
+  uint32_t sum = 0;
+  uint8_t *byte_ptr = (uint8_t *)packet;
+  int header_len = 20; // IP header is always 20 bytes for basic IPv4
+
+  // sum all 16-bit words in the header
+  for (int i = 0; i < header_len; i += 2) {
+    uint16_t word = (byte_ptr[i] << 8) | byte_ptr[i + 1];
+    sum += word;
+  }
+
+  // add carry bits and fold to 16 bits
+  while (sum >> 16) {
+    sum = (sum & 0xFFFF) + (sum >> 16);
+  }
+
+  // return ones complement
+  return htons(~sum);
 }
 
 void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
@@ -75,8 +70,8 @@ void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
 
   packet->id = htons(ip_packet_id++);
 
-  // no fragmentation
-  packet->flags_fragment = htons(0);
+  // DF flag = 0x4000
+  packet->flags_fragment = htons(0x4000);
 
   // TTL and protocol
   packet->ttl = 64;

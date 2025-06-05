@@ -72,6 +72,4 @@ TODO:
   [ ] thread the ehternet packets
   [ ] add some log groups for debugging
   [ ] write a readme and collect main features and quirks 
-
-make exceptions for some irqs like serial and maybe eth transmit, they can trigger while even while cli inhibits all others
-i 3F on kvm if i put cli and sti in serial_printf, cant debug kvm
+  [ ] ip packets are inefficient, it works but...

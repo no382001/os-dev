@@ -6,9 +6,12 @@
 // i have no idea what license it is
 
 /*
+ */
+#undef serial_debug
+#define serial_debug(...)
 #undef serial_printff
 #define serial_printff(...)
-*/
+
 #undef offsetof
 #define offsetof(a, b) ((int)(&(((a *)(0))->b)))
 #define nil 0
@@ -94,8 +97,9 @@ void *xspanalloc(uint16_t size, int align, uint16_t span) {
   uintptr_t a, v, t;
 
   a = (uintptr_t)xalloc(size + align + span);
-  if (a == 0)
-    serial_debug("xspanalloc: %xd %d %xx", size, align, span);
+  if (a == 0) {
+  }
+  // serial_debug("xspanalloc: %xd %d %xx", size, align, span);
 
   if (span > 2) {
     v = (a + span) & ~((uintptr_t)span - 1);
@@ -192,7 +196,7 @@ void xfree(void *p) {
   block_header_t *x;
 
   x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t, data[0]));
-  hexdump((void *)x, 16, 8);
+  // hexdump((void *)x, 16, 8);
   if (x->magix != magichole) {
     xsummary();
     serial_debug("corrupted magic(%x) %x != %x", p, magichole, x->magix);
@@ -202,7 +206,7 @@ void xfree(void *p) {
   serial_debug("freed %x", p);
   sti();
 }
-
+/*
 int xmerge(void *vp, void *vq) {
   block_header_t *p, *q;
 
@@ -219,12 +223,12 @@ int xmerge(void *vp, void *vq) {
     for (i = 24; i-- > 0;) {
       serial_debug("%x: %xx", wd, *wd);
       if (wd == badp)
-        serial_debug(" <-");
+      serial_debug(" <-");
       serial_debug("");
       wd++;
     }
     serial_debug("xmerge(%x, %x) bad magic %xx, %xx", vp, vq, p->magix,
-                 q->magix);
+    q->magix);
   }
   if ((uint8_t *)p + p->size == (uint8_t *)q) {
     p->size += q->size;
@@ -232,6 +236,7 @@ int xmerge(void *vp, void *vq) {
   }
   return 0;
 }
+*/
 
 void xhole(uintptr_t addr, uintptr_t size) {
   hole_t *h, *c, **l;
