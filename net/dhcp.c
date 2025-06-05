@@ -6,6 +6,9 @@
 #include "rtl8139.h"
 #include "udp.h"
 
+#undef serial_debug
+#define serial_debug(...)
+
 char ip_addr[4];
 int is_ip_allocated = 0;
 uint32_t dhcp_server_ip = 0;

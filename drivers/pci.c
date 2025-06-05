@@ -196,4 +196,5 @@ void pci_init() {
   pci_size_map[PCI_BAR5] = 4;
   pci_size_map[PCI_INTERRUPT_LINE] = 1;
   pci_size_map[PCI_SECONDARY_BUS] = 1;
+  pci_size_map[PCI_LATENCY_TIMER] = 4;
 }

@@ -7,7 +7,7 @@
 #include "libc/mem.h"
 #include "libc/utils.h"
 
-/** /
+/**/
 #undef serial_debug
 #define serial_debug(...)
 /**/

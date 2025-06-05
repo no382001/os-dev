@@ -6,6 +6,9 @@
 #include "libc/mem.h"
 #include "rtl8139.h"
 
+#undef serial_debug
+#define serial_debug(...)
+
 int ethernet_send_packet(uint8_t *dst_mac_addr, uint8_t *data, int len,
                          uint16_t protocol) {
   uint8_t src_mac_addr[6];
@@ -46,7 +49,6 @@ void ethernet_handle_packet(ethernet_frame_t *packet, int len) {
           packet->dst_mac_addr[2] == 0xFF && packet->dst_mac_addr[3] == 0xFF &&
           packet->dst_mac_addr[4] == 0xFF && packet->dst_mac_addr[5] == 0xFF)) {
       // serial_debug("not for us tho, ignoring...");
-      kfree(packet);
       /*
       serial_debug(
         "not for us! from: %x:%x:%x:%x:%x:%x to:   %x:%x:%x:%x:%x:%x",

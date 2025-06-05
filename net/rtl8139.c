@@ -4,6 +4,9 @@
 #include "drivers/pci.h"
 #include "libc/string.h"
 
+#undef serial_debug
+#define serial_debug(...)
+
 pci_dev_t pci_rtl8139_device;
 rtl8139_dev_t rtl8139_device;
 
@@ -22,12 +25,9 @@ void receive_packet() {
   // skip, packet header and packet length, now t points to the packet data
   t = t + 2;
 
-  // now, ethernet layer starts to handle the packet(be sure to make a copy of
-  // the packet, insteading of using the buffer) and probabbly this should be
-  // done in a separate thread...
-  void *packet = (void *)kmalloc(packet_length);
-  memcpy(packet, t, packet_length);
-  ethernet_handle_packet(packet, packet_length);
+  uint8_t packet[packet_length];
+  memcpy(&packet, t, packet_length);
+  ethernet_handle_packet((ethernet_frame_t *)&packet, packet_length);
 
   current_packet_ptr =
       (current_packet_ptr + packet_length + 4 + 3) & RX_READ_POINTER_MASK;
@@ -49,11 +49,6 @@ void rtl8139_handler(registers_t *reg) {
     serial_debug("packet received");
     receive_packet();
   }
-  // so the problem seems to be that the rtl8139_handler is triggered multiple
-  // times, bc of the scheduler but its cli, inside the irq interrupt no? how
-  // could that be
-  // i reenable with prinf or whatever, fuck!
-  // so i need a specialized cli/sti for when im in the interrupt
 
   port_word_out(rtl8139_device.io_base + 0x3E, 0x5);
 }
@@ -145,6 +140,15 @@ void rtl8139_init() {
   // register and enable network interrupts
   uint32_t irq_num = pci_read(pci_rtl8139_device, PCI_INTERRUPT_LINE);
   register_interrupt_handler(32 + irq_num, rtl8139_handler);
+
+  uint8_t latency_timer = pci_read(pci_rtl8139_device, PCI_LATENCY_TIMER);
+  if (latency_timer < 32) {
+    pci_write(pci_rtl8139_device, PCI_LATENCY_TIMER, 64);
+
+    latency_timer = pci_read(pci_rtl8139_device, PCI_LATENCY_TIMER);
+    serial_debug("updated PCI latency timer: %d", latency_timer);
+  }
+
   kernel_printf("[] rtl8139 registered on irq = %d\n", irq_num);
 
   read_mac_addr();

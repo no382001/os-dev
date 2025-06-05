@@ -7,12 +7,12 @@ OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt
 CC = gcc
 GDB = gdb
 LD = ld -m elf_i386
-CFLAGSNO = -fno-pie -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Wno-error=comment #-Wno-error=pointer-arith
+CFLAGSNO = -fno-pie -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Wno-error=comment -Wno-error=unused-variable -Wno-error=unused-parameter #-Wno-error=pointer-arith
 USAN = -fsanitize=undefined -fno-sanitize=shift
 CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
 NETWORKING = -netdev tap,id=my_tap0,ifname=tap0 -device rtl8139,netdev=my_tap0
 QEMU_FLAGS=-no-shutdown -no-reboot
-RUN = qemu-system-i386  $(QEMU_FLAGS) -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -d int,cpu_reset,guest_errors -D qemu.log -trace kvm* -D kvm_trace.log
+RUN = qemu-system-i386  --enable-kvm $(QEMU_FLAGS) -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -d int,cpu_reset,guest_errors -D qemu.log -trace kvm* -D kvm_trace.log
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps $(BUILD_DIR)/net)
 

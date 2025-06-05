@@ -4,6 +4,9 @@
 #include "libc/mem.h"
 #include "network.h"
 
+#undef serial_debug
+#define serial_debug(...)
+
 static uint16_t icmp_calculate_checksum(void *buffer, uint16_t size) {
   uint32_t sum = 0;
   uint16_t *ptr = (uint16_t *)buffer;

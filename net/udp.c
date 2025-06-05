@@ -6,6 +6,9 @@
 #include "libc/mem.h"
 #include "network.h"
 
+#undef serial_debug
+#define serial_debug(...)
+
 uint16_t udp_calculate_checksum(udp_packet_t *packet) {
   (void)packet;
   // UDP checksum is optional in IPv4
