@@ -21,7 +21,11 @@
 | **system**            | multitasking              | ~      |                           |
 
 ## building
-
+### locally
+```bash
+apt install build-essential nasm qemu-system-x86 gdb clang-format tcpdump dnsmasq bridge-utils iproute2 net-tools procps mtools dosfstools
+```
+### docker
 ```bash
 # build the docker container
 docker build -t os-dev .
