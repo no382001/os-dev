@@ -21,7 +21,10 @@
 | **system**            | multitasking              | ~      |                           |
 
 ## building
-
+### Docker w/ vnc
+why?
+- its easier to reproduce the environment
+- sometimes building with sudo messes with file permissions, its annoying
 ```bash
 # build the docker container
 docker build -t os-dev .

@@ -1,8 +1,4 @@
 
-WOULD BE NICE:
-- compile c on site
-- hosting its own libc (im only using vargs adn ctypes rn)
-- script to make it run on grub so i can demo it on copy.sh/v86
 
 FEATURES:
   - crc and loading dynamic kernel size
@@ -14,25 +10,6 @@ fs:
   - fat16 long filename
   - ext2 support?
   - elf files
-
-vfs:
-  - 9p
-  https://blog.aqwari.net/9p/
-  https://blog.aqwari.net/9p/parsing/
-  https://git.sr.ht/~ft/c9/tree
-  - can connect to outside atleast on qemu com1 
-  - 9p could use udp
-
-networking:
-  - ethernet
-  - dhcp not working
-  - full of memory leaks, no queue to handle requests
-  - sync issues with icmp
-
-build disk:
-  (if i have 9p this is kind of irrelevant)
-  on generation save the img, remove it from clean and keep backups
-  when trying to generate new one, make a file comparator that shows the differences in file
 
 adjustments:
  - adjust the linker file, put heap on _end
@@ -53,39 +30,28 @@ runtime dynamic linker for binaries, instead of implementing userland and syscal
  - this guy did something, and can exec shit right away, maybe it would be useful if i could actually run things not specifically compiled for my os only, POSIX compliance? there has to be more than that
 
 
-c9:
- - c9 seems to work, but there is no way to forward COM1 to the internet, id need a network driver, and a socket model, thats pretty overkill rn
-- port the rtl8139, arp, dhcp, udp drivers
-https://github.com/szhou42/osdev/blob/master/src/kernel/network/udp.c#L12
-
-- the shit that i changed to use the stack, somewhere could crash, if phsy addresses get passed around like that contantly
-  - what?
-
-
 TODO:
-  [x] fix the scheduler, provide a wrapper so fns can finish
-  [x] usan
   [ ] asan
-  [x] watchdog for thread stack and kheap magic
-  [x] more comprehensive thread reg/unreg
   [ ] kfree corruption
   [ ] thread the ehternet packets
   [ ] add some log groups for debugging
-  [ ] write a readme and collect main features and quirks 
   [ ] ip packets are inefficient, it works but...
   [ ] vfs based on 9p
   [ ] sockets, for udp
 
+c9:
+  - port client server code
+  - map the fat16 and create the p9 vfs
+  - sockets for udp
+  - the client and server is stateless, if the udp cant handle the file size, the client will have to request by offset
+  - comm in/out with plain udp to the s9 P92000 implementation
+  - connect with forth to test
+  - setup a dns service the outside server
 
-working:
-  paging
-  dynamic mem alloc
-  some libc
-  fat16
-  keyboard
-  text 03h mode
-  vga 12h mode
-  serial
-  barebones bdf glyphs
-  arp, ip, dhcp, icmp, udp, rtl8139 driver
-  multitasking
+the os should reach out to a 9p configuration server, could serve the bootstrap code
+  besides being cool, could useful for testing
+
+bootloader:
+  switch to that other one instead of loading with --kernel
+
+spawn a thread with a handler on some hardcoded socket for p92000

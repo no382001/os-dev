@@ -1,4 +1,4 @@
-C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c apps/*.c net/*.c fs/*.c)
+C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c apps/*.c net/*.c fs/*.c 9p/*.c)
 HEADERS = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h apps/*.h net/*.h fs/*.h)
 
 BUILD_DIR = _build
@@ -14,9 +14,9 @@ NETWORKING = -netdev tap,id=net0,ifname=tap0,script=no,downscript=no -device rtl
 QEMU_FLAGS=-no-shutdown -no-reboot
 RUN = qemu-system-i386  --enable-kvm $(QEMU_FLAGS) -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -d int,cpu_reset,guest_errors -D qemu.log -trace kvm* -D kvm_trace.log
 
-$(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps $(BUILD_DIR)/net $(BUILD_DIR)/fs)
+$(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps $(BUILD_DIR)/net $(BUILD_DIR)/fs $(BUILD_DIR)/9p)
 
-all: format bits $(BUILD_DIR)/kernel.elf disk/fat16.img
+all: format format-9p bits $(BUILD_DIR)/kernel.elf disk/fat16.img
 
 $(BUILD_DIR)/kernel.elf: $(BUILD_DIR)/boot/entry.o ${OBJ}
 	${LD} -o $@ -T kernel.ld $^
@@ -45,12 +45,15 @@ clean:
 	rm -rf $(BUILD_DIR) bits.h disk/fat16.img kernel.elf
 
 format:
-	find . -name '*.h' -o -name '*.c' | xargs clang-format -i
+	find . -name '*.h' -o -name '*.c' -not -path "./9p/*" | xargs clang-format -i
+
+format-9p:
+	cd 9p && find . -name '*.h' -o -name '*.c' | xargs clang-format -i
 
 OUTPUT_FILE = bits.h
 bits:
 	echo "#pragma once" > $(OUTPUT_FILE)
-	find . -type f -name "*.h" 2>/dev/null | sed 's|^./||' | awk '{print "#include \"" $$0 "\""}' >> $(OUTPUT_FILE)
+	find . -type f -name "*.h" -not -path "./9p/*" 2>/dev/null | sed 's|^./||' | awk '{print "#include \"" $$0 "\""}' >> $(OUTPUT_FILE)
 
 debug: all
 	$(RUN) -s -S $(NETWORKING)

@@ -1,4 +1,5 @@
 #include "udp.h"
+#include "9p/9p.h"
 #include "dhcp.h"
 #include "drivers/serial.h"
 #include "ip.h"
@@ -41,7 +42,7 @@ void udp_send_packet(uint8_t *dst_ip, uint16_t src_port, uint16_t dst_port,
 void udp_handle_packet(udp_packet_t *packet) {
   // uint16_t src_port = ntohs(packet->src_port);
   uint16_t dst_port = ntohs(packet->dst_port);
-  // uint16_t length = ntohs(packet->length);
+  uint16_t length = ntohs(packet->length);
 
   void *data_ptr = (void *)((uint8_t *)packet + sizeof(udp_packet_t));
   serial_debug("received UDP packet, dst_port %d", dst_port);
@@ -49,5 +50,7 @@ void udp_handle_packet(udp_packet_t *packet) {
   if (dst_port == DHCP_CLIENT) {
     serial_debug("dhcp!");
     dhcp_handle_packet(data_ptr);
+  } else if (dst_port == NINEP2000_PORT) {
+    ninep_handle_packet(data_ptr, length);
   }
 }
