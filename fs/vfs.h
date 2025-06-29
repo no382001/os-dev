@@ -101,3 +101,23 @@ typedef struct {
 } ramdisk_vfs_data;
 
 void vfs_init_ramdisk(vfs *fs, ramdisk_vfs_data *data);
+
+#define UNIFIED_MAX_MOUNTS 8
+
+typedef struct {
+  char mount_point[64];
+  vfs *target_vfs;
+  int active;
+} unified_mount_t;
+
+typedef struct {
+  unified_mount_t mounts[UNIFIED_MAX_MOUNTS];
+  int mount_count;
+  char current_path[512];
+  struct {
+    int unified_fd;
+    vfs *target_vfs;
+    int target_fd;
+    int in_use;
+  } fd_map[32];
+} unified_vfs_data_t;

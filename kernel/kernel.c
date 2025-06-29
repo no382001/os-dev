@@ -50,7 +50,8 @@ void selftest() {
   serial_debug("selftest finished!");
 }
 
-void demo();
+vfs *init_vfs();
+void vfs_print_current_tree(vfs *fs);
 void kernel_main(void) {
   // be very careful, sometimes un-inited modules work even in kvm, for some
   // time, then they 3F
@@ -75,6 +76,10 @@ void kernel_main(void) {
   xinit();
   init_tasking();
   selftest();
+
+  vfs *unified_vfs = init_vfs();
+
+  vfs_print_current_tree(unified_vfs);
 
   while (1) {
     ;

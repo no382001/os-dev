@@ -5,10 +5,8 @@
 #include "libc/string.h"
 #include "libc/types.h"
 
-/*
 #undef serial_debug
 #define serial_debug(...)
-*/
 
 void fat16_read_bpb(fat_bpb_t *bpb) {
   uint8_t buffer[512] = {0};
