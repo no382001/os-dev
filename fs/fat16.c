@@ -22,12 +22,12 @@ void fat16_read_bpb(fat_bpb_t *bpb) {
 
 static uint32_t fat16_cluster_to_lba(fat_bpb_t *bpb, uint16_t cluster) {
   if (bpb->bytes_per_sector == 0) {
-    serial_debug("bytes_per_sector is 0!");
+    serial_debug("fd-fat16: bytes_per_sector is 0!");
     return 0;
   }
 
   if (cluster == 0) {
-    serial_debug("invalid cluster 0!");
+    serial_debug("fd-fat16: invalid cluster 0!");
     return 0;
   }
 
@@ -38,27 +38,27 @@ static uint32_t fat16_cluster_to_lba(fat_bpb_t *bpb, uint16_t cluster) {
 }
 
 void fs_read_file(fat_bpb_t *bpb, fs_node_t *file, uint8_t *out) {
-  serial_debug("reading file: size=%d, start_cluster=%d", file->size,
+  serial_debug("fd-fat16: reading file: size=%d, start_cluster=%d", file->size,
                file->start_cluster);
 
   if (file->size == 0) {
-    serial_debug("file is empty, nothing to read");
+    serial_debug("fd-fat16: file is empty, nothing to read");
     return;
   }
 
   if (file->start_cluster == 0) {
-    serial_debug("file has no allocated clusters!");
+    serial_debug("fd-fat16: file has no allocated clusters!");
     return;
   }
 
   uint16_t lba = fat16_cluster_to_lba(bpb, file->start_cluster);
   if (lba == 0) {
-    serial_debug("invalid LBA calculated!");
+    serial_debug("fd-fat16: invalid LBA calculated!");
     return;
   }
 
   int read = (file->size / 512) + 1;
-  serial_debug("reading %d sectors starting at LBA %d", read, lba);
+  serial_debug("fd-fat16: reading %d sectors starting at LBA %d", read, lba);
 
   for (uint8_t i = 0; i < read; i++) {
     ata_read_sector(lba + i, (uint8_t *)(out + (i * 512)));
@@ -72,11 +72,11 @@ void fs_read_file(fat_bpb_t *bpb, fs_node_t *file, uint8_t *out) {
 
 void fs_print_tree_list(fs_node_t *root) {
   if (!root) {
-    kernel_printf("empty filesystem tree\n");
+    kernel_printf("fd-fat16: empty filesystem tree\n");
     return;
   }
 
-  kernel_printf("filesystem tree:\n");
+  kernel_printf("fd-fat16: filesystem tree:\n");
 
   fs_node_t *current = root;
 
@@ -144,7 +144,7 @@ int lfn_extract_name_part(lfn_entry_t *lfn, char *output, int part) {
   int chars_written = 0;
   for (int i = 0; i < count; i++) {
     if (temp_buffer[i] == 0x0000 || temp_buffer[i] == 0xFFFF) {
-      break; // End of name or padding
+      break; // end of name or padding
     }
 
     // simple UTF-16 to ASCII conversion (only handle basic ASCII)
@@ -477,7 +477,7 @@ static fs_node_t *fat16_resolve_path(fat16_vfs_data *data, const char *path) {
     token = strtok(NULL, "/");
   }
   if (!current) {
-    serial_debug("could not find `%s`", path);
+    serial_debug("fd-fat16: could not find `%s`", path);
   }
 
   return current;
@@ -536,7 +536,7 @@ static int fat16_open(vfs *fs, const char *name, vfs_mode mode, int *fd) {
   data->fd_table[*fd].mode = mode;
   data->fd_table[*fd].position = 0;
 
-  serial_debug("opened %s on fd %d", name, *fd);
+  serial_debug("fd-fat16: opened %s on fd %d", name, *fd);
   return VFS_SUCCESS;
 }
 
@@ -553,7 +553,7 @@ static int fat16_close(vfs *fs, int fd) {
   data->fd_table[fd].node = NULL;
   data->fd_table[fd].position = 0;
 
-  serial_debug("closed fd %d", fd);
+  serial_debug("fd-fat16: closed fd %d", fd);
   return VFS_SUCCESS;
 }
 
@@ -594,7 +594,7 @@ static int64_t fat16_readdir(vfs *fs, int fd, vfs_stat *st, int nst) {
     entries_read++;
   }
 
-  serial_debug("readdir returned %d entries", entries_read);
+  serial_debug("fd-fat16: readdir returned %d entries", entries_read);
   return entries_read;
 }
 
@@ -653,8 +653,9 @@ static int fat16_stat(vfs *fs, const char *path, vfs_stat *st) {
   } else {
     strcpy(st->name, file->name);
   }
-  serial_debug("stat'd `%s` name:`%s` size: %d, type: %d, cluster: %d", path,
-               st->name, st->size, st->size, st->cluster);
+  serial_debug(
+      "fd-fat16: stat'd `%s` name:`%s` size: %d, type: %d, cluster: %d", path,
+      st->name, st->size, st->size, st->cluster);
 
   return VFS_SUCCESS;
 }
@@ -695,8 +696,94 @@ static int64_t fat16_seek(vfs *fs, int fd, int64_t offset, int whence) {
     new_pos = file->size;
 
   file_desc->position = new_pos;
-  serial_debug("seek'd fd %d to position %d", fd, (int)new_pos);
+  serial_debug("fd-fat16: seek'd fd %d to position %d", fd, (int)new_pos);
   return new_pos;
+}
+
+static int fat16_fstat(vfs *fs, int fd, vfs_stat *st) {
+  if (!fs || fd < 0 || fd >= 32 || !st)
+    return VFS_EBADF;
+
+  fat16_vfs_data *data = (fat16_vfs_data *)fs->usercode;
+
+  if (!data->fd_table[fd].in_use)
+    return VFS_EBADF;
+
+  fs_node_t *file = data->fd_table[fd].node;
+
+  st->size = file->size;
+  st->type = file->type;
+  st->cluster = file->start_cluster;
+
+  if (file->long_name[0] != '\0') {
+    strcpy(st->name, file->long_name);
+  } else {
+    strcpy(st->name, file->name);
+  }
+
+  serial_debug("fd-fat16: fstat'd fd %d: name='%s', size=%d", fd, st->name,
+               st->size);
+  return VFS_SUCCESS;
+}
+
+void demo() {
+  fat_bpb_t bpb = {0};
+  fat16_read_bpb(&bpb);
+
+  fs_node_t *root = fs_build_root(&bpb);
+  fs_print_tree_list(root);
+
+  vfs fat_16_vfs = {0};
+  fat16_vfs_data usercode = {0};
+  usercode.root = root;
+  usercode.current_dir = root;
+  usercode.bpb = &bpb;
+
+  vfs_init_fat16(&fat_16_vfs, &usercode);
+
+  fat_16_vfs.chdir(&fat_16_vfs, "FONTS");
+  int fd = 0;
+  fat_16_vfs.open(&fat_16_vfs, "VIII.BDF", VFS_READ, &fd);
+
+  fat_16_vfs.chdir(&fat_16_vfs, "/");
+
+  vfs_stat s = {0};
+  fat_16_vfs.stat(&fat_16_vfs, "/FONTS/VIII.BDF", &s);
+
+  int r = fat_16_vfs.close(&fat_16_vfs, fd);
+
+  fat_16_vfs.open(&fat_16_vfs, "/", VFS_READ, &fd);
+
+  vfs_stat entries[10];
+  int64_t count = fat_16_vfs.readdir(&fat_16_vfs, fd, entries, 10);
+  for (int i = 0; i < count; i++) {
+    kernel_printf("found: %s (%d bytes) %s\n", entries[i].name, entries[i].size,
+                  entries[i].type == FS_TYPE_DIRECTORY ? "[DIR]" : "");
+  }
+
+  fat_16_vfs.close(&fat_16_vfs, fd);
+
+  if (VFS_SUCCESS != fat_16_vfs.open(&fat_16_vfs, "file.txt", VFS_READ, &fd)) {
+    kernel_printf("file not found!");
+  } else {
+    uint8_t buffer[512];
+    int c = 0;
+    int ret = 0;
+    ret = fat_16_vfs.read(&fat_16_vfs, fd, buffer, sizeof(buffer) - 1, buffer,
+                          &c);
+    if (ret != VFS_SUCCESS) {
+      kernel_printf("vfs error %d", ret);
+    } else {
+      if (c > 0) {
+        buffer[c] = '\0';
+        kernel_printf("file contents:\n%s\n", buffer);
+      }
+    }
+
+    fat_16_vfs.close(&fat_16_vfs, fd);
+  }
+
+  // TODO test seek!
 }
 
 void vfs_init_fat16(vfs *fs, fat16_vfs_data *code) {
@@ -716,8 +803,10 @@ void vfs_init_fat16(vfs *fs, fat16_vfs_data *code) {
   fs->write = 0; // reqs wriritng to disk
   fs->seek = fat16_seek;
   fs->stat = fat16_stat;
-  // fs->fstat = fat16_fstat;
+  fs->fstat = fat16_fstat;
   fs->close = fat16_close;
   fs->remove = 0; // reqs wriritng to disk
   fs->rename = 0; // reqs wriritng to disk
+
+  serial_debug("fd-fat16:  initialized");
 }

@@ -62,7 +62,9 @@ typedef enum {
   VFS_EACCESS,
   VFS_EMFILE,
   VFS_EISDIR,
-  VFS_ENOTDIR
+  VFS_ENOTDIR,
+  VFS_ENOMEM,
+  VFS_ENOSPC,
 } vfs_err_t;
 
 #define SEEK_SET 0
@@ -70,3 +72,32 @@ typedef enum {
 #define SEEK_END 2
 
 void vfs_init_fat16(vfs *fs, fat16_vfs_data *code);
+
+#define RAMDISK_MAX_FILES 128
+#define RAMDISK_MAX_FILENAME 64
+#define RAMDISK_MAX_FILESIZE (64 * 1024) // 64KB per file
+
+typedef struct {
+  char name[RAMDISK_MAX_FILENAME];
+  uint8_t *data;
+  uint32_t size;
+  uint32_t capacity;
+  int in_use;
+  fs_node_type_t type;
+} ramdisk_file_t;
+
+typedef struct {
+  int fd;
+  ramdisk_file_t *file;
+  uint32_t position;
+  vfs_mode mode;
+  int in_use;
+} ramdisk_fd_t;
+
+typedef struct {
+  ramdisk_file_t files[RAMDISK_MAX_FILES];
+  ramdisk_fd_t fd_table[32];
+  char current_path[512];
+} ramdisk_vfs_data;
+
+void vfs_init_ramdisk(vfs *fs, ramdisk_vfs_data *data);

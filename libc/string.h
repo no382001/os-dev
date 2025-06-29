@@ -30,7 +30,8 @@ char *strcat(char *dest, const char *src);
 int isdigit(int c);
 int atoi(const char *str);
 void itoa(int n, char str[]);
-
+char *strrchr(const char *s, int c);
+char *strncpy(char *dest, const char *src, size_t n);
 #include "libc/types.h"
 #include "mem.h"
 #include "string.h"

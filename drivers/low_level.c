@@ -61,3 +61,38 @@ void ata_read_sector(uint32_t lba, uint8_t *buffer) {
     ((uint16_t *)buffer)[i] = port_word_in(0x1F0);
   }
 }
+
+void ata_write_sector(uint32_t lba, uint8_t *buffer) {
+  port_byte_out(0x1F6, (lba >> 24) | 0xE0);
+  port_byte_out(0x1F2, 1); // one sector
+  port_byte_out(0x1F3, (uint8_t)lba);
+  port_byte_out(0x1F4, (uint8_t)(lba >> 8));
+  port_byte_out(0x1F5, (uint8_t)(lba >> 16));
+  port_byte_out(0x1F7, 0x30); // WRITE SECTOR
+
+  int timeout = 100000;
+  while (timeout--) {
+    uint8_t status = port_byte_in(0x1F7);
+    if (status & 0x01) {
+      serial_debug("disk write error at LBA %d\n", lba);
+      return;
+    }
+    if (status & 0x08) // data ready
+      break;
+  }
+  if (timeout <= 0) {
+    serial_debug("ERROR: ata_write_sector() - timeout waiting for drive!\n");
+    return;
+  }
+
+  for (int i = 0; i < 512 / 2; i++) {
+    port_word_out(0x1F0, ((uint16_t *)buffer)[i]);
+  }
+
+  timeout = 100000;
+  while (timeout--) {
+    uint8_t status = port_byte_in(0x1F7);
+    if (!(status & 0x80)) // BSY bit clear
+      break;
+  }
+}

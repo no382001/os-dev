@@ -413,3 +413,40 @@ int sscanf(const char *buffer, const char *fmt, ...) {
   va_end(args);
   return matched;
 }
+
+/**
+ * find the last occurrence of character c in string s
+ * returns pointer to the last occurrence of c in s, or NULL if not found
+ */
+char *strrchr(const char *s, int c) {
+  const char *last = NULL;
+
+  char ch = (char)c;
+
+  while (*s) {
+    if (*s == ch) {
+      last = s;
+    }
+    s++;
+  }
+
+  if (ch == '\0') {
+    return (char *)s; // return pointer to null terminator
+  }
+
+  return (char *)last; // return last found position
+}
+
+char *strncpy(char *dest, const char *src, size_t n) {
+  size_t i;
+
+  for (i = 0; i < n && src[i] != '\0'; i++) {
+    dest[i] = src[i];
+  }
+
+  for (; i < n; i++) {
+    dest[i] = '\0';
+  }
+
+  return dest;
+}
