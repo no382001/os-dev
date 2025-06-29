@@ -7,7 +7,7 @@ OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt
 CC = gcc
 GDB = gdb
 LD = ld -m elf_i386
-CFLAGSNO = -fno-pie -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Wno-error=comment -Wno-error=unused-variable -Wno-error=unused-parameter #-Wno-error=pointer-arith
+CFLAGSNO = -fno-pie -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Wno-error=comment -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=unused-function #-Wno-error=pointer-arith
 USAN = -fsanitize=undefined -fno-sanitize=shift
 CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
 NETWORKING = -netdev tap,id=net0,ifname=tap0,script=no,downscript=no -device rtl8139,netdev=net0

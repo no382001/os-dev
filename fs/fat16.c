@@ -5,12 +5,14 @@
 #include "libc/string.h"
 #include "libc/types.h"
 
+/*
 #undef serial_debug
 #define serial_debug(...)
+*/
 
 void fat16_read_bpb(fat_bpb_t *bpb) {
   uint8_t buffer[512] = {0};
-  ata_read_sector(0, buffer);
+  ata_read_sector(0, buffer); // fda
   memcpy((char *)bpb, (char *)buffer, sizeof(fat_bpb_t));
 
   serial_debug(" FAT16 info - %d sectors, %d bytes per sector, thats ~%dMB",
@@ -165,6 +167,7 @@ int fat16_read_long_filename(fat_entry_t *entries, int start_index,
 
   return name_pos > 0 ? current_index + 1 : -1; // return index of 8.3 entry
 }
+
 void fat16_entry_extract_filename_lfn(fat_entry_t *entries, int index,
                                       char *short_name, char *long_name) {
   fat_entry_t *e = &entries[index];
@@ -222,16 +225,32 @@ void fat16_entry_extract_filename_lfn(fat_entry_t *entries, int index,
   }
 }
 
+fs_node_t *fs_build_root(fat_bpb_t *bpb) {
+  fs_node_t *root = (fs_node_t *)kmalloc(sizeof(fs_node_t));
+  memset(root, 0, sizeof(fs_node_t));
+
+  strcpy(root->name, "/");
+  strcpy(root->long_name, "/");
+  root->type = FS_TYPE_DIRECTORY;
+  root->parent = NULL;
+  root->size = 0;
+  root->start_cluster = 0;
+
+  root->children = fs_build_tree(bpb, 0, root, 1);
+
+  return root;
+}
+
 fs_node_t *fs_build_tree(fat_bpb_t *bpb, uint16_t start_cluster,
                          fs_node_t *parent, int is_root) {
   fs_node_t *head = NULL;
   fs_node_t *prev = NULL;
 
-  fat_entry_t entries[512];
-  uint8_t buffer[512];
+  fat_entry_t entries[512] = {0};
+  uint8_t buffer[512] = {0};
 
-  uint16_t lba;
-  uint16_t dir_size;
+  uint16_t lba = 0;
+  uint16_t dir_size = 0;
 
   if (is_root) {
     lba = bpb->reserved_sectors + (bpb->fat_count * bpb->sectors_per_fat);
@@ -272,7 +291,7 @@ fs_node_t *fs_build_tree(fat_bpb_t *bpb, uint16_t start_cluster,
       continue;
     }
 
-    memcpy(node->name, short_name, 13);
+    strcpy(node->name, short_name);
     strcpy(node->long_name, long_name);
 
     node->size = entries[i].file_size;
@@ -333,6 +352,8 @@ void fs_print_tree(fs_node_t *node, char *prefix, int is_last) {
   }
 }
 
+// the struct names are a bit misleading
+// searches recursively returns the first file by filename
 fs_node_t *fs_find_file(fs_node_t *root, const char *name) {
   fs_node_t *current = root;
   while (current) {
@@ -347,4 +368,211 @@ fs_node_t *fs_find_file(fs_node_t *root, const char *name) {
     current = current->next;
   }
   return NULL;
+}
+
+#include "vfs.h"
+
+static int fat16_allocate_fd(fat16_vfs_data *data) {
+  for (int i = 0; i < 32; i++) {
+    if (!data->fd_table[i].in_use) {
+      data->fd_table[i].in_use = 1;
+      data->fd_table[i].position = 0;
+      data->fd_table[i].fd = i;
+      return i;
+    }
+  }
+  return -1;
+}
+
+static fs_node_t *fat16_find_child(fs_node_t *parent, const char *name) {
+  if (!parent || !name || parent->type != FS_TYPE_DIRECTORY) {
+    // serial_debug("exiting");
+    return NULL;
+  }
+
+  fs_node_t *child = parent->children;
+  while (child) {
+    // serial_debug("checking `%s` against `%s`", child->name, name);
+    //  check both short name and long name
+    if (!strcmp(child->name, name) || !strcmp(child->long_name, name)) {
+      // serial_debug("found `%s`", name);
+      return child;
+    }
+    child = child->next;
+  }
+  return NULL;
+}
+
+static fs_node_t *fat16_resolve_path(fat16_vfs_data *data, const char *path) {
+  if (!data || !path)
+    return NULL;
+  serial_debug("resolving path: '%s'", path);
+
+  fs_node_t *current;
+
+  if (path[0] == '/') {
+    // absolute path
+    current = data->root;
+    path++;
+  } else {
+    current = data->current_dir;
+  }
+
+  if ((*path == '.' && !path[1])) {
+    return current;
+  }
+
+  char path_copy[512];
+  strcpy(path_copy, path);
+
+  char *token = strtok(path_copy, "/");
+  while (token && current) {
+    if (!strcmp(token, ".")) {
+    } else if (!strcmp(token, "..")) {
+      if (current->parent) {
+        current = current->parent;
+      }
+    } else {
+      current = fat16_find_child(current, token);
+    }
+    token = strtok(NULL, "/");
+  }
+
+  return current;
+}
+
+static int fat16_chdir(vfs *fs, const char *path) {
+  if (!fs || !path)
+    return VFS_ERROR;
+
+  fat16_vfs_data *data = (fat16_vfs_data *)fs->usercode;
+  fs_node_t *target = fat16_resolve_path(data, path);
+
+  if (!target) {
+    serial_debug("nothing found named %s", path);
+    return VFS_ENOENT;
+  }
+  if (target->type != FS_TYPE_DIRECTORY) {
+    serial_debug("not a directory %s", path);
+    return VFS_ENOTDIR;
+  }
+
+  data->current_dir = target;
+
+  if (path[0] == '/') {
+    strcpy(fs->current_path, path);
+  } else {
+    // Simple relative path update
+    if (strcmp(fs->current_path, "/") != 0) {
+      strcat(fs->current_path, "/");
+    }
+    strcat(fs->current_path, path);
+  }
+  serial_debug("dir found named %s", path);
+  return VFS_SUCCESS;
+}
+
+static int fat16_open(vfs *fs, const char *name, vfs_mode mode) {
+  if (!fs || !name)
+    return VFS_ERROR;
+
+  fat16_vfs_data *data = (fat16_vfs_data *)fs->usercode;
+  fs_node_t *file = fat16_resolve_path(data, name);
+
+  if (!file)
+    return VFS_ENOENT;
+
+  if (file->type == FS_TYPE_DIRECTORY && !(mode & VFS_READ)) {
+    return VFS_EISDIR;
+  }
+
+  int fd = fat16_allocate_fd(data);
+  if (fd < 0)
+    return VFS_EMFILE;
+
+  data->fd_table[fd].node = file;
+  data->fd_table[fd].mode = mode;
+  data->fd_table[fd].position = 0;
+
+  return fd;
+}
+
+static int64_t fat16_read(vfs *fs, int fd, void *buf, uint64_t count) {
+  if (!fs || fd < 0 || fd >= 32 || !buf)
+    return VFS_EBADF;
+
+  fat16_vfs_data *data = (fat16_vfs_data *)fs->usercode;
+
+  if (!data->fd_table[fd].in_use)
+    return VFS_EBADF;
+
+  fat16_fd_t *file_desc = &data->fd_table[fd];
+  fs_node_t *file = file_desc->node;
+
+  if (file->type == FS_TYPE_DIRECTORY)
+    return VFS_EISDIR;
+
+  uint64_t remaining = file->size - file_desc->position;
+  if (count > remaining)
+    count = remaining;
+  if (count == 0)
+    return 0;
+
+  uint8_t *file_buffer = (uint8_t *)kmalloc(file->size);
+  if (!file_buffer)
+    return VFS_ERROR;
+
+  fs_read_file(&data->bpb, file, file_buffer);
+  memcpy(buf, file_buffer + file_desc->position, count);
+  file_desc->position += count;
+
+  kfree(file_buffer);
+
+  return count;
+}
+
+static int fat16_stat(vfs *fs, const char *path, vfs_stat *st) {
+  if (!fs || !path || !st)
+    return VFS_ERROR;
+
+  fat16_vfs_data *data = (fat16_vfs_data *)fs->usercode;
+  fs_node_t *file = fat16_resolve_path(data, path);
+
+  if (!file)
+    return VFS_ENOENT;
+
+  st->size = file->size;
+  st->type = file->type;
+  st->cluster = file->start_cluster;
+
+  if (file->long_name[0] != '\0') {
+    strcpy(st->name, file->long_name);
+  } else {
+    strcpy(st->name, file->name);
+  }
+
+  return VFS_SUCCESS;
+}
+
+void vfs_init_fat16(vfs *fs, fat16_vfs_data *code) {
+  if (!fs)
+    return;
+
+  strcpy(fs->name, "fat16");
+  strcpy(fs->current_path, "/");
+
+  fs->usercode = (void *)code;
+
+  fs->chdir = fat16_chdir;
+  fs->open = fat16_open;
+  // fs->create = fat16_create;
+  fs->read = fat16_read;
+  // fs->readdir = fat16_readdir;
+  // fs->write = fat16_write;
+  // fs->seek = fat16_seek;
+  fs->stat = fat16_stat;
+  // fs->fstat = fat16_fstat;
+  // fs->close = fat16_close;
+  // fs->remove = fat16_remove;
+  // fs->rename = fat16_rename;
 }

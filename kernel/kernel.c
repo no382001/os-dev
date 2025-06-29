@@ -50,6 +50,7 @@ void selftest() {
   serial_debug("selftest finished!");
 }
 
+void demo();
 void kernel_main(void) {
   // be very careful, sometimes un-inited modules work even in kvm, for some
   // time, then they 3F
@@ -78,8 +79,18 @@ void kernel_main(void) {
   fat_bpb_t bpb = {0};
   fat16_read_bpb(&bpb);
 
-  fs_node_t *root = fs_build_tree(&bpb, 0, 0, 1);
+  fs_node_t *root = fs_build_root(&bpb);
   fs_print_tree_list(root);
+
+  vfs fat_16_vfs = {0};
+  fat16_vfs_data usercode = {0};
+  usercode.root = root;
+  usercode.current_dir = root;
+
+  vfs_init_fat16(&fat_16_vfs, &usercode);
+
+  fat_16_vfs.chdir(&fat_16_vfs, "FONTS");
+
   while (1) {
     ;
   }

@@ -62,6 +62,7 @@ struct fs_node_t {
   fs_node_t *next;
 };
 
+fs_node_t *fs_build_root(fat_bpb_t *bpb);
 fs_node_t *fs_build_tree(fat_bpb_t *bpb, uint16_t start_cluster,
                          fs_node_t *parent, int is_root);
 fs_node_t *fs_find_file(fs_node_t *root, const char *name);
@@ -81,3 +82,5 @@ void fat16_entry_extract_filename_lfn(fat_entry_t *entries, int index,
 #define LFN_DELETED 0xE5
 #define LFN_ATTR 0x0F
 #define MAX_LFN_LENGTH 255
+
+typedef struct vfs vfs;

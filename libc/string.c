@@ -95,7 +95,7 @@ void hex_to_ascii(int n, char str[]) {
 
 char *strcpy(char *dest, const char *str) {
   int len = strlen(str);
-  memcpy(dest, str, len);
+  memcpy(dest, str, len + 1);
   return dest;
 }
 

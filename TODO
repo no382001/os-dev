@@ -58,3 +58,7 @@ spawn a thread with a handler on some hardcoded socket for p92000
 
 do the vfs first
 scheme and forth?
+
+need to do an fs layer on top of fat16
+then put that in a vfs layer.
+then that in 9p
