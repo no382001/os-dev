@@ -1,5 +1,4 @@
 #include "udp.h"
-#include "9p/9p.h"
 #include "dhcp.h"
 #include "drivers/serial.h"
 #include "ip.h"
@@ -50,7 +49,7 @@ void udp_handle_packet(udp_packet_t *packet) {
   if (dst_port == DHCP_CLIENT) {
     serial_debug("dhcp!");
     dhcp_handle_packet(data_ptr);
-  } else if (dst_port == NINEP2000_PORT) {
-    ninep_handle_packet(data_ptr, length);
+  } else if (dst_port == 9999) {
+    // ninep_handle_packet(data_ptr, length);
   }
 }

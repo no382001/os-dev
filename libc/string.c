@@ -93,7 +93,7 @@ void hex_to_ascii(int n, char str[]) {
     append(str, '0');
 }
 
-char *strcpy(const char *str, char *dest) {
+char *strcpy(char *dest, const char *str) {
   int len = strlen(str);
   memcpy(dest, str, len);
   return dest;
@@ -129,7 +129,7 @@ void hex_to_ascii_padded(int num, char str[], int width, int zero_pad,
     str[out_index++] = '0';
   }
 
-  strcpy(hex_start, str + out_index);
+  strcpy(str + out_index, hex_start);
 }
 
 // unsafe, primal

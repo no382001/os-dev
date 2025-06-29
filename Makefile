@@ -16,7 +16,7 @@ RUN = qemu-system-i386  $(QEMU_FLAGS) -m 4 -serial stdio -kernel $(BUILD_DIR)/ke
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps $(BUILD_DIR)/net $(BUILD_DIR)/fs $(BUILD_DIR)/9p)
 
-all: format format-9p bits $(BUILD_DIR)/kernel.elf disk/fat16.img
+all: format bits $(BUILD_DIR)/kernel.elf disk/fat16.img
 
 $(BUILD_DIR)/kernel.elf: $(BUILD_DIR)/boot/entry.o ${OBJ}
 	${LD} -o $@ -T kernel.ld $^
@@ -46,9 +46,6 @@ clean:
 
 format:
 	find . -name '*.h' -o -name '*.c' -not -path "./9p/*" | xargs clang-format -i
-
-format-9p:
-	cd 9p && find . -name '*.h' -o -name '*.c' | xargs clang-format -i
 
 OUTPUT_FILE = bits.h
 bits:

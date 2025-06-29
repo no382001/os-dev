@@ -11,7 +11,7 @@ void append(char s[], char n);
 int strcmp(const char s1[], const char s2[]);
 int strncmp(const char s1[], const char s2[], size_t n);
 void hex_to_ascii(int n, char str[]);
-char *strcpy(const char *src, char *dest);
+char *strcpy(char *dest, const char *src);
 
 void _vprintf(void (*output_func)(char), const char *fmt, va_list args);
 
