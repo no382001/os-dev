@@ -21,6 +21,16 @@ void fat16_read_bpb(fat_bpb_t *bpb) {
 }
 
 static uint32_t fat16_cluster_to_lba(fat_bpb_t *bpb, uint16_t cluster) {
+  if (bpb->bytes_per_sector == 0) {
+    serial_debug("bytes_per_sector is 0!");
+    return 0;
+  }
+
+  if (cluster == 0) {
+    serial_debug("invalid cluster 0!");
+    return 0;
+  }
+
   uint32_t data_region_start = bpb->reserved_sectors +
                                (bpb->fat_count * bpb->sectors_per_fat) +
                                (bpb->root_entries * 32) / bpb->bytes_per_sector;
@@ -28,8 +38,28 @@ static uint32_t fat16_cluster_to_lba(fat_bpb_t *bpb, uint16_t cluster) {
 }
 
 void fs_read_file(fat_bpb_t *bpb, fs_node_t *file, uint8_t *out) {
+  serial_debug("reading file: size=%d, start_cluster=%d", file->size,
+               file->start_cluster);
+
+  if (file->size == 0) {
+    serial_debug("file is empty, nothing to read");
+    return;
+  }
+
+  if (file->start_cluster == 0) {
+    serial_debug("file has no allocated clusters!");
+    return;
+  }
+
   uint16_t lba = fat16_cluster_to_lba(bpb, file->start_cluster);
+  if (lba == 0) {
+    serial_debug("invalid LBA calculated!");
+    return;
+  }
+
   int read = (file->size / 512) + 1;
+  serial_debug("reading %d sectors starting at LBA %d", read, lba);
+
   for (uint8_t i = 0; i < read; i++) {
     ata_read_sector(lba + i, (uint8_t *)(out + (i * 512)));
   }
@@ -384,18 +414,27 @@ static int fat16_allocate_fd(fat16_vfs_data *data) {
   return -1;
 }
 
+static int strcasecmp_simple(const char *s1, const char *s2) {
+  while (*s1 && *s2) {
+    char c1 = (*s1 >= 'a' && *s1 <= 'z') ? *s1 - 32 : *s1;
+    char c2 = (*s2 >= 'a' && *s2 <= 'z') ? *s2 - 32 : *s2;
+    if (c1 != c2)
+      return c1 - c2;
+    s1++;
+    s2++;
+  }
+  return *s1 - *s2;
+}
+
 static fs_node_t *fat16_find_child(fs_node_t *parent, const char *name) {
   if (!parent || !name || parent->type != FS_TYPE_DIRECTORY) {
-    // serial_debug("exiting");
     return NULL;
   }
 
   fs_node_t *child = parent->children;
   while (child) {
-    // serial_debug("checking `%s` against `%s`", child->name, name);
-    //  check both short name and long name
-    if (!strcmp(child->name, name) || !strcmp(child->long_name, name)) {
-      // serial_debug("found `%s`", name);
+    if (!strcasecmp_simple(child->name, name) ||
+        !strcmp(child->long_name, name)) {
       return child;
     }
     child = child->next;
@@ -406,7 +445,7 @@ static fs_node_t *fat16_find_child(fs_node_t *parent, const char *name) {
 static fs_node_t *fat16_resolve_path(fat16_vfs_data *data, const char *path) {
   if (!data || !path)
     return NULL;
-  serial_debug("resolving path: '%s'", path);
+  // serial_debug("resolving path: '%s'", path);
 
   fs_node_t *current;
 
@@ -437,6 +476,9 @@ static fs_node_t *fat16_resolve_path(fat16_vfs_data *data, const char *path) {
     }
     token = strtok(NULL, "/");
   }
+  if (!current) {
+    serial_debug("could not find `%s`", path);
+  }
 
   return current;
 }
@@ -459,20 +501,20 @@ static int fat16_chdir(vfs *fs, const char *path) {
 
   data->current_dir = target;
 
+  serial_debug("from `%s`", fs->current_path);
   if (path[0] == '/') {
     strcpy(fs->current_path, path);
   } else {
-    // Simple relative path update
     if (strcmp(fs->current_path, "/") != 0) {
       strcat(fs->current_path, "/");
     }
     strcat(fs->current_path, path);
   }
-  serial_debug("dir found named %s", path);
+  serial_debug("chdir'd to `%s`", fs->current_path);
   return VFS_SUCCESS;
 }
 
-static int fat16_open(vfs *fs, const char *name, vfs_mode mode) {
+static int fat16_open(vfs *fs, const char *name, vfs_mode mode, int *fd) {
   if (!fs || !name)
     return VFS_ERROR;
 
@@ -486,18 +528,78 @@ static int fat16_open(vfs *fs, const char *name, vfs_mode mode) {
     return VFS_EISDIR;
   }
 
-  int fd = fat16_allocate_fd(data);
-  if (fd < 0)
+  *fd = fat16_allocate_fd(data);
+  if (*fd < 0)
     return VFS_EMFILE;
 
-  data->fd_table[fd].node = file;
-  data->fd_table[fd].mode = mode;
-  data->fd_table[fd].position = 0;
+  data->fd_table[*fd].node = file;
+  data->fd_table[*fd].mode = mode;
+  data->fd_table[*fd].position = 0;
 
-  return fd;
+  serial_debug("opened %s on fd %d", name, *fd);
+  return VFS_SUCCESS;
 }
 
-static int64_t fat16_read(vfs *fs, int fd, void *buf, uint64_t count) {
+static int fat16_close(vfs *fs, int fd) {
+  if (!fs || fd < 0 || fd >= 32)
+    return VFS_EBADF;
+
+  fat16_vfs_data *data = (fat16_vfs_data *)fs->usercode;
+
+  if (!data->fd_table[fd].in_use)
+    return VFS_EBADF;
+
+  data->fd_table[fd].in_use = 0;
+  data->fd_table[fd].node = NULL;
+  data->fd_table[fd].position = 0;
+
+  serial_debug("closed fd %d", fd);
+  return VFS_SUCCESS;
+}
+
+static int64_t fat16_readdir(vfs *fs, int fd, vfs_stat *st, int nst) {
+  if (!fs || fd < 0 || fd >= 32 || !st)
+    return VFS_EBADF;
+
+  fat16_vfs_data *data = (fat16_vfs_data *)fs->usercode;
+
+  if (!data->fd_table[fd].in_use)
+    return VFS_EBADF;
+
+  fat16_fd_t *file_desc = &data->fd_table[fd];
+  fs_node_t *dir = file_desc->node;
+
+  if (dir->type != FS_TYPE_DIRECTORY)
+    return VFS_ENOTDIR;
+
+  fs_node_t *current = dir->children;
+  for (uint32_t i = 0; i < file_desc->position && current; i++) {
+    current = current->next;
+  }
+
+  int entries_read = 0;
+  while (current && entries_read < nst) {
+    st[entries_read].size = current->size;
+    st[entries_read].type = current->type;
+    st[entries_read].cluster = current->start_cluster;
+
+    if (current->long_name[0] != '\0') {
+      strcpy(st[entries_read].name, current->long_name);
+    } else {
+      strcpy(st[entries_read].name, current->name);
+    }
+
+    current = current->next;
+    file_desc->position++;
+    entries_read++;
+  }
+
+  serial_debug("readdir returned %d entries", entries_read);
+  return entries_read;
+}
+
+static int64_t fat16_read(vfs *fs, int fd, void *buf, uint64_t count,
+                          uint8_t *buffer, int *bytes_read) {
   if (!fs || fd < 0 || fd >= 32 || !buf)
     return VFS_EBADF;
 
@@ -522,13 +624,14 @@ static int64_t fat16_read(vfs *fs, int fd, void *buf, uint64_t count) {
   if (!file_buffer)
     return VFS_ERROR;
 
-  fs_read_file(&data->bpb, file, file_buffer);
+  fs_read_file(data->bpb, file, file_buffer);
   memcpy(buf, file_buffer + file_desc->position, count);
   file_desc->position += count;
 
   kfree(file_buffer);
 
-  return count;
+  *bytes_read = count;
+  return VFS_SUCCESS;
 }
 
 static int fat16_stat(vfs *fs, const char *path, vfs_stat *st) {
@@ -550,8 +653,50 @@ static int fat16_stat(vfs *fs, const char *path, vfs_stat *st) {
   } else {
     strcpy(st->name, file->name);
   }
+  serial_debug("stat'd `%s` name:`%s` size: %d, type: %d, cluster: %d", path,
+               st->name, st->size, st->size, st->cluster);
 
   return VFS_SUCCESS;
+}
+
+static int64_t fat16_seek(vfs *fs, int fd, int64_t offset, int whence) {
+  if (!fs || fd < 0 || fd >= 32)
+    return VFS_EBADF;
+
+  fat16_vfs_data *data = (fat16_vfs_data *)fs->usercode;
+
+  if (!data->fd_table[fd].in_use)
+    return VFS_EBADF;
+
+  fat16_fd_t *file_desc = &data->fd_table[fd];
+  fs_node_t *file = file_desc->node;
+
+  if (file->type == FS_TYPE_DIRECTORY)
+    return VFS_EISDIR;
+
+  int64_t new_pos;
+  switch (whence) {
+  case SEEK_SET:
+    new_pos = offset;
+    break;
+  case SEEK_CUR:
+    new_pos = file_desc->position + offset;
+    break;
+  case SEEK_END:
+    new_pos = file->size + offset;
+    break;
+  default:
+    return VFS_ERROR;
+  }
+
+  if (new_pos < 0)
+    new_pos = 0;
+  if (new_pos > file->size)
+    new_pos = file->size;
+
+  file_desc->position = new_pos;
+  serial_debug("seek'd fd %d to position %d", fd, (int)new_pos);
+  return new_pos;
 }
 
 void vfs_init_fat16(vfs *fs, fat16_vfs_data *code) {
@@ -565,14 +710,14 @@ void vfs_init_fat16(vfs *fs, fat16_vfs_data *code) {
 
   fs->chdir = fat16_chdir;
   fs->open = fat16_open;
-  // fs->create = fat16_create;
+  fs->create = 0; // reqs wriritng to disk
   fs->read = fat16_read;
-  // fs->readdir = fat16_readdir;
-  // fs->write = fat16_write;
-  // fs->seek = fat16_seek;
+  fs->readdir = fat16_readdir;
+  fs->write = 0; // reqs wriritng to disk
+  fs->seek = fat16_seek;
   fs->stat = fat16_stat;
   // fs->fstat = fat16_fstat;
-  // fs->close = fat16_close;
-  // fs->remove = fat16_remove;
-  // fs->rename = fat16_rename;
+  fs->close = fat16_close;
+  fs->remove = 0; // reqs wriritng to disk
+  fs->rename = 0; // reqs wriritng to disk
 }

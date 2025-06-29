@@ -27,7 +27,7 @@ typedef struct {
 } fat16_fd_t;
 
 typedef struct {
-  fat_bpb_t bpb;
+  fat_bpb_t *bpb;
   fs_node_t *root;
   fs_node_t *current_dir;
   fat16_fd_t fd_table[32];
@@ -39,9 +39,10 @@ typedef struct vfs {
   void *usercode;
 
   int (*chdir)(vfs *fs, const char *path);
-  int (*open)(vfs *fs, const char *name, vfs_mode mode);
+  int (*open)(vfs *fs, const char *name, vfs_mode mode, int *fd);
   int (*create)(vfs *fs, const char *path, int perm);
-  int64_t (*read)(vfs *fs, int fd, void *buf, uint64_t count);
+  int64_t (*read)(vfs *fs, int fd, void *buf, uint64_t count, uint8_t *out,
+                  int *bytes_read);
   int64_t (*readdir)(vfs *fs, int fd, vfs_stat *st, int nst);
   int64_t (*write)(vfs *fs, int fd, const void *buf, uint64_t count);
   int64_t (*seek)(vfs *fs, int fd, int64_t offset, int whence);
