@@ -143,22 +143,70 @@ void fs_read_file(fat_bpb_t *bpb, fs_node_t *file, uint8_t *out) {
   }
 }
 
-void fs_print_tree(fs_node_t *node, int depth) {
+#define TREE_BRANCH "|-- "
+#define TREE_LAST "`-- "
+#define TREE_VERTICAL "|   "
+#define TREE_SPACE "    "
+
+void fs_print_tree(fs_node_t *node, char *prefix, int is_last) {
   if (!node)
     return;
 
-  for (int i = 0; i < depth; i++) {
-    kernel_printf("|   ");
-  }
+  kernel_printf("%s%s", prefix, is_last ? TREE_LAST : TREE_BRANCH);
 
   if (node->type == FS_TYPE_DIRECTORY) {
-    kernel_printf("|-- %s\n", node->name);
+    kernel_printf("%s\n", node->name);
   } else {
-    kernel_printf("|-- %s (%d bytes)\n", node->name, node->size);
+    kernel_printf("%s (%d bytes)\n", node->name, node->size);
   }
 
-  fs_print_tree(node->children, depth + 1);
-  fs_print_tree(node->next, depth);
+  if (node->type == FS_TYPE_DIRECTORY && node->children) {
+    // Prepare prefix for children
+    char new_prefix[256];
+    strcpy(new_prefix, prefix);
+    strcat(new_prefix, is_last ? TREE_SPACE : TREE_VERTICAL);
+
+    fs_node_t *child = node->children;
+
+    int child_count = 0;
+    fs_node_t *temp = child;
+    while (temp) {
+      child_count++;
+      temp = temp->next;
+    }
+
+    int current_child = 0;
+    while (child) {
+      current_child++;
+      fs_print_tree(child, new_prefix, current_child == child_count);
+      child = child->next;
+    }
+  }
+}
+
+void fs_print_tree_list(fs_node_t *root) {
+  if (!root) {
+    kernel_printf("empty filesystem tree\n");
+    return;
+  }
+
+  kernel_printf("filesystem tree:\n");
+
+  fs_node_t *current = root;
+
+  int root_count = 0;
+  fs_node_t *temp = current;
+  while (temp) {
+    root_count++;
+    temp = temp->next;
+  }
+
+  int current_node = 0;
+  while (current) {
+    current_node++;
+    fs_print_tree(current, "", current_node == root_count);
+    current = current->next;
+  }
 }
 
 void fs_cleanup(fs_node_t *node) {

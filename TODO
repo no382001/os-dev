@@ -55,3 +55,6 @@ bootloader:
   switch to that other one instead of loading with --kernel
 
 spawn a thread with a handler on some hardcoded socket for p92000
+
+do the vfs first
+scheme and forth?

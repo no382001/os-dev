@@ -75,36 +75,11 @@ void kernel_main(void) {
   init_tasking();
   selftest();
 
-  kernel_printf("- initializing network driver...\n");
-  rtl8139_init();
-  serial_debug("rtl8139 done...");
+  fat_bpb_t bpb = {0};
+  fat16_read_bpb(&bpb);
 
-  arp_init();
-  serial_debug("arp done...");
-
-  uint8_t mac_addr[] = {0};
-  get_mac_addr(mac_addr);
-
-  // this does not work i cant seem to set up the network on wsl2 qemu
-  // the packet looks okay, but i cant reach the dhcp server
-
-  // maybe put this in a state machine?
-  dhcp_discover();
-  extern int is_ip_allocated;
-  extern int is_ip_offered;
-
-  while (!is_ip_offered) {
-  }
-
-  while (!is_ip_allocated) {
-    sleep(1000);
-    extern uint32_t prev_requested_ip;
-    dhcp_request((uint8_t *)&prev_requested_ip);
-  }
-  extern uint8_t my_ip[4];
-  serial_debug("we got a dynamic ip!  %d.%d.%d.%d", my_ip[0], my_ip[1],
-               my_ip[2], my_ip[3]);
-
+  fs_node_t *root = fs_build_tree(&bpb, 0, 0, 1);
+  fs_print_tree_list(root);
   while (1) {
     ;
   }

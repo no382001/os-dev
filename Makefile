@@ -12,7 +12,7 @@ USAN = -fsanitize=undefined -fno-sanitize=shift
 CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
 NETWORKING = -netdev tap,id=net0,ifname=tap0,script=no,downscript=no -device rtl8139,netdev=net0
 QEMU_FLAGS=-no-shutdown -no-reboot
-RUN = qemu-system-i386  --enable-kvm $(QEMU_FLAGS) -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -d int,cpu_reset,guest_errors -D qemu.log -trace kvm* -D kvm_trace.log
+RUN = qemu-system-i386  $(QEMU_FLAGS) -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -d int,cpu_reset,guest_errors -D qemu.log -trace kvm* -D kvm_trace.log
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps $(BUILD_DIR)/net $(BUILD_DIR)/fs $(BUILD_DIR)/9p)
 
@@ -31,11 +31,11 @@ $(BUILD_DIR)/%.bin: %.asm
 	nasm $< -f bin -o $@
 
 net: all
-	$(RUN) $(NETWORKING)
+	$(RUN) --enable-kvm $(NETWORKING)
 run: all
 	$(RUN)
 vnc : all
-	$(RUN) $(NETWORKING) -vnc :1
+	$(RUN) --enable-kvm $(NETWORKING) -vnc :1
 
 #################
 disk/fat16.img:
