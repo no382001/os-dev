@@ -5,7 +5,7 @@ SOURCE="root"
 SIZE_MB=10
 
 if ! command -v mcopy >/dev/null 2>&1 || ! command -v mkfs.vfat >/dev/null 2>&1; then
-    echo "missing required tools: mtools dosfstools"
+    echo "missing required tools: mkfs.vfat or mcopy they should be in mtools dosfstools"
     exit 1
 fi
 

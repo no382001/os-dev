@@ -17,7 +17,9 @@
 #define vm_in() vm->io.stdin()
 
 #define vm_info(...)                                                           \
-  { vm->io.stderr(__VA_ARGS__); }
+  {                                                                            \
+    vm->io.stderr(__VA_ARGS__);                                                \
+  }
 
 void push(forth_vm_t *vm, int value) {
   if (sp < FVM_STACK_SIZE - 1)

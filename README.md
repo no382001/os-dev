@@ -21,10 +21,11 @@
 | **system**            | multitasking              | ~      |                           |
 
 ## building
-### Docker w/ vnc
-why?
-- its easier to reproduce the environment
-- sometimes building with sudo messes with file permissions, its annoying
+### locally
+```bash
+apt install build-essential nasm qemu-system-x86 gdb clang-format tcpdump dnsmasq bridge-utils iproute2 net-tools procps mtools dosfstools
+```
+### docker
 ```bash
 # build the docker container
 docker build -t os-dev .
