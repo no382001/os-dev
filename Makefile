@@ -2,7 +2,7 @@ C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c apps/*.c net/*.c 
 HEADERS = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h apps/*.h net/*.h fs/*.h)
 
 BUILD_DIR = _build
-OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt.o $(BUILD_DIR)/cpu/task_switch.o
+OBJ = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES)) $(BUILD_DIR)/cpu/interrupt.o $(BUILD_DIR)/cpu/task_switch.o $(BUILD_DIR)/libc/setjmp.o
 
 CC = gcc
 GDB = gdb

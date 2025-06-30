@@ -47,6 +47,16 @@ void selftest() {
       assert("scheduler timed out");
     }
   }
+
+  jmp_buf env = {0};
+
+  if (setjmp(env) == 0) {
+    kernel_printf("jumping... ");
+    longjmp(env, 42);
+    kernel_printf("jump failed!\n");
+  } else {
+    kernel_printf("- jumps are good...\n");
+  }
   serial_debug("selftest finished!");
 }
 
@@ -67,6 +77,49 @@ static void enter(const char *str) {
 
     kernel_printf("> ");
   }
+}
+
+static void bootstrap_zforth(zf_ctx *ctx, vfs *unified_vfs) {
+  const char *forth_files[] = {"/fd/forth/dict.f", "/fd/forth/core.f", NULL};
+
+  uint8_t buffer[1024] = {0};
+
+  for (int file_idx = 0; forth_files[file_idx] != NULL; file_idx++) {
+    const char *filepath = forth_files[file_idx];
+
+    int fd = 0;
+    if (VFS_SUCCESS !=
+        unified_vfs->open(unified_vfs, filepath, VFS_READ, &fd)) {
+      kernel_printf("file not found: %s\n", filepath);
+      continue; // skip this file, try next one
+    }
+
+    memset(buffer, 0, sizeof(buffer));
+
+    int bytes_read = 0;
+    int ret = unified_vfs->read(unified_vfs, fd, buffer, sizeof(buffer) - 1,
+                                buffer, &bytes_read);
+
+    if (ret != VFS_SUCCESS) {
+      kernel_printf("error %d reading %s\n", ret, filepath);
+      unified_vfs->close(unified_vfs, fd);
+      continue;
+    }
+
+    if (bytes_read > 0) {
+      buffer[bytes_read] = '\0';
+    }
+
+    unified_vfs->close(unified_vfs, fd);
+
+    zf_result result = zf_eval(ctx, (char *)buffer);
+    if (result != ZF_OK) {
+      kernel_printf("zforth error %d in file: %s\n", result, filepath);
+    } else {
+    }
+  }
+
+  kernel_printf("- zforth initialization complete\n");
 }
 
 void kernel_main(void) {
@@ -97,36 +150,11 @@ void kernel_main(void) {
   vfs *unified_vfs = init_vfs();
 
   vfs_print_current_tree(unified_vfs);
-  uint8_t buffer[512] = {0};
-
-  int fd = 0;
-  if (VFS_SUCCESS !=
-      unified_vfs->open(unified_vfs, "/fd/forth/core.f", VFS_READ, &fd)) {
-    kernel_printf("bootstrap file not found!");
-  } else {
-    int c = 0;
-    int ret = 0;
-    ret = unified_vfs->read(unified_vfs, fd, buffer, sizeof(buffer) - 1, buffer,
-                            &c);
-    if (ret != VFS_SUCCESS) {
-      kernel_printf("vfs error %d", ret);
-    } else {
-      if (c > 0) {
-        buffer[c] = '\0';
-      }
-    }
-
-    unified_vfs->close(unified_vfs, fd);
-  }
 
   zf_ctx ctx;
   zf_init(&ctx, 0);
   zf_bootstrap(&ctx);
-
-  zf_result result = zf_eval(&ctx, (char *)buffer);
-  if (result != ZF_OK) {
-    kernel_printf("bootstrap failed %d\n", result);
-  }
+  bootstrap_zforth(&ctx, unified_vfs);
 
   keyboard_ctx_t *kb = get_kb_ctx();
   kb->enter_handler = enter;

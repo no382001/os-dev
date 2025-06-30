@@ -3,7 +3,7 @@
 #include "zforth.h"
 
 zf_input_state zf_host_sys(zf_ctx *ctx, zf_syscall_id id, const char *input) {
-  // kernel_printf("zforth syscall: %d\n", id);
+  kernel_printf("zforth syscall: %d\n", id);
   switch (id) {
   case ZF_SYSCALL_EMIT: {
     zf_cell c = zf_pop(ctx);
@@ -42,9 +42,7 @@ zf_input_state zf_host_sys(zf_ctx *ctx, zf_syscall_id id, const char *input) {
 }
 
 void zf_host_trace(zf_ctx *ctx, const char *fmt, va_list va) {
-#if ZF_ENABLE_TRACE
   _vprintf(kernel_putc, fmt, va);
-#endif
 }
 zf_cell zf_host_parse_num(zf_ctx *ctx, const char *buf) {
 
