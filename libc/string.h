@@ -1,6 +1,5 @@
 #pragma once
-#include "bits.h"
-
+#include "libc/types.h"
 #include <stdarg.h>
 
 void int_to_ascii(int n, char str[]);

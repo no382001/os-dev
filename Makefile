@@ -40,7 +40,9 @@ vnc : all
 #################
 disk/fat16.img:
 	cd disk && ./make_disk.sh
-
+clean-disk:
+	rm -rf disk/fat16.img
+	
 clean:
 	rm -rf $(BUILD_DIR) bits.h disk/fat16.img kernel.elf
 

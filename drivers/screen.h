@@ -1,4 +1,5 @@
 #pragma once
+#include "libc/types.h"
 
 /*******************************
  * text mode

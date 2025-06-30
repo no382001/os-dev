@@ -1,6 +1,8 @@
 #include "fat16.h"
 #include "drivers/low_level.h"
+#include "drivers/screen.h"
 #include "drivers/serial.h"
+#include "libc/heap.h"
 #include "libc/mem.h"
 #include "libc/string.h"
 #include "libc/types.h"

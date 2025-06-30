@@ -53,12 +53,20 @@ void selftest() {
 vfs *init_vfs();
 void vfs_print_current_tree(vfs *fs);
 
-static forth_vm_t *g_fvm;
+static zf_ctx *g_ctx = 0;
+
 static void enter(const char *str) {
-  if (!g_fvm) {
-    return;
+  if (g_ctx) {
+    zf_result result = zf_eval(g_ctx, str);
+
+    if (result == ZF_OK) {
+      kernel_printf(" ok\n");
+    } else {
+      kernel_printf(" error %d\n", result);
+    }
+
+    kernel_printf("> ");
   }
-  fvm_repl(g_fvm, str);
 }
 
 void kernel_main(void) {
@@ -89,14 +97,42 @@ void kernel_main(void) {
   vfs *unified_vfs = init_vfs();
 
   vfs_print_current_tree(unified_vfs);
+  uint8_t buffer[512] = {0};
 
-  forth_vm_t fvm = {0};
-  fvm_init(&fvm);
-  g_fvm = &fvm;
+  int fd = 0;
+  if (VFS_SUCCESS !=
+      unified_vfs->open(unified_vfs, "/fd/forth/bootstrap.f", VFS_READ, &fd)) {
+    kernel_printf("bootstrap file not found!");
+  } else {
+    int c = 0;
+    int ret = 0;
+    ret = unified_vfs->read(unified_vfs, fd, buffer, sizeof(buffer) - 1, buffer,
+                            &c);
+    if (ret != VFS_SUCCESS) {
+      kernel_printf("vfs error %d", ret);
+    } else {
+      if (c > 0) {
+        buffer[c] = '\0';
+      }
+    }
+
+    unified_vfs->close(unified_vfs, fd);
+  }
+
+  zf_ctx ctx;
+  zf_init(&ctx, 0);
+  zf_bootstrap(&ctx);
+
+  zf_result result = zf_eval(&ctx, (char *)buffer);
+  if (result != ZF_OK) {
+    kernel_printf("bootstrap failed %d\n", result);
+  }
 
   keyboard_ctx_t *kb = get_kb_ctx();
-
   kb->enter_handler = enter;
+  g_ctx = &ctx;
+  kernel_printf(">");
+
   while (1) {
     ;
   }

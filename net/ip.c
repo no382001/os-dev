@@ -2,6 +2,7 @@
 #include "arp.h"
 #include "dhcp.h"
 #include "drivers/serial.h"
+#include "libc/heap.h"
 #include "libc/string.h"
 #include "network.h"
 

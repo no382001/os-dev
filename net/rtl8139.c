@@ -2,7 +2,9 @@
 
 #include "drivers/low_level.h"
 #include "drivers/pci.h"
+#include "libc/heap.h"
 #include "libc/string.h"
+#include "net/network.h"
 
 /*
  */

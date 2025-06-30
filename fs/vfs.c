@@ -1,5 +1,6 @@
 #include "vfs.h"
 #include "fat16.h"
+#include "libc/heap.h"
 #include "libc/mem.h"
 #include "libc/string.h"
 
