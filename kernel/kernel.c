@@ -51,7 +51,6 @@ void selftest() {
   jmp_buf env = {0};
 
   if (setjmp(env) == 0) {
-    kernel_printf("jumping... ");
     longjmp(env, 42);
     kernel_printf("jump failed!\n");
   } else {
@@ -152,7 +151,7 @@ void kernel_main(void) {
   vfs_print_current_tree(unified_vfs);
 
   zf_ctx ctx;
-  zf_init(&ctx, 0);
+  zf_init(&ctx, 1);
   zf_bootstrap(&ctx);
   bootstrap_zforth(&ctx, unified_vfs);
 

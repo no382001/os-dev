@@ -180,7 +180,7 @@ void zf_abort(zf_ctx *ctx, zf_result reason)
 void zf_push(zf_ctx *ctx, zf_cell v)
 {
 	CHECK(ctx, DSP(ctx) < ZF_DSTACK_SIZE, ZF_ABORT_DSTACK_OVERRUN);
-	trace(ctx, "»" ZF_CELL_FMT " ", v);
+	trace(ctx, ">>" ZF_CELL_FMT " ", v);
 	ctx->dstack[DSP(ctx)++] = v;
 }
 
@@ -191,7 +191,7 @@ zf_cell zf_pop(zf_ctx *ctx)
 	CHECK(ctx, DSP(ctx) > 0, ZF_ABORT_DSTACK_UNDERRUN);
 	CHECK(ctx, DSP(ctx) <= ZF_DSTACK_SIZE, ZF_ABORT_DSTACK_OVERRUN);
 	v = ctx->dstack[--DSP(ctx)];
-	trace(ctx, "«" ZF_CELL_FMT " ", v);
+	trace(ctx, "<<" ZF_CELL_FMT " ", v);
 	return v;
 }
 
@@ -207,7 +207,7 @@ zf_cell zf_pick(zf_ctx *ctx, zf_addr n)
 static void zf_pushr(zf_ctx *ctx, zf_cell v)
 {
 	CHECK(ctx, RSP(ctx) < ZF_RSTACK_SIZE, ZF_ABORT_RSTACK_OVERRUN);
-	trace(ctx, "r»" ZF_CELL_FMT " ", v);
+	trace(ctx, "r>>" ZF_CELL_FMT " ", v);
 	ctx->rstack[RSP(ctx)++] = v;
 }
 
@@ -218,7 +218,7 @@ static zf_cell zf_popr(zf_ctx *ctx)
 	CHECK(ctx, RSP(ctx) > 0, ZF_ABORT_RSTACK_UNDERRUN);
 	CHECK(ctx, RSP(ctx) <= ZF_RSTACK_SIZE, ZF_ABORT_RSTACK_OVERRUN);
 	v = ctx->rstack[--RSP(ctx)];
-	trace(ctx, "r«" ZF_CELL_FMT " ", v);
+	trace(ctx, "r<<" ZF_CELL_FMT " ", v);
 	return v;
 }
 
@@ -281,12 +281,12 @@ static zf_addr dict_put_cell_typed(zf_ctx *ctx, zf_addr addr, zf_cell v, zf_mem_
 	if(size == ZF_MEM_SIZE_VAR) {
 		if((v - vi) == 0) {
 			if(vi < 128) {
-				trace(ctx, " ¹");
+				trace(ctx, " (1)");
 				t[0] = vi;
 				return dict_put_bytes(ctx, addr, t, 1);
 			}
 			if(vi < 16384) {
-				trace(ctx, " ²");
+				trace(ctx, " (2))");
 				t[0] = (vi >> 8) | 0x80;
 				t[1] = vi;
 				return dict_put_bytes(ctx, addr, t, sizeof(t));
@@ -295,7 +295,7 @@ static zf_addr dict_put_cell_typed(zf_ctx *ctx, zf_addr addr, zf_cell v, zf_mem_
 	}
 
 	if(size == ZF_MEM_SIZE_VAR || size == ZF_MEM_SIZE_VAR_MAX) {
-		trace(ctx, " ⁵");
+		trace(ctx, " (5)");
 		t[0] = 0xff;
 		return dict_put_bytes(ctx, addr+0, t, 1) + 
 		       dict_put_bytes(ctx, addr+1, &v, sizeof(v));
@@ -481,7 +481,7 @@ static void run(zf_ctx *ctx, const char *input)
 		zf_addr code = d;
 
 		trace(ctx, "\n "ZF_ADDR_FMT " " ZF_ADDR_FMT " ", ctx->ip, code);
-		for(i=0; i<RSP(ctx); i++) trace(ctx, "┊  ");
+		for(i=0; i<RSP(ctx); i++) trace(ctx, "|  ");
 		
 		ctx->ip += l;
 

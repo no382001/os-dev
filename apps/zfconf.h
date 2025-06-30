@@ -36,7 +36,7 @@
  * floating point numbers */
 
 typedef float zf_cell;
-#define ZF_CELL_FMT "%.14g"
+#define ZF_CELL_FMT "%x"
 #define ZF_SCAN_FMT "%f"
 
 /* zf_int use for bitops, some arch int type width is less than register width,
