@@ -72,11 +72,6 @@ typedef enum {
 } zf_uservar_id;
 
 typedef struct {
-    zf_result last_error;
-    int error_occurred;
-} zf_error_state;
-
-typedef struct {
 	/* Stacks and dictionary memory */
 	zf_cell rstack[ZF_RSTACK_SIZE];
 	zf_cell dstack[ZF_DSTACK_SIZE];

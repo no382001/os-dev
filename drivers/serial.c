@@ -47,7 +47,7 @@ static int serial_is_transmit_empty() {
   return port_byte_in(SERIAL_COM1 + 5) & 0x20;
 }
 
-static void serial_write(char c) {
+void serial_write(char c) {
   while (!serial_is_transmit_empty())
     ;
   port_byte_out(SERIAL_COM1, c);

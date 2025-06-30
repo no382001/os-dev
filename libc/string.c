@@ -132,6 +132,61 @@ void hex_to_ascii_padded(int num, char str[], int width, int zero_pad,
   strcpy(str + out_index, hex_start);
 }
 
+void double_to_ascii(double num, char *buffer, int precision) {
+  char *ptr = buffer;
+
+  if (num < 0) {
+    *ptr++ = '-';
+    num = -num;
+  }
+
+  if (num != num) {
+    *ptr++ = 'n';
+    *ptr++ = 'a';
+    *ptr++ = 'n';
+    *ptr = '\0';
+    return;
+  }
+
+  if (num > 1e308) {
+    *ptr++ = 'i';
+    *ptr++ = 'n';
+    *ptr++ = 'f';
+    *ptr = '\0';
+    return;
+  }
+
+  unsigned int int_part = (unsigned int)num;
+  double frac_part = num - int_part;
+
+  if (int_part == 0) {
+    *ptr++ = '0';
+  } else {
+    char temp[32];
+    char *temp_ptr = temp;
+
+    while (int_part > 0) {
+      *temp_ptr++ = '0' + (int_part % 10);
+      int_part /= 10;
+    }
+
+    while (temp_ptr > temp) {
+      *ptr++ = *(--temp_ptr);
+    }
+  }
+
+  *ptr++ = '.';
+
+  for (int i = 0; i < precision; i++) {
+    frac_part *= 10;
+    int digit = (int)frac_part;
+    *ptr++ = '0' + digit;
+    frac_part -= digit;
+  }
+
+  *ptr = '\0';
+}
+
 // unsafe, primal
 void _vprintf(void (*output_func)(char), const char *fmt, va_list args) {
   char num_buffer[32] = {0};
@@ -185,6 +240,14 @@ void _vprintf(void (*output_func)(char), const char *fmt, va_list args) {
       }
       case '%': {
         output_func('%');
+        break;
+      }
+      case 'f': {
+        double num = va_arg(args, double);
+        double_to_ascii(num, num_buffer, 4);
+        char *ptr = num_buffer;
+        while (*ptr)
+          output_func(*ptr++);
         break;
       }
       default:

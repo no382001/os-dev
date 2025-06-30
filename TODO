@@ -54,7 +54,8 @@ the os should reach out to a 9p configuration server, could serve the bootstrap 
 bootloader:
   switch to that other one instead of loading with --kernel
 
-spawn a thread with a handler on some hardcoded socket for p92000
+- error when you could have too much words, and `words` fails
+make it navigate the vfs
 
 do the vfs first
 scheme and forth?
@@ -65,3 +66,5 @@ forth should handle string and the kb callback alright
 
 fix up tinylisp to have variadic lambdas, or ribbit or zforth
 tinylisp and zzforth needs jumpbuffers, but i have task swtiching already, shouldnt be a problem
+
+https://www.complang.tuwien.ac.at/schani/oldstuff/#schemeinforth

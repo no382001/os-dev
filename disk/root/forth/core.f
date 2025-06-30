@@ -4,24 +4,20 @@
 : emit    0 sys ;
 : .       1 sys ;
 : tell    2 sys ;
-: quit    128 sys ;
-: sin     129 sys ;
-: include 130 sys ;
-: save    131 sys ;
 
 
-( dictionary access for regular variable-length cells. These are shortcuts
-  through the primitive operations are !!, @@ and ,, )
+( dictionary access for regular variable-length cells. These are shortcuts)
+( through the primitive operations are !!, @@ and ,, )
 
 : !    0 !! ;
 : @    0 @@ ;
 : ,    0 ,, ;
 : #    0 ## ;
 
-( dictionary access for jmp instructions; these make sure to always use the
-  maximium cell size for the target address to allow safe stubbing and
-  updating of a jump address. `64` is the magic number for ZF_ACCESS_VAR_MAX,
-  see zforth.c for details )
+( dictionary access for jmp instructions; these make sure to always use the )
+( maximium cell size for the target address to allow safe stubbing and )
+( updating of a jump address. `64` is the magic number for ZF_ACCESS_VAR_MAX, )
+( see zforth.c for details )
 
 : !j	 64 !! ;
 : ,j	 64 ,, ;
@@ -34,6 +30,7 @@
 
 
 ( some operators and shortcuts )
+
 : 1+ 1 + ;
 : 1- 1 - ;
 : over 1 pick ;
@@ -52,8 +49,8 @@
 : ..   dup . ;
 : here h @ ;
 
-
 ( memory management )
+
 
 : allot  h +!  ;
 : var : ' lit , here 5 allot here swap ! 5 allot postpone ; ;
@@ -61,8 +58,8 @@
 : constant >r : r> postpone literal postpone ; ;
 : variable >r here r> postpone , constant ;
 
-( 'begin' gets the current address, a jump or conditional jump back is generated
-  by 'again', 'until' )
+( 'begin' gets the current address, a jump or conditional jump back is generated )
+(  by 'again', 'until' )
 
 : begin   here ; immediate
 : again   ' jmp , , ; immediate
@@ -83,10 +80,10 @@
 : times ( XT n -- ) { >r dup >r exe r> r> dup x} drop drop ;
 
 
-( 'if' prepares conditional jump, the target address '0' will later be
-  overwritten by the 'else' or 'fi' words. Note that ,j and !j are used for
-  writing the jump target address to the dictionary, this makes sure that the
-  target address is always written with the same cell size)
+( 'if' prepares conditional jump, the target address '0' will later be )
+( overwritten by the 'else' or 'fi' words. Note that ,j and !j are used for )
+( writing the jump target address to the dictionary, this makes sure that the )
+( target address is always written with the same cell size )
 
 : if      ' jmp0 , here 0 ,j ; immediate
 : unless  ' not , postpone if ; immediate
@@ -111,5 +108,4 @@
 
 ( Print string literal )
 
-: ." compiling @ if postpone s" ' tell , else begin key dup 34 = if drop exit else emit fi again
-     fi ; immediate
+: ." compiling @ if postpone s" ' tell , else begin key dup 34 = if drop exit else emit fi again fi ; immediate

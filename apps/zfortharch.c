@@ -1,9 +1,10 @@
 #include "drivers/screen.h"
+#include "drivers/serial.h"
+#include "libc/string.h"
 #include "libc/types.h"
 #include "zforth.h"
 
 zf_input_state zf_host_sys(zf_ctx *ctx, zf_syscall_id id, const char *input) {
-  kernel_printf("zforth syscall: %d\n", id);
   switch (id) {
   case ZF_SYSCALL_EMIT: {
     zf_cell c = zf_pop(ctx);
@@ -41,43 +42,62 @@ zf_input_state zf_host_sys(zf_ctx *ctx, zf_syscall_id id, const char *input) {
   return ZF_INPUT_INTERPRET;
 }
 
+#include "drivers/serial.h"
+
 void zf_host_trace(zf_ctx *ctx, const char *fmt, va_list va) {
-  _vprintf(kernel_putc, fmt, va);
+  _vprintf(serial_write, fmt, va);
 }
-zf_cell zf_host_parse_num(zf_ctx *ctx, const char *buf) {
 
-  if (!buf || !*buf)
+int atoi2(const char *str, int *result) {
+  const char *original = str;
+  int value = 0;
+  int sign = 1;
+  int has_digits = 0;
+
+  while (*str == ' ' || *str == '\t' || *str == '\n' || *str == '\r' ||
+         *str == '\f' || *str == '\v') {
+    str++;
+  }
+
+  if (*str == '-') {
+    sign = -1;
+    str++;
+  } else if (*str == '+') {
+    str++;
+  }
+
+  while (*str >= '0' && *str <= '9') {
+    has_digits = 1;
+    value = value * 10 + (*str - '0');
+    str++;
+  }
+
+  while (*str) {
+    if (*str != ' ' && *str != '\t' && *str != '\n' && *str != '\r' &&
+        *str != '\f' && *str != '\v') {
+      return 0;
+    }
+    str++;
+  }
+
+  if (!has_digits) {
     return 0;
-
-  zf_cell result = 0;
-  int negative = 0;
-  const char *p = buf;
-
-  if (*p == '-') {
-    negative = 1;
-    p++;
   }
 
-  if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
-    p += 2;
-    while (*p) {
-      if (*p >= '0' && *p <= '9') {
-        result = result * 16 + (*p - '0');
-      } else if (*p >= 'a' && *p <= 'f') {
-        result = result * 16 + (*p - 'a' + 10);
-      } else if (*p >= 'A' && *p <= 'F') {
-        result = result * 16 + (*p - 'A' + 10);
-      } else {
-        break; // invalid hex digit
-      }
-      p++;
-    }
-  } else {
-    while (*p >= '0' && *p <= '9') {
-      result = result * 10 + (*p - '0');
-      p++;
-    }
+  if (result) {
+    *result = sign * value;
+  }
+  return 1;
+}
+
+// w/ some assumptions.
+zf_cell zf_host_parse_num(zf_ctx *ctx, const char *buf) {
+  int value = 0;
+
+  if (atoi2(buf, &value)) {
+    return (zf_cell)value;
   }
 
-  return negative ? -result : result;
+  zf_abort(ctx, ZF_ABORT_NOT_A_WORD);
+  return 0;
 }

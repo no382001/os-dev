@@ -64,6 +64,28 @@ void vfs_print_current_tree(vfs *fs);
 
 static zf_ctx *g_ctx = 0;
 
+const char *zf_result_strings[] = {"OK",
+                                   "ABORT: internal error",
+                                   "ABORT: outside memory bounds",
+                                   "ABORT: data stack underrun",
+                                   "ABORT: data stack overrun",
+                                   "ABORT: return stack underrun",
+                                   "ABORT: return stack overrun",
+                                   "ABORT: not a word",
+                                   "ABORT: compile-only word",
+                                   "ABORT: invalid size",
+                                   "ABORT: division by zero",
+                                   "ABORT: invalid user variable",
+                                   "ABORT: external error"};
+
+const char *zf_result_to_string(zf_result result) {
+  if (result >= 0 &&
+      result < sizeof(zf_result_strings) / sizeof(zf_result_strings[0])) {
+    return zf_result_strings[result];
+  }
+  return "Unknown error";
+}
+
 static void enter(const char *str) {
   if (g_ctx) {
     zf_result result = zf_eval(g_ctx, str);
@@ -71,7 +93,7 @@ static void enter(const char *str) {
     if (result == ZF_OK) {
       kernel_printf(" ok\n");
     } else {
-      kernel_printf(" error %d\n", result);
+      kernel_printf(" error %s\n", zf_result_to_string(result));
     }
 
     kernel_printf("> ");
@@ -79,46 +101,51 @@ static void enter(const char *str) {
 }
 
 static void bootstrap_zforth(zf_ctx *ctx, vfs *unified_vfs) {
-  const char *forth_files[] = {"/fd/forth/dict.f", "/fd/forth/core.f", NULL};
+  const char *forth_files[] = {"/fd/forth/core.f", "/fd/forth/dict.f", NULL};
 
-  uint8_t buffer[1024] = {0};
-
+  uint8_t buffer[RAMDISK_MAX_FILESIZE] = {0};
   for (int file_idx = 0; forth_files[file_idx] != NULL; file_idx++) {
     const char *filepath = forth_files[file_idx];
-
+    vfs_stat stat = {0};
+    if (VFS_SUCCESS != unified_vfs->stat(unified_vfs, filepath, &stat)) {
+      kernel_printf("error: file not found: %s\n", filepath);
+      continue;
+    }
+    if (RAMDISK_MAX_FILESIZE < stat.size) {
+      kernel_printf("error: file is over 64k: %s\n", filepath);
+    }
     int fd = 0;
     if (VFS_SUCCESS !=
         unified_vfs->open(unified_vfs, filepath, VFS_READ, &fd)) {
-      kernel_printf("file not found: %s\n", filepath);
-      continue; // skip this file, try next one
+      kernel_printf("error: could not open: %s\n", filepath);
+      continue;
     }
 
     memset(buffer, 0, sizeof(buffer));
-
     int bytes_read = 0;
     int ret = unified_vfs->read(unified_vfs, fd, buffer, sizeof(buffer) - 1,
                                 buffer, &bytes_read);
 
     if (ret != VFS_SUCCESS) {
-      kernel_printf("error %d reading %s\n", ret, filepath);
       unified_vfs->close(unified_vfs, fd);
       continue;
     }
 
-    if (bytes_read > 0) {
-      buffer[bytes_read] = '\0';
+    if (bytes_read <= 0) {
+      unified_vfs->close(unified_vfs, fd);
+      continue;
     }
 
+    buffer[bytes_read] = '\0';
     unified_vfs->close(unified_vfs, fd);
 
     zf_result result = zf_eval(ctx, (char *)buffer);
     if (result != ZF_OK) {
-      kernel_printf("zforth error %d in file: %s\n", result, filepath);
-    } else {
+      kernel_printf(" error %s\n", zf_result_to_string(result));
     }
   }
 
-  kernel_printf("- zforth initialization complete\n");
+  kernel_printf("- zForth initialization complete\n");
 }
 
 void kernel_main(void) {
@@ -151,10 +178,10 @@ void kernel_main(void) {
   vfs_print_current_tree(unified_vfs);
 
   zf_ctx ctx;
-  zf_init(&ctx, 1);
+  zf_init(&ctx, 0);
   zf_bootstrap(&ctx);
   bootstrap_zforth(&ctx, unified_vfs);
-
+  serial_debug("zf inited.");
   keyboard_ctx_t *kb = get_kb_ctx();
   kb->enter_handler = enter;
   g_ctx = &ctx;
