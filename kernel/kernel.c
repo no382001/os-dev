@@ -52,6 +52,15 @@ void selftest() {
 
 vfs *init_vfs();
 void vfs_print_current_tree(vfs *fs);
+
+static forth_vm_t *g_fvm;
+static void enter(const char *str) {
+  if (!g_fvm) {
+    return;
+  }
+  fvm_repl(g_fvm, str);
+}
+
 void kernel_main(void) {
   // be very careful, sometimes un-inited modules work even in kvm, for some
   // time, then they 3F
@@ -81,6 +90,13 @@ void kernel_main(void) {
 
   vfs_print_current_tree(unified_vfs);
 
+  forth_vm_t fvm = {0};
+  fvm_init(&fvm);
+  g_fvm = &fvm;
+
+  keyboard_ctx_t *kb = get_kb_ctx();
+
+  kb->enter_handler = enter;
   while (1) {
     ;
   }

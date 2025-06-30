@@ -25,7 +25,7 @@ int vsprintf(char *buffer, int size, const char *fmt, va_list args);
 int sprintf(char *buffer, int size, const char *fmt, ...);
 
 char *strchr(const char *s, int c);
-char *strtok(char *str, const char *delim);
+char *strtok(const char *str, const char *delim);
 char *strcat(char *dest, const char *src);
 int isdigit(int c);
 int atoi(const char *str);
@@ -38,3 +38,4 @@ char *strncpy(char *dest, const char *src, size_t n);
 #include <stdarg.h>
 
 int sscanf(const char *buffer, const char *fmt, ...);
+int snprintf(char *buffer, size_t size, const char *fmt, ...);

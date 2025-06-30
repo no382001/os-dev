@@ -271,7 +271,7 @@ char *strchr(const char *s, int c) {
 
 static char *last_str = NULL;
 
-char *strtok(char *str, const char *delim) {
+char *strtok(const char *str, const char *delim) {
   if (str) {
     last_str = str;
   } else if (!last_str) {
@@ -449,4 +449,24 @@ char *strncpy(char *dest, const char *src, size_t n) {
   }
 
   return dest;
+}
+
+int snprintf(char *buffer, size_t size, const char *fmt, ...) {
+  if (!buffer || size == 0) {
+    return 0;
+  }
+
+  va_list args;
+  va_start(args, fmt);
+
+  char temp[256];
+  int written = vsprintf(temp, sizeof(temp), fmt, args);
+
+  va_end(args);
+
+  strncpy(buffer, temp, size - 1);
+  buffer[size - 1] = '\0';
+
+  int actual_len = strlen(buffer);
+  return actual_len;
 }

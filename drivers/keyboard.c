@@ -1,4 +1,5 @@
 #include "keyboard.h"
+#include "apps/hexdump.h"
 #include "cpu/isr.h"
 #include "libc/string.h"
 #include "low_level.h"
@@ -46,10 +47,15 @@ static void keyboard_callback(registers_t *regs) {
     return;
   }
 
+  if (!is_pressed) {
+    return;
+  }
+
   char ascii = 0;
-  if (is_pressed && normalized_scancode <= SC_MAX) {
+  if (normalized_scancode <= SC_MAX) {
     ascii = scancode_to_ascii(normalized_scancode, kb_ctx.shift_pressed);
   }
+
   if (kb_ctx.current_handler) {
     kb_ctx.current_handler(normalized_scancode, ascii, is_pressed);
   }
@@ -57,11 +63,13 @@ static void keyboard_callback(registers_t *regs) {
 
 void clear_key_buffer(void) {
   kb_ctx.buffer_pos = 0;
-  kb_ctx.key_buffer[0] = '\0';
+  memset(kb_ctx.key_buffer, 0, sizeof(kb_ctx.key_buffer));
 }
 
 static void default_key_handler(uint8_t scancode, char ascii, int is_pressed) {
-  (void)is_pressed;
+  if (!is_pressed) {
+    return;
+  }
 
   if (scancode == KEY_BACKSPACE) {
     if (kb_ctx.buffer_pos > 0) {
@@ -70,16 +78,29 @@ static void default_key_handler(uint8_t scancode, char ascii, int is_pressed) {
       kernel_put_backspace();
     }
   } else if (scancode == KEY_ENTER) {
-    kernel_puts("\n");
     kb_ctx.key_buffer[kb_ctx.buffer_pos] = '\0';
+
+    if (kb_ctx.enter_handler) {
+      // serial_debug("buffer contents: '%s' (length: %d)", kb_ctx.key_buffer,
+      // kb_ctx.buffer_pos);
+      kb_ctx.enter_handler(kb_ctx.key_buffer);
+    } else {
+      kernel_puts("\n");
+    }
     clear_key_buffer();
-  } else {
+  } else if (ascii != 0 && ascii != '?') {
     if (kb_ctx.buffer_pos < sizeof(kb_ctx.key_buffer) - 1) {
-      kb_ctx.key_buffer[kb_ctx.buffer_pos++] = ascii;
+      kb_ctx.key_buffer[kb_ctx.buffer_pos] = ascii;
+      kb_ctx.buffer_pos++;
       kb_ctx.key_buffer[kb_ctx.buffer_pos] = '\0';
 
       char str[2] = {ascii, '\0'};
       kernel_puts(str);
+
+      // serial_debug("added '%c' to buffer, pos now %d", ascii,
+      // kb_ctx.buffer_pos);
+    } else {
+      // serial_debug("buffer full! Cannot add '%c'", ascii);
     }
   }
 }
@@ -93,6 +114,7 @@ key_handler_t register_key_handler(key_handler_t new_handler) {
 void init_keyboard(void) {
   kb_ctx.default_handler = default_key_handler;
   kb_ctx.current_handler = default_key_handler;
+  kb_ctx.enter_handler = 0;
   kb_ctx.buffer_pos = 0;
   kb_ctx.shift_pressed = 0;
   kb_ctx.ctrl_pressed = 0;

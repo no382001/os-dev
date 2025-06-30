@@ -285,38 +285,57 @@ void fvm_init(forth_vm_t *vm) {
   vm->io.stdout = &fvm_default_stdout;
   vm->io.stderr = &fvm_default_stderr;
 
-  fvm_register_word(vm, "+", fvm_add);
-  fvm_register_word(vm, "-", fvm_sub);
-  fvm_register_word(vm, "*", fvm_mul);
-  fvm_register_word(vm, "/", fvm_div);
-  fvm_register_word(vm, ".", fvm_print_top);
-  fvm_register_word(vm, "dup", fvm_dup);
-  fvm_register_word(vm, "swap", fvm_swap);
-  fvm_register_word(vm, "drop", fvm_drop);
-  fvm_register_word(vm, "over", fvm_over);
-  fvm_register_word(vm, "=", fvm_eq);
-  fvm_register_word(vm, "<>", fvm_neq);
-  fvm_register_word(vm, "<", fvm_lt);
-  fvm_register_word(vm, ">", fvm_gt);
-  fvm_register_word(vm, "<=", fvm_leq);
-  fvm_register_word(vm, ">=", fvm_geq);
-  fvm_register_word(vm, "not", fvm_not);
-  fvm_register_word(vm, "if", fvm_if);
-  fvm_register_word(vm, "else", fvm_else);
-  fvm_register_word(vm, "then", fvm_then);
-  fvm_register_word(vm, "rot", fvm_rot);
-  fvm_register_word(vm, "nip", fvm_nip);
-  fvm_register_word(vm, "tuck", fvm_tuck);
-  fvm_register_word(vm, "!", fvm_store);
-  fvm_register_word(vm, "@", fvm_fetch);
-  fvm_register_word(vm, "begin", fvm_begin);
-  fvm_register_word(vm, "until", fvm_then);
-  fvm_register_word(vm, "do", fvm_do);
-  fvm_register_word(vm, "loop", fvm_then);
-  fvm_register_word(vm, "key", fvm_key);
-  fvm_register_word(vm, "emit", fvm_emit);
-  fvm_register_word(vm, ".s", fvm_print_stack);
-  fvm_register_word(vm, "i", fvm_i);
+  fvm_register_word(vm, "+", "( a b -- a+b ) Add two numbers", fvm_add);
+  fvm_register_word(vm, "-", "( a b -- a-b ) Subtract b from a", fvm_sub);
+  fvm_register_word(vm, "*", "( a b -- a*b ) Multiply two numbers", fvm_mul);
+  fvm_register_word(vm, "/", "( a b -- a/b ) Divide a by b", fvm_div);
+  fvm_register_word(vm, "dup", "( a -- a a ) Duplicate top of stack", fvm_dup);
+  fvm_register_word(vm, "swap", "( a b -- b a ) Swap top two items", fvm_swap);
+  fvm_register_word(vm, "drop", "( a -- ) Remove top item from stack",
+                    fvm_drop);
+  fvm_register_word(vm, "over", "( a b -- a b a ) Copy second item to top",
+                    fvm_over);
+  fvm_register_word(vm, "rot", "( a b c -- b c a ) Rotate top three items",
+                    fvm_rot);
+  fvm_register_word(vm, "nip", "( a b -- b ) Remove second item", fvm_nip);
+  fvm_register_word(vm, "tuck", "( a b -- b a b ) Copy top under second",
+                    fvm_tuck);
+  fvm_register_word(vm, "=", "( a b -- flag ) test equality", fvm_eq);
+  fvm_register_word(vm, "<>", "( a b -- flag ) test inequality", fvm_neq);
+  fvm_register_word(vm, "<", "( a b -- flag ) test less than", fvm_lt);
+  fvm_register_word(vm, ">", "( a b -- flag ) test greater than", fvm_gt);
+  fvm_register_word(vm, "<=", "( a b -- flag ) test less or equal", fvm_leq);
+  fvm_register_word(vm, ">=", "( a b -- flag ) test greater or equal", fvm_geq);
+  fvm_register_word(vm, "not", "( flag -- !flag ) logical NOT", fvm_not);
+  fvm_register_word(vm, "if", "( flag -- ) begin conditional execution",
+                    fvm_if);
+  fvm_register_word(vm, "else", "alternative branch for if", fvm_else);
+  fvm_register_word(vm, "then", "rnd conditional execution", fvm_then);
+  fvm_register_word(vm, "begin", "start unconditional loop", fvm_begin);
+  fvm_register_word(vm, "until", "( flag -- ) end loop when flag is true",
+                    fvm_then);
+  fvm_register_word(vm, "do", "( limit start -- ) begin counted loop", fvm_do);
+  fvm_register_word(vm, "loop", "end counted loop", fvm_then);
+  fvm_register_word(vm, "i", "( -- n ) current loop counter", fvm_i);
+  fvm_register_word(vm, "!", "( value addr -- ) store value at address",
+                    fvm_store);
+  fvm_register_word(vm, "@", "( addr -- value ) fetch value from address",
+                    fvm_fetch);
+  fvm_register_word(vm, ".", "( n -- ) print number and remove from stack",
+                    fvm_print_top);
+  fvm_register_word(vm, "key", "( -- char ) read character from input",
+                    fvm_key);
+  fvm_register_word(vm, "emit", "( char -- ) output character", fvm_emit);
+  fvm_register_word(vm, "cr", "output carriage return", fvm_cr);
+  fvm_register_word(vm, "space", "output single space", fvm_space);
+  fvm_register_word(vm, "spaces", "( n -- ) output n spaces", fvm_spaces);
+  fvm_register_word(vm, "s\"", "string literal", NULL);
+  fvm_register_word(vm, ".\"", "( str_id -- ) print string", fvm_string_print);
+  fvm_register_word(vm, "strcat", "( str1 str2 -- str3 ) concatenate strings",
+                    fvm_string_concat);
+  fvm_register_word(vm, ".s", "display entire stack contents", fvm_print_stack);
+  fvm_register_word(vm, "words", "( -- ) show all words and documentation",
+                    fvm_help);
 }
 
 void fvm_execute(forth_vm_t *vm, const char *word) {
@@ -334,7 +353,7 @@ void fvm_execute(forth_vm_t *vm, const char *word) {
   vm_error("unknown word! '%s'", word);
 }
 
-void fvm_define_word(forth_vm_t *vm, char *input) {
+void fvm_define_word(forth_vm_t *vm, const char *input) {
   (void)vm;
   char *name = strtok(input, " ");
   if (!name) {
@@ -366,39 +385,208 @@ void fvm_define_word(forth_vm_t *vm, char *input) {
   vm_error("word definition missing ';'");
 }
 
-void fvm_register_word(forth_vm_t *vm, const char *name,
+int fvm_alloc_string(forth_vm_t *vm, const char *str) {
+  for (int i = 0; i < FVM_STRING_POOL_SIZE; i++) {
+    if (!vm->string_pool[i].in_use) {
+      strncpy(vm->string_pool[i].data, str, FVM_STRING_MAX - 1);
+      vm->string_pool[i].data[FVM_STRING_MAX - 1] = '\0';
+      vm->string_pool[i].length = strlen(str);
+      vm->string_pool[i].in_use = 1;
+      return i;
+    }
+  }
+  vm_error("string pool full!");
+  return -1;
+}
+
+void fvm_free_string(forth_vm_t *vm, int string_id) {
+  if (string_id >= 0 && string_id < FVM_STRING_POOL_SIZE) {
+    vm->string_pool[string_id].in_use = 0;
+  }
+}
+
+void fvm_string_literal(forth_vm_t *vm, const char *str) {
+  int string_id = fvm_alloc_string(vm, str);
+  push(vm, string_id);
+}
+
+// String operations
+void fvm_string_print(forth_vm_t *vm) {
+  int string_id = pop(vm);
+  if (string_id >= 0 && string_id < FVM_STRING_POOL_SIZE &&
+      vm->string_pool[string_id].in_use) {
+    vm_out("%s", vm->string_pool[string_id].data);
+  } else {
+    vm_error("invalid string!");
+  }
+}
+
+void fvm_string_concat(forth_vm_t *vm) {
+  int str2_id = pop(vm);
+  int str1_id = pop(vm);
+
+  if (str1_id >= 0 && str2_id >= 0 && str1_id < FVM_STRING_POOL_SIZE &&
+      str2_id < FVM_STRING_POOL_SIZE) {
+
+    char combined[FVM_STRING_MAX];
+    snprintf(combined, FVM_STRING_MAX, "%s%s", vm->string_pool[str1_id].data,
+             vm->string_pool[str2_id].data);
+
+    int result_id = fvm_alloc_string(vm, combined);
+    push(vm, result_id);
+  } else {
+    vm_error("invalid strings for concatenation!");
+  }
+}
+
+void fvm_cr(forth_vm_t *vm) {
+  (void)vm;
+  vm_out("\n");
+}
+
+void fvm_space(forth_vm_t *vm) {
+  (void)vm;
+  vm_out(" ");
+}
+
+void fvm_spaces(forth_vm_t *vm) { // spaces ( n -- )
+  int n = pop(vm);
+  for (int i = 0; i < n; i++) {
+    vm_out(" ");
+  }
+}
+
+void fvm_help(forth_vm_t *vm) {
+  vm_out("available words:\n");
+  for (int i = 0; i < dict_size; i++) {
+    kernel_print_set_attribute(CYAN_ON_BLACK);
+    vm_out("  %s", dictionary[i].name);
+    kernel_print_set_attribute(WHITE_ON_BLACK);
+    vm_out(" %s\n", dictionary[i].doc);
+  }
+}
+
+void fvm_register_word(forth_vm_t *vm, const char *name, const char *doc,
                        void (*function)(forth_vm_t *)) {
   if (dict_size < FVM_DICTIONARY_SIZE) {
     memcpy(dictionary[dict_size].name, name, FVM_WORD_SIZE);
+    memcpy(dictionary[dict_size].doc, doc ? doc : "", FVM_DOC_SIZE);
     dictionary[dict_size].function = function;
     dict_size++;
   } else
     vm_error("dictionary is full!");
 }
 
-void fvm_repl(forth_vm_t *vm, char *input) {
-  char input_copy[256];
-  memcpy(input_copy, input, sizeof(input_copy));
-  input_copy[sizeof(input_copy) - 1] = '\0';
+static int fvm_parse_string(char *input, int start_pos, char *output,
+                            int max_len) {
+  int i = start_pos + 1;
+  int out_pos = 0;
 
-  char *token = strtok(input_copy, " ");
-  if (!token)
+  while (input[i] && input[i] != '"' && out_pos < max_len - 1) {
+    if (input[i] == '\\' && input[i + 1]) {
+      i++;
+      switch (input[i]) {
+      case 'n':
+        output[out_pos++] = '\n';
+        break;
+      case 't':
+        output[out_pos++] = '\t';
+        break;
+      case 'r':
+        output[out_pos++] = '\r';
+        break;
+      case '\\':
+        output[out_pos++] = '\\';
+        break;
+      case '"':
+        output[out_pos++] = '"';
+        break;
+      default:
+        output[out_pos++] = '\\';
+        output[out_pos++] = input[i];
+        break;
+      }
+    } else {
+      output[out_pos++] = input[i];
+    }
+    i++;
+  }
+
+  output[out_pos] = '\0';
+
+  return (input[i] == '"') ? i + 1 : -1;
+}
+
+void fvm_repl(forth_vm_t *vm, const char *input) {
+  if (!input || strlen(input) == 0)
     return;
 
-  if (strcmp(token, ":") == 0) {
-    fvm_define_word(vm, input);
+  if (input[0] == ':' && (input[1] == ' ' || input[1] == '\t')) {
+    fvm_define_word(vm, input + 1);
     return;
   }
 
-  while (token) {
-    if (strcmp(token, "\\") == 0)
-      break;
-    if (isdigit(token[0]) || (token[0] == '-' && isdigit(token[1]))) {
-      push(vm, atoi(token));
-    } else {
-      fvm_execute(vm, token);
+  int pos = 0;
+  int len = strlen(input);
+
+  while (pos < len) {
+    while (pos < len &&
+           (input[pos] == ' ' || input[pos] == '\t' || input[pos] == '\n')) {
+      pos++;
     }
-    token = strtok(NULL, " ");
+
+    if (pos >= len)
+      break;
+
+    if (input[pos] == '\\') {
+      break;
+    }
+
+    if (input[pos] == '"') {
+      char string_content[FVM_STRING_MAX];
+      int new_pos =
+          fvm_parse_string(input, pos, string_content, FVM_STRING_MAX);
+
+      if (new_pos == -1) {
+        vm_error("unterminated string literal!");
+        return;
+      }
+
+      int string_id = fvm_alloc_string(vm, string_content);
+      if (string_id >= 0) {
+        push(vm, string_id);
+        push(vm, -1);
+      }
+
+      pos = new_pos;
+      continue;
+    }
+
+    // word or number
+    int token_start = pos;
+    while (pos < len && input[pos] != ' ' && input[pos] != '\t' &&
+           input[pos] != '\n' && input[pos] != '"') {
+      pos++;
+    }
+
+    if (pos > token_start) {
+      // Extract token
+      char token[64];
+      uint32_t token_len = pos - token_start;
+      if (token_len >= sizeof(token))
+        token_len = sizeof(token) - 1;
+
+      strncpy(token, input + token_start, token_len);
+      token[token_len] = '\0';
+
+      if (isdigit(token[0]) || (token[0] == '-' && isdigit(token[1]))) {
+        push(vm, atoi(token));
+      } else {
+        fvm_execute(vm, token);
+        if (vm->err)
+          return;
+      }
+    }
   }
 }
 

@@ -60,3 +60,8 @@ do the vfs first
 scheme and forth?
 
 have upper layer of vfs that maps other vfss to some directories
+forth should handle string and the kb callback alright
+
+
+fix up tinylisp to have variadic lambdas, or ribbit or zforth
+tinylisp and zzforth needs jumpbuffers, but i have task swtiching already, shouldnt be a problem

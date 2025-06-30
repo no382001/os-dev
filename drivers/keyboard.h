@@ -19,6 +19,7 @@
 #define KEY_DOWN 0x50
 
 typedef void (*key_handler_t)(uint8_t scancode, char ascii, int is_pressed);
+typedef void (*enter_handler_t)(const char *input);
 
 typedef struct {
   char key_buffer[256];
@@ -30,6 +31,7 @@ typedef struct {
 
   key_handler_t current_handler;
   key_handler_t default_handler;
+  enter_handler_t enter_handler;
 } keyboard_ctx_t;
 
 void init_keyboard();
