@@ -101,7 +101,7 @@ void kernel_main(void) {
 
   int fd = 0;
   if (VFS_SUCCESS !=
-      unified_vfs->open(unified_vfs, "/fd/forth/bootstrap.f", VFS_READ, &fd)) {
+      unified_vfs->open(unified_vfs, "/fd/forth/core.f", VFS_READ, &fd)) {
     kernel_printf("bootstrap file not found!");
   } else {
     int c = 0;
