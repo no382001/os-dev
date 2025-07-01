@@ -1,8 +1,8 @@
 #pragma once
 
+#include "libc/setjmp.h"
 #include "libc/string.h"
 #include "libc/types.h"
-#include "libc/setjmp.h"
 
 /*
 Copyright 2000 Ico Doornekamp <zforth@zevv.nl>
@@ -26,72 +26,74 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "zfconf.h"
+#include "zforth_config.h"
 
 /* Abort reasons */
 
 typedef enum {
-	ZF_OK,
-	ZF_ABORT_INTERNAL_ERROR,
-	ZF_ABORT_OUTSIDE_MEM,
-	ZF_ABORT_DSTACK_UNDERRUN,
-	ZF_ABORT_DSTACK_OVERRUN,
-	ZF_ABORT_RSTACK_UNDERRUN,
-	ZF_ABORT_RSTACK_OVERRUN,
-	ZF_ABORT_NOT_A_WORD,
-	ZF_ABORT_COMPILE_ONLY_WORD,
-	ZF_ABORT_INVALID_SIZE,
-	ZF_ABORT_DIVISION_BY_ZERO,
-	ZF_ABORT_INVALID_USERVAR,
-	ZF_ABORT_EXTERNAL
+  ZF_OK,
+  ZF_ABORT_INTERNAL_ERROR,
+  ZF_ABORT_OUTSIDE_MEM,
+  ZF_ABORT_DSTACK_UNDERRUN,
+  ZF_ABORT_DSTACK_OVERRUN,
+  ZF_ABORT_RSTACK_UNDERRUN,
+  ZF_ABORT_RSTACK_OVERRUN,
+  ZF_ABORT_NOT_A_WORD,
+  ZF_ABORT_COMPILE_ONLY_WORD,
+  ZF_ABORT_INVALID_SIZE,
+  ZF_ABORT_DIVISION_BY_ZERO,
+  ZF_ABORT_INVALID_USERVAR,
+  ZF_ABORT_EXTERNAL
 } zf_result;
 
 typedef enum {
-	ZF_INPUT_INTERPRET,
-	ZF_INPUT_PASS_CHAR,
-	ZF_INPUT_PASS_WORD
+  ZF_INPUT_INTERPRET,
+  ZF_INPUT_PASS_CHAR,
+  ZF_INPUT_PASS_WORD
 } zf_input_state;
 
 typedef enum {
-	ZF_SYSCALL_EMIT,
-	ZF_SYSCALL_PRINT,
-	ZF_SYSCALL_TELL,
-	ZF_SYSCALL_USER = 128
+  ZF_SYSCALL_EMIT,
+  ZF_SYSCALL_PRINT,
+  ZF_SYSCALL_TELL,
+  ZF_SYSCALL_USER = 128,
+  ZF_SYSCALL_VFS_STAT = 133,
+  ZF_SYSCALL_VFS_READDIR
 } zf_syscall_id;
 
 typedef enum {
-    ZF_USERVAR_HERE = 0,
-    ZF_USERVAR_LATEST,
-    ZF_USERVAR_TRACE,
-    ZF_USERVAR_COMPILING,
-    ZF_USERVAR_POSTPONE,
-    ZF_USERVAR_DSP,
-    ZF_USERVAR_RSP,
+  ZF_USERVAR_HERE = 0,
+  ZF_USERVAR_LATEST,
+  ZF_USERVAR_TRACE,
+  ZF_USERVAR_COMPILING,
+  ZF_USERVAR_POSTPONE,
+  ZF_USERVAR_DSP,
+  ZF_USERVAR_RSP,
 
-    ZF_USERVAR_COUNT
+  ZF_USERVAR_COUNT
 } zf_uservar_id;
 
 typedef struct {
-	/* Stacks and dictionary memory */
-	zf_cell rstack[ZF_RSTACK_SIZE];
-	zf_cell dstack[ZF_DSTACK_SIZE];
-	uint8_t dict[ZF_DICT_SIZE];
+  /* Stacks and dictionary memory */
+  zf_cell rstack[ZF_RSTACK_SIZE];
+  zf_cell dstack[ZF_DSTACK_SIZE];
+  uint8_t dict[ZF_DICT_SIZE];
 
-	/* State and stack and interpreter pointers */
-	zf_input_state input_state;
-	zf_addr ip;
+  /* State and stack and interpreter pointers */
+  zf_input_state input_state;
+  zf_addr ip;
 
-	/* setjmp env for handling aborts */
-	jmp_buf jmpbuf;
+  /* setjmp env for handling aborts */
+  jmp_buf jmpbuf;
 
-	zf_addr *uservar;
+  zf_addr *uservar;
+  void *usercode;
 } zf_ctx;
-
 
 /* True is defined as the bitwise complement of false. */
 
 #define ZF_FALSE ((zf_cell)0)
-#define ZF_TRUE ((zf_cell)~(zf_int)ZF_FALSE)
+#define ZF_TRUE ((zf_cell) ~(zf_int)ZF_FALSE)
 
 /* ZForth API functions */
 
@@ -110,6 +112,7 @@ zf_result zf_uservar_get(zf_ctx *ctx, zf_uservar_id uv, zf_cell *v);
 
 /* Host provides these functions */
 
-zf_input_state zf_host_sys(zf_ctx *ctx, zf_syscall_id id, const char *last_word);
+zf_input_state zf_host_sys(zf_ctx *ctx, zf_syscall_id id,
+                           const char *last_word);
 void zf_host_trace(zf_ctx *ctx, const char *fmt, va_list va);
 zf_cell zf_host_parse_num(zf_ctx *ctx, const char *buf);

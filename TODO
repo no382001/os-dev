@@ -57,14 +57,39 @@ bootloader:
 - error when you could have too much words, and `words` fails
 make it navigate the vfs
 
-do the vfs first
-scheme and forth?
-
-have upper layer of vfs that maps other vfss to some directories
-forth should handle string and the kb callback alright
+complang.tuwien.ac.at/schani/oldstuff/#schemeinforth
 
 
-fix up tinylisp to have variadic lambdas, or ribbit or zforth
-tinylisp and zzforth needs jumpbuffers, but i have task swtiching already, shouldnt be a problem
+navigating vfs with forth, make syscalls for the basic operations
+detach the unified vfs, make instances, so multipole programs dont use the same
 
-https://www.complang.tuwien.ac.at/schani/oldstuff/#schemeinforth
+or. well, forth does not need to know the current dir or change it, it could use absolute paths saved in `cwd`
+
+fix printin in zforth
+
+some way to work with presistency on the os
+restart-vm word, preload ini file, or i could use .f and include to have some form of bootstrapping, thing is, if im inside an include syscall, can i eval again? 
+
+
+i could do the 9p to gain persistence?
+
+and btw i should be interacting with the 9p not the vfs directly
+
+clang-analyze
+or just do
+
+CCPARMS= -Wall -Wextra -pedantic -O2 -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings 
+   -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -std=c99 
+   -Wnested-externs -Winline -Wstrict-prototypes -Wno-attributes -Wc++-compat 
+   -Wchar-subscripts -Wcomment -Wno-deprecated-declarations -Wno-div-by-zero 
+   -Wno-endif-labels -Wfloat-equal -Wformat=2 -Wno-format-extra-args -Wformat-nonliteral 
+   -Wformat-security -Wformat-y2k -Wimplicit -Wimplicit-function-declaration -Wimplicit-int 
+   -Winit-self -Winline -Wno-int-to-pointer-cast -Winvalid-pch -Wmain -Wmissing-braces
+   -Wmissing-field-initializers -Wmissing-format-attribute -Wmissing-include-dirs 
+   -Wmissing-noreturn -Wno-multichar -Wnonnull -Wpacked -Wparentheses -Wpointer-arith
+   -Wno-pointer-to-int-cast -Wredundant-decls -Wreturn-type -Wsequence-point 
+   -Wshadow -Wno-sign-compare -Wstack-protector -Wstrict-aliasing -Wswitch 
+   -Wswitch-default -Wswitch-enum -Wsystem-headers -Wtrigraphs -Wundef -Wuninitialized
+   -Wunknown-pragmas -Wno-pragmas -Wno-unused -Wunused-function -Wunused-label 
+   -Wunused-parameter -Wunused-value -Wunused-variable -Wvariadic-macros 
+   -Wvolatile-register-var -Wwrite-strings -Wdisabled-optimization -Werror

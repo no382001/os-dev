@@ -64,26 +64,26 @@ void vfs_print_current_tree(vfs *fs);
 
 static zf_ctx *g_ctx = 0;
 
-const char *zf_result_strings[] = {"OK",
-                                   "ABORT: internal error",
-                                   "ABORT: outside memory bounds",
-                                   "ABORT: data stack underrun",
-                                   "ABORT: data stack overrun",
-                                   "ABORT: return stack underrun",
-                                   "ABORT: return stack overrun",
-                                   "ABORT: not a word",
-                                   "ABORT: compile-only word",
-                                   "ABORT: invalid size",
-                                   "ABORT: division by zero",
-                                   "ABORT: invalid user variable",
-                                   "ABORT: external error"};
+const char *zf_result_strings[] = {"ok",
+                                   "abort: internal error",
+                                   "abort: outside memory bounds",
+                                   "abort: data stack underrun",
+                                   "abort: data stack overrun",
+                                   "abort: return stack underrun",
+                                   "abort: return stack overrun",
+                                   "abort: not a word",
+                                   "abort: compile-only word",
+                                   "abort: invalid size",
+                                   "abort: division by zero",
+                                   "abort: invalid user variable",
+                                   "abort: external error"};
 
 const char *zf_result_to_string(zf_result result) {
   if (result >= 0 &&
       result < sizeof(zf_result_strings) / sizeof(zf_result_strings[0])) {
     return zf_result_strings[result];
   }
-  return "Unknown error";
+  return "unknown error";
 }
 
 static void enter(const char *str) {
@@ -101,7 +101,8 @@ static void enter(const char *str) {
 }
 
 static void bootstrap_zforth(zf_ctx *ctx, vfs *unified_vfs) {
-  const char *forth_files[] = {"/fd/forth/core.f", "/fd/forth/dict.f", NULL};
+  const char *forth_files[] = {"/fd/forth/core.f", "/fd/forth/dict.f",
+                               "/fd/forth/ext.f", "/fd/forth/vfs.f", NULL};
 
   uint8_t buffer[RAMDISK_MAX_FILESIZE] = {0};
   for (int file_idx = 0; forth_files[file_idx] != NULL; file_idx++) {
@@ -145,7 +146,7 @@ static void bootstrap_zforth(zf_ctx *ctx, vfs *unified_vfs) {
     }
   }
 
-  kernel_printf("- zForth initialization complete\n");
+  kernel_printf("- zf initialization complete\n");
 }
 
 void kernel_main(void) {
@@ -180,8 +181,10 @@ void kernel_main(void) {
   zf_ctx ctx;
   zf_init(&ctx, 0);
   zf_bootstrap(&ctx);
+  ctx.usercode = (void *)unified_vfs;
   bootstrap_zforth(&ctx, unified_vfs);
   serial_debug("zf inited.");
+
   keyboard_ctx_t *kb = get_kb_ctx();
   kb->enter_handler = enter;
   g_ctx = &ctx;

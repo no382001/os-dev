@@ -1,8 +1,9 @@
 #include "drivers/screen.h"
 #include "drivers/serial.h"
+#include "fs/vfs.h"
 #include "libc/string.h"
 #include "libc/types.h"
-#include "zforth.h"
+#include "zforth_core.h"
 
 zf_input_state zf_host_sys(zf_ctx *ctx, zf_syscall_id id, const char *input) {
   switch (id) {
@@ -30,7 +31,8 @@ zf_input_state zf_host_sys(zf_ctx *ctx, zf_syscall_id id, const char *input) {
     break;
   }
 
-  case ZF_SYSCALL_USER: {
+  case ZF_SYSCALL_VFS_STAT: {
+    // should be 9p
     break;
   }
 
@@ -90,7 +92,7 @@ int atoi2(const char *str, int *result) {
   return 1;
 }
 
-// w/ some assumptions.
+// w/ some assumptions. no real float parsed
 zf_cell zf_host_parse_num(zf_ctx *ctx, const char *buf) {
   int value = 0;
 

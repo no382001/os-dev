@@ -5,6 +5,8 @@
 : .       1 sys ;
 : tell    2 sys ;
 
+( : quit    128 sys ; )
+( : sin     129 sys ; )
 
 ( dictionary access for regular variable-length cells. These are shortcuts)
 ( through the primitive operations are !!, @@ and ,, )
@@ -100,12 +102,12 @@
 : loop ' lit , 1 , postpone loop+ ;  immediate
 
 
-( Create string literal, puts length and address on the stack )
+( create string literal, puts length and address on the stack )
 
 : s" compiling @ if ' lits , here 0 , fi here begin key dup 34 = if drop
      compiling @ if here swap - swap ! else dup here swap - fi exit else , fi
      again ; immediate
 
-( Print string literal )
+( print string literal )
 
 : ." compiling @ if postpone s" ' tell , else begin key dup 34 = if drop exit else emit fi again fi ; immediate
