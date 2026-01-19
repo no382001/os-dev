@@ -62,93 +62,6 @@ void selftest() {
 vfs *init_vfs();
 void vfs_print_current_tree(vfs *fs);
 
-static zf_ctx *g_ctx = 0;
-
-const char *zf_result_strings[] = {"ok",
-                                   "abort: internal error",
-                                   "abort: outside memory bounds",
-                                   "abort: data stack underrun",
-                                   "abort: data stack overrun",
-                                   "abort: return stack underrun",
-                                   "abort: return stack overrun",
-                                   "abort: not a word",
-                                   "abort: compile-only word",
-                                   "abort: invalid size",
-                                   "abort: division by zero",
-                                   "abort: invalid user variable",
-                                   "abort: external error"};
-
-const char *zf_result_to_string(zf_result result) {
-  if (result >= 0 &&
-      result < sizeof(zf_result_strings) / sizeof(zf_result_strings[0])) {
-    return zf_result_strings[result];
-  }
-  return "unknown error";
-}
-
-static void enter(const char *str) {
-  if (g_ctx) {
-    zf_result result = zf_eval(g_ctx, str);
-
-    if (result == ZF_OK) {
-      kernel_printf(" ok\n");
-    } else {
-      kernel_printf(" error %s\n", zf_result_to_string(result));
-    }
-
-    kernel_printf("> ");
-  }
-}
-
-static void bootstrap_zforth(zf_ctx *ctx, vfs *unified_vfs) {
-  const char *forth_files[] = {"/fd/forth/core.f", "/fd/forth/dict.f",
-                               "/fd/forth/ext.f", "/fd/forth/vfs.f", NULL};
-
-  uint8_t buffer[RAMDISK_MAX_FILESIZE] = {0};
-  for (int file_idx = 0; forth_files[file_idx] != NULL; file_idx++) {
-    const char *filepath = forth_files[file_idx];
-    vfs_stat stat = {0};
-    if (VFS_SUCCESS != unified_vfs->stat(unified_vfs, filepath, &stat)) {
-      kernel_printf("error: file not found: %s\n", filepath);
-      continue;
-    }
-    if (RAMDISK_MAX_FILESIZE < stat.size) {
-      kernel_printf("error: file is over 64k: %s\n", filepath);
-    }
-    int fd = 0;
-    if (VFS_SUCCESS !=
-        unified_vfs->open(unified_vfs, filepath, VFS_READ, &fd)) {
-      kernel_printf("error: could not open: %s\n", filepath);
-      continue;
-    }
-
-    memset(buffer, 0, sizeof(buffer));
-    int bytes_read = 0;
-    int ret = unified_vfs->read(unified_vfs, fd, buffer, sizeof(buffer) - 1,
-                                buffer, &bytes_read);
-
-    if (ret != VFS_SUCCESS) {
-      unified_vfs->close(unified_vfs, fd);
-      continue;
-    }
-
-    if (bytes_read <= 0) {
-      unified_vfs->close(unified_vfs, fd);
-      continue;
-    }
-
-    buffer[bytes_read] = '\0';
-    unified_vfs->close(unified_vfs, fd);
-
-    zf_result result = zf_eval(ctx, (char *)buffer);
-    if (result != ZF_OK) {
-      kernel_printf(" error %s\n", zf_result_to_string(result));
-    }
-  }
-
-  kernel_printf("- zf initialization complete\n");
-}
-
 void kernel_main(void) {
   // be very careful, sometimes un-inited modules work even in kvm, for some
   // time, then they 3F
@@ -177,18 +90,6 @@ void kernel_main(void) {
   vfs *unified_vfs = init_vfs();
 
   vfs_print_current_tree(unified_vfs);
-
-  zf_ctx ctx;
-  zf_init(&ctx, 0);
-  zf_bootstrap(&ctx);
-  ctx.usercode = (void *)unified_vfs;
-  bootstrap_zforth(&ctx, unified_vfs);
-  serial_debug("zf inited.");
-
-  keyboard_ctx_t *kb = get_kb_ctx();
-  kb->enter_handler = enter;
-  g_ctx = &ctx;
-  kernel_printf(">");
 
   while (1) {
     ;
