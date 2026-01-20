@@ -88,7 +88,7 @@ void free_frame(page_t *page) {
   if (!(frame = page->frame)) {
     return;
   } else {
-    clear_frame(frame);
+    clear_frame(frame * PAGE_SIZE);
     page->frame = 0x0;
   }
 }

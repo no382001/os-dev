@@ -7,10 +7,10 @@
 #include "libc/mem.h"
 #include "libc/utils.h"
 
-/**/
+/**
+ **/
 #undef serial_debug
 #define serial_debug(...)
-/**/
 
 volatile int current_task_idx = 0;
 volatile int active_tasks = 0;
@@ -58,18 +58,25 @@ void schedule(registers_t *regs) {
     memcpy(&old_task->ctx, regs, sizeof(registers_t));
   }
   if (current_task_idx >= active_tasks) {
+    serial_debug("resetting current_task_idx from %d to 0 (active_tasks=%d)",
+                 current_task_idx, active_tasks);
     current_task_idx = 0;
   }
 
   task_t *task_to_run = &tasks[current_task_idx];
+  serial_debug("schedule: trying task %d:%s (status=%d)", current_task_idx,
+               task_to_run->name, task_to_run->status);
 
   if (task_to_run->status == TASK_WAITING_FOR_START) {
     task_to_run->status = TASK_RUNNING;
+    serial_debug("starting new task %d", current_task_idx);
     exit_interrupt_context();
     switch_stack_and_jump(task_to_run->esp, (uint32_t)task_wrapper);
     // we never return
     return;
   } else if (task_to_run->status != TASK_RUNNING) {
+    serial_debug("skipping task %d (status=%d)", current_task_idx,
+                 task_to_run->status);
     return; // skip this task
   }
   serial_debug("schedule pass from %d:%s to %d:%s", old_task_idx,
@@ -88,9 +95,11 @@ bool check_stack_overflow(int task_id) {
 int find_next_task_slot() {
   for (int i = 1; i < MAX_TASK; i++) {
     if (tasks[i].status == TASK_INACTIVE || tasks[i].status == TASK_DEAD) {
+      serial_debug("found task slot %d (status=%d)", i, tasks[i].status);
       return i;
     }
   }
+  serial_debug("no free task slots!");
   return -1;
 }
 

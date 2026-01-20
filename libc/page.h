@@ -37,3 +37,6 @@ void free_frame(page_t *page);
 uint32_t virtual2phys(page_directory_t *dir, void *virtual_addr);
 // return the phys address based on the kernel pagedir
 uint32_t virt2phys(void *virtual_addr);
+
+extern page_directory_t *kernel_directory;
+extern page_directory_t *current_directory;

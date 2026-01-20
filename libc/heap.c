@@ -18,14 +18,19 @@
 #define nelem(x) (sizeof(x) / sizeof((x)[0]))
 
 uintptr_t paddr(void *va) {
-  if ((uintptr_t)va >= KHEAP_START)
+  if ((uintptr_t)va >= KHEAP_START &&
+      (uintptr_t)va < KHEAP_START + KHEAP_INITIAL_SIZE)
     return (uintptr_t)va - KHEAP_START;
+  // for identity-mapped early kernel memory
+  if ((uintptr_t)va < KHEAP_START)
+    return (uintptr_t)va;
   assert(0 && "kernel pannic!");
   return 0;
 }
 
 void *kaddr(uintptr_t pa) {
-  if (pa < (uintptr_t)-KHEAP_START)
+  // pa is an offset within the heap region, convert to virtual address
+  if (pa < KHEAP_INITIAL_SIZE)
     return (void *)(pa + KHEAP_START);
   assert(0 && "kernel pannic!");
   return 0;
@@ -195,15 +200,34 @@ void xfree(void *p) {
   cli();
   block_header_t *x;
 
-  x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t, data[0]));
-  // hexdump((void *)x, 16, 8);
-  if (x->magix != magichole) {
-    xsummary();
-    serial_debug("corrupted magic(%x) %x != %x", p, magichole, x->magix);
-    // x is 0 ??????
+  if (p == NULL) {
+    sti();
+    return;
   }
+
+  x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t, data[0]));
+
+  // validate that x is within heap bounds
+  if ((uintptr_t)x < KHEAP_START ||
+      (uintptr_t)x >= KHEAP_START + KHEAP_INITIAL_SIZE) {
+    serial_debug("xfree: block header %x outside heap bounds [%x-%x]", x,
+                 KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE);
+    sti();
+    return;
+  }
+
+  if (x->magix != magichole) {
+    serial_debug("corrupted magic at %x (data=%x): got %x expected %x", x, p,
+                 x->magix, magichole);
+    serial_debug("block size field: %x", x->size);
+    hexdump((const char *)x - 16, 64, 16);
+    xsummary();
+    sti();
+    return; // dont free corrupted blocks
+  }
+
   xhole(paddr(x), x->size);
-  serial_debug("freed %x", p);
+  serial_debug("freed %x (block at %x, size %d)", p, x, x->size);
   sti();
 }
 /*
