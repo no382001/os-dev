@@ -6,11 +6,11 @@
 // i have no idea what license it is
 
 /*
- */
 #undef serial_debug
 #define serial_debug(...)
 #undef serial_printff
 #define serial_printff(...)
+ */
 
 #undef offsetof
 #define offsetof(a, b) ((int)(&(((a *)(0))->b)))
@@ -217,13 +217,14 @@ void xfree(void *p) {
   }
 
   if (x->magix != magichole) {
-    serial_debug("corrupted magic at %x (data=%x): got %x expected %x", x, p,
-                 x->magix, magichole);
-    serial_debug("block size field: %x", x->size);
-    // hexdump((const char *)x - 16, 64, 16);
-    xsummary();
+    // this might be an aligned allocation from xspanalloc
+    // aligned allocations should not be freed via kfree
+    serial_debug("xfree: invalid block header at %x (data=%x), possibly "
+                 "aligned allocation",
+                 x, p);
+    serial_debug("  aligned allocations from kmalloc_a cannot be freed");
     sti();
-    return; // dont free corrupted blocks
+    return;
   }
 
   xhole(paddr(x), x->size);

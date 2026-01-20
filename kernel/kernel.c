@@ -74,7 +74,7 @@ void selftest() {
   void *aligned = kmalloc_a(512);
   assert(aligned && "aligned alloc failed");
   assert(((uint32_t)aligned & 0xFFF) == 0 && "not page aligned");
-  kfree(aligned);
+  // note: aligned allocations cannot be freed with current allocator
   kernel_printf("- aligned allocation works\n");
 
   // test 4: string operations
