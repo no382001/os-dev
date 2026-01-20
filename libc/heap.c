@@ -220,7 +220,7 @@ void xfree(void *p) {
     serial_debug("corrupted magic at %x (data=%x): got %x expected %x", x, p,
                  x->magix, magichole);
     serial_debug("block size field: %x", x->size);
-    hexdump((const char *)x - 16, 64, 16);
+    // hexdump((const char *)x - 16, 64, 16);
     xsummary();
     sti();
     return; // dont free corrupted blocks

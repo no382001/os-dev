@@ -51,39 +51,49 @@ void schedule(registers_t *regs) {
   }
 
   int old_task_idx = current_task_idx;
-  current_task_idx = (current_task_idx + 1) % MAX_TASK;
 
   task_t *old_task = &tasks[old_task_idx];
   if (old_task->status == TASK_RUNNING) {
     memcpy(&old_task->ctx, regs, sizeof(registers_t));
   }
-  if (current_task_idx >= active_tasks) {
-    serial_debug("resetting current_task_idx from %d to 0 (active_tasks=%d)",
-                 current_task_idx, active_tasks);
-    current_task_idx = 0;
+
+  // search for next runnable task, wrapping around
+  int attempts = 0;
+  while (attempts < MAX_TASK) {
+    current_task_idx = (current_task_idx + 1) % MAX_TASK;
+    task_t *task_to_run = &tasks[current_task_idx];
+
+    // skip inactive/dead tasks
+    if (task_to_run->status == TASK_INACTIVE ||
+        task_to_run->status == TASK_DEAD) {
+      attempts++;
+      continue;
+    }
+
+    serial_debug("schedule: switching to task %d:%s (status=%d)",
+                 current_task_idx, task_to_run->name, task_to_run->status);
+
+    if (task_to_run->status == TASK_WAITING_FOR_START) {
+      task_to_run->status = TASK_RUNNING;
+      serial_debug("starting new task %d", current_task_idx);
+      exit_interrupt_context();
+      switch_stack_and_jump(task_to_run->esp, (uint32_t)task_wrapper);
+      // we never return
+      return;
+    } else if (task_to_run->status == TASK_RUNNING) {
+      serial_debug("schedule pass from %d:%s to %d:%s", old_task_idx,
+                   tasks[old_task_idx].name, current_task_idx,
+                   tasks[current_task_idx].name);
+      memcpy(regs, &task_to_run->ctx, sizeof(registers_t));
+      return;
+    }
+
+    attempts++;
   }
 
-  task_t *task_to_run = &tasks[current_task_idx];
-  serial_debug("schedule: trying task %d:%s (status=%d)", current_task_idx,
-               task_to_run->name, task_to_run->status);
-
-  if (task_to_run->status == TASK_WAITING_FOR_START) {
-    task_to_run->status = TASK_RUNNING;
-    serial_debug("starting new task %d", current_task_idx);
-    exit_interrupt_context();
-    switch_stack_and_jump(task_to_run->esp, (uint32_t)task_wrapper);
-    // we never return
-    return;
-  } else if (task_to_run->status != TASK_RUNNING) {
-    serial_debug("skipping task %d (status=%d)", current_task_idx,
-                 task_to_run->status);
-    return; // skip this task
-  }
-  serial_debug("schedule pass from %d:%s to %d:%s", old_task_idx,
-               tasks[old_task_idx].name, current_task_idx,
-               tasks[current_task_idx].name);
-
-  memcpy(regs, &task_to_run->ctx, sizeof(registers_t));
+  // no runnable task found, stay with current
+  serial_debug("no runnable task found, staying at %d", old_task_idx);
+  current_task_idx = old_task_idx;
 }
 
 bool check_stack_overflow(int task_id) {
