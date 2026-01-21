@@ -152,4 +152,5 @@ void irq_install() {
   sti();
   init_timer(50);
   init_keyboard();
+  init_mouse();
 }

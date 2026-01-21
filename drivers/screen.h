@@ -159,3 +159,4 @@ typedef struct {
 
 void vga13_draw_char(int x, int y, char c, font13_t *font);
 void vga13_draw_string(int x, int y, const char *str, font13_t *font);
+void vga13_draw_cursor(int x, int y, int clicked);

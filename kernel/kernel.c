@@ -243,11 +243,6 @@ void kernel_main(void) {
   pci_init();
   serial_debug("pci done...");
 
-  // set_vga_mode12();
-  // init_vga12h();
-  // vga_demo_terminal();
-  // vga12h_gradient_demo();
-
   xinit();
   init_tasking();
   selftest();
@@ -255,10 +250,6 @@ void kernel_main(void) {
   vfs *unified_vfs = init_vfs();
 
   vfs_print_current_tree(unified_vfs);
-
-  init_vga13h();
-  set_vga_mode13();
-  vga13_init_rgb_palette();
 
   vga13h_gradient_demo();
 

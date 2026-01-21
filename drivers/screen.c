@@ -572,3 +572,21 @@ void vga13_draw_string(int x, int y, const char *str, font13_t *font) {
     str++;
   }
 }
+
+void vga13_draw_cursor(int x, int y, int clicked) {
+  uint8_t color = clicked ? 4 : 15; // red when clicking, white otherwise
+
+  // arrow shape
+  for (int i = 0; i < 8; i++) {
+    vga13_put_pixel(x, y + i, color);     // vertical line
+    vga13_put_pixel(x + i, y + i, color); // diagonal
+  }
+  for (int i = 0; i < 4; i++) {
+    vga13_put_pixel(x + 1 + i, y + i, color); // fill
+    vga13_put_pixel(x + 2 + i, y + i + 1, color);
+  }
+
+  // outline in black for visibility
+  vga13_put_pixel(x + 1, y, 0);
+  vga13_put_pixel(x, y + 8, 0);
+}
