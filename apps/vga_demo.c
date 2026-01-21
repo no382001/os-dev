@@ -134,3 +134,103 @@ void vga12h_gradient_demo() {
 }
 
 void vga12h_terminal_demo() {}
+
+void vga13h_plasma_demo() {
+  init_vga13h();
+  set_vga_mode13();
+
+  for (int i = 0; i < 64; i++) {
+    // black to red
+    vga13_set_palette(i, i * 4, 0, 0);
+    // red to yellow
+    vga13_set_palette(64 + i, 255, i * 4, 0);
+    // yellow to green to cyan
+    vga13_set_palette(128 + i, 255 - i * 4, 255, i * 4);
+    // cyan to black
+    vga13_set_palette(192 + i, 0, 255 - i * 4, 255 - i * 4);
+  }
+
+  int offset = 0;
+
+  while (1) {
+    for (int y = 0; y < VGA_MODE13_HEIGHT; y++) {
+      for (int x = 0; x < VGA_MODE13_WIDTH; x++) {
+
+        int v1 = (x + offset) % 64;
+        int v2 = (y + offset / 2) % 64;
+        int v3 = ((x + y + offset) / 2) % 64;
+        int v4 = ((x - y + offset + 256) / 2) % 64;
+
+        uint8_t color = (v1 + v2 + v3 + v4);
+        vga13_put_pixel(x, y, color);
+      }
+    }
+
+    vga13_swap_buffers();
+    offset++;
+    sleep(16 * 2);
+  }
+}
+
+void vga13h_gradient_demo() {
+  init_vga13h();
+  set_vga_mode13();
+
+  for (int i = 0; i < 256; i++) {
+    int r = (i * 4) % 256;
+    int g = (i * 2) % 256;
+    int b = (i * 3) % 256;
+    vga13_set_palette(i, r, g, b);
+  }
+
+  fat_bpb_t bpb = {0};
+  fat16_read_bpb(&bpb);
+  fs_node_t *root = fs_build_tree(&bpb, 0, 0, 1);
+  fs_node_t *f = fs_find_file(root, "VIII.BDF");
+  bdf_font_t bdf = {0};
+  load_bdf(&bpb, f, &bdf);
+
+  font13_t font = {.bdf = &bdf, .color = 255, .scale_x = 2, .scale_y = 2};
+
+  int offset = 0;
+  char string[] = "Mode 13h!";
+
+  struct {
+    int x, y, dx, dy, w, h, color;
+  } boxes[4] = {{20, 20, 2, 1, 40, 30, 32},
+                {200, 30, -1, 2, 50, 40, 64},
+                {100, 100, 1, -1, 35, 35, 128},
+                {150, 80, -2, -1, 45, 25, 200}};
+
+  while (1) {
+    for (int y = 0; y < VGA_MODE13_HEIGHT; y++) {
+      for (int x = 0; x < VGA_MODE13_WIDTH; x++) {
+        uint8_t color = ((x + offset) ^ (y + offset / 2)) & 0xFF;
+        vga13_put_pixel(x, y, color);
+      }
+    }
+
+    for (int i = 0; i < 4; i++) {
+      boxes[i].x += boxes[i].dx;
+      boxes[i].y += boxes[i].dy;
+
+      if (boxes[i].x <= 0 || boxes[i].x + boxes[i].w >= VGA_MODE13_WIDTH)
+        boxes[i].dx = -boxes[i].dx;
+      if (boxes[i].y <= 0 || boxes[i].y + boxes[i].h >= VGA_MODE13_HEIGHT)
+        boxes[i].dy = -boxes[i].dy;
+
+      vga13_fill_rect(boxes[i].x, boxes[i].y, boxes[i].w, boxes[i].h,
+                      boxes[i].color);
+      vga13_draw_rect(boxes[i].x, boxes[i].y, boxes[i].w, boxes[i].h, 255);
+    }
+
+    vga13_draw_string(10, 10, string, &font);
+    font.color = 128;
+    vga13_draw_string(12, 12, string, &font);
+    font.color = 255;
+
+    vga13_swap_buffers();
+    offset++;
+    sleep(16 * 2);
+  }
+}

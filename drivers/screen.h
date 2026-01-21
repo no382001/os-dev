@@ -129,3 +129,33 @@ void init_font(font_t *font, bdf_font_t *bfd);
 
 void draw_bdf_char(int x, int y, char c, font_t *font);
 void draw_bdf_string(int x, int y, const char *str, font_t *font);
+
+/***********
+ *
+ */
+
+#define VGA_MODE13_WIDTH 320
+#define VGA_MODE13_HEIGHT 200
+#define VGA_MODE13_SIZE (VGA_MODE13_WIDTH * VGA_MODE13_HEIGHT)
+
+void set_vga_mode13(void);
+void init_vga13h(void);
+void vga13_put_pixel(int x, int y, uint8_t color);
+uint8_t vga13_get_pixel(int x, int y);
+void vga13_clear(uint8_t color);
+void vga13_swap_buffers(void);
+void vga13_draw_rect(int x, int y, int w, int h, uint8_t color);
+void vga13_fill_rect(int x, int y, int w, int h, uint8_t color);
+void vga13_draw_line(int x0, int y0, int x1, int y1, uint8_t color);
+void vga13_set_palette(uint8_t index, uint8_t r, uint8_t g, uint8_t b);
+void vga13_init_rgb_palette(void);
+
+typedef struct {
+  bdf_font_t *bdf;
+  uint8_t color;
+  int scale_x;
+  int scale_y;
+} font13_t;
+
+void vga13_draw_char(int x, int y, char c, font13_t *font);
+void vga13_draw_string(int x, int y, const char *str, font13_t *font);

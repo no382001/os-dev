@@ -1,5 +1,6 @@
 #pragma once
 #include "bits.h"
+#include "libc/bdf.h"
 
 typedef struct {
   int offset;
@@ -12,3 +13,6 @@ typedef struct {
 } gradient_ctx_t;
 
 void vga12h_gradient_demo();
+
+void vga13h_plasma_demo();
+void vga13h_gradient_demo();

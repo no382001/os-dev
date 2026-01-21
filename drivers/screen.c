@@ -384,3 +384,191 @@ void draw_bdf_string(int x, int y, const char *str, font_t *font) {
     str++;
   }
 }
+
+/*******************************
+ * VGA mode 0x13 (320x200, 256 colors)
+ */
+
+static uint8_t *vga13_bb = NULL;
+
+void set_vga_mode13() {
+  cli();
+
+  _vga_unlock_crt_regs();
+
+  WRITE_MISC(0x63);
+
+  WRITE_SEQUENCER(0x01, 0x01); // clocking mode
+  WRITE_SEQUENCER(0x02, 0x0F); // enable all planes
+  WRITE_SEQUENCER(0x04, 0x0E); // memory mode: chain-4
+
+  WRITE_CRTC(0x00, 0x5F); // horizontal total
+  WRITE_CRTC(0x01, 0x4F); // horizontal display end
+  WRITE_CRTC(0x02, 0x50); // start horizontal blanking
+  WRITE_CRTC(0x03, 0x82); // end horizontal blanking
+  WRITE_CRTC(0x04, 0x54); // start horizontal retrace
+  WRITE_CRTC(0x05, 0x80); // end horizontal retrace
+  WRITE_CRTC(0x06, 0xBF); // vertical total
+  WRITE_CRTC(0x07, 0x1F); // overflow
+  WRITE_CRTC(0x08, 0x00); // preset row scan
+  WRITE_CRTC(0x09, 0x41); // max scan line (double scan)
+  WRITE_CRTC(0x10, 0x9C); // vertical retrace start
+  WRITE_CRTC(0x11, 0x0E); // vertical retrace end
+  WRITE_CRTC(0x12, 0x8F); // vertical display end
+  WRITE_CRTC(0x13, 0x28); // offset
+  WRITE_CRTC(0x14, 0x40); // underline location (enable dword mode)
+  WRITE_CRTC(0x15, 0x96); // vertical blank start
+  WRITE_CRTC(0x16, 0xB9); // vertical blank end
+  WRITE_CRTC(0x17, 0xA3); // mode control
+
+  WRITE_GRAPHICS(0x05, 0x40); // 256-color mode
+  WRITE_GRAPHICS(0x06, 0x05); // memory map
+
+  port_byte_in(VGA_INPUT_STATUS); // reset flip-flop
+  for (int i = 0; i < 16; i++) {
+    port_byte_out(VGA_ATTRIBUTE_INDEX, i);
+    port_byte_out(VGA_ATTRIBUTE_INDEX, i);
+  }
+  WRITE_ATTRIBUTE(0x10, 0x41); // mode control
+  WRITE_ATTRIBUTE(0x11, 0x00); // overscan
+  WRITE_ATTRIBUTE(0x12, 0x0F); // color plane enable
+  WRITE_ATTRIBUTE(0x13, 0x00); // horizontal panning
+  WRITE_ATTRIBUTE(0x14, 0x00); // color select
+
+  _vga_enable_display();
+
+  sti();
+}
+
+void init_vga13h() {
+  vga13_bb = (uint8_t *)kmalloc(VGA_MODE13_SIZE);
+  assert(vga13_bb);
+}
+
+void vga13_put_pixel(int x, int y, uint8_t color) {
+  if (x < 0 || x >= VGA_MODE13_WIDTH || y < 0 || y >= VGA_MODE13_HEIGHT)
+    return;
+  vga13_bb[y * VGA_MODE13_WIDTH + x] = color;
+}
+
+uint8_t vga13_get_pixel(int x, int y) {
+  if (x < 0 || x >= VGA_MODE13_WIDTH || y < 0 || y >= VGA_MODE13_HEIGHT)
+    return 0;
+  return vga13_bb[y * VGA_MODE13_WIDTH + x];
+}
+
+void vga13_clear(uint8_t color) { memset(vga13_bb, color, VGA_MODE13_SIZE); }
+
+void vga13_swap_buffers() {
+  memcpy((void *)0xA0000, vga13_bb, VGA_MODE13_SIZE);
+}
+
+void vga13_draw_rect(int x, int y, int w, int h, uint8_t color) {
+  for (int i = 0; i < w; i++) {
+    vga13_put_pixel(x + i, y, color);
+    vga13_put_pixel(x + i, y + h - 1, color);
+  }
+  for (int j = 0; j < h; j++) {
+    vga13_put_pixel(x, y + j, color);
+    vga13_put_pixel(x + w - 1, y + j, color);
+  }
+}
+
+void vga13_fill_rect(int x, int y, int w, int h, uint8_t color) {
+  for (int j = 0; j < h; j++) {
+    for (int i = 0; i < w; i++) {
+      vga13_put_pixel(x + i, y + j, color);
+    }
+  }
+}
+
+void vga13_draw_line(int x0, int y0, int x1, int y1, uint8_t color) {
+  int dx = x1 - x0;
+  int dy = y1 - y0;
+  int sx = dx > 0 ? 1 : -1;
+  int sy = dy > 0 ? 1 : -1;
+  dx = dx < 0 ? -dx : dx;
+  dy = dy < 0 ? -dy : dy;
+
+  int err = (dx > dy ? dx : -dy) / 2;
+
+  while (1) {
+    vga13_put_pixel(x0, y0, color);
+    if (x0 == x1 && y0 == y1)
+      break;
+    int e2 = err;
+    if (e2 > -dx) {
+      err -= dy;
+      x0 += sx;
+    }
+    if (e2 < dy) {
+      err += dx;
+      y0 += sy;
+    }
+  }
+}
+
+// set a palette entry (mode 13h has 256 palette entries)
+void vga13_set_palette(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
+  port_byte_out(0x3C8, index);
+  port_byte_out(0x3C9, r >> 2); // VGA uses 6-bit color
+  port_byte_out(0x3C9, g >> 2);
+  port_byte_out(0x3C9, b >> 2);
+}
+
+void vga13_init_rgb_palette() {
+  int i = 0;
+  for (int r = 0; r < 6; r++) {
+    for (int g = 0; g < 8; g++) {
+      for (int b = 0; b < 5; b++) {
+        if (i < 256) {
+          vga13_set_palette(i++, r * 51, g * 36, b * 63);
+        }
+      }
+    }
+  }
+}
+
+void vga13_draw_char(int x, int y, char c, font13_t *font) {
+  if (c < 0 || !font || !font->bdf)
+    return;
+
+  glyph_t *glyph = &font->bdf->glyphs[(uint8_t)c];
+  int bytes_per_row = (glyph->width + 7) / 8;
+
+  int base_y =
+      y + (font->bdf->glyphs['A'].height - glyph->height) * font->scale_y;
+
+  for (int row = 0; row < glyph->height; row++) {
+    for (int col = 0; col < glyph->width; col++) {
+      int byte_idx = col / 8;
+      int bit_pos = 7 - (col % 8);
+
+      if (glyph->bitmap[row * bytes_per_row + byte_idx] & (1 << bit_pos)) {
+        for (int sy = 0; sy < font->scale_y; sy++) {
+          for (int sx = 0; sx < font->scale_x; sx++) {
+            vga13_put_pixel(x + col * font->scale_x + sx,
+                            base_y + row * font->scale_y + sy, font->color);
+          }
+        }
+      }
+    }
+  }
+}
+
+void vga13_draw_string(int x, int y, const char *str, font13_t *font) {
+  int ox = 0;
+
+  while (*str) {
+    if (*str == '\n') {
+      y += font->bdf->glyphs['A'].height * font->scale_y;
+      ox = 0;
+    } else if (*str == ' ') {
+      ox += font->bdf->glyphs['A'].width * font->scale_x;
+    } else {
+      vga13_draw_char(x + ox, y, *str, font);
+      ox += (font->bdf->glyphs[(uint8_t)*str].width + 1) * font->scale_x;
+    }
+    str++;
+  }
+}

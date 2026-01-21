@@ -256,6 +256,12 @@ void kernel_main(void) {
 
   vfs_print_current_tree(unified_vfs);
 
+  init_vga13h();
+  set_vga_mode13();
+  vga13_init_rgb_palette();
+
+  vga13h_gradient_demo();
+
   while (1) {
     ;
   }
