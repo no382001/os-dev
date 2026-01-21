@@ -160,3 +160,19 @@ typedef struct {
 void vga13_draw_char(int x, int y, char c, font13_t *font);
 void vga13_draw_string(int x, int y, const char *str, font13_t *font);
 void vga13_draw_cursor(int x, int y, int clicked);
+
+#include "boot/multiboot.h"
+
+int vesa_init(multiboot_info_t *mbi);
+int vesa_is_available(void);
+
+uint32_t vesa_get_width(void);
+uint32_t vesa_get_height(void);
+uint8_t vesa_get_bpp(void);
+
+void vesa_put_pixel(int x, int y, uint32_t color);
+uint32_t vesa_get_pixel(int x, int y);
+void vesa_clear(uint32_t color);
+void vesa_fill_rect(int x, int y, int w, int h, uint32_t color);
+void vesa_draw_rect(int x, int y, int w, int h, uint32_t color);
+void vesa_draw_line(int x0, int y0, int x1, int y1, uint32_t color);

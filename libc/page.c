@@ -99,52 +99,54 @@ extern uint32_t placement_address;
 
 void print_mapped_pages(page_directory_t *dir);
 
-void initialise_paging() {
-  uint32_t mem_end_page = END_OF_MEMORY;
+// void initialise_paging() {
+//   uint32_t mem_end_page = END_OF_MEMORY;
 
-  nframes = mem_end_page / PAGE_SIZE;
-  frames = (uint32_t *)kmalloc(INDEX_FROM_BIT(nframes));
-  memset(frames, 0, INDEX_FROM_BIT(nframes));
+//   nframes = mem_end_page / PAGE_SIZE;
+//   frames = (uint32_t *)kmalloc(INDEX_FROM_BIT(nframes));
+//   memset(frames, 0, INDEX_FROM_BIT(nframes));
 
-  kernel_directory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
-  memset(kernel_directory, 0, sizeof(page_directory_t));
-  current_directory = kernel_directory;
+//   kernel_directory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
+//   memset(kernel_directory, 0, sizeof(page_directory_t));
+//   current_directory = kernel_directory;
 
-  // ALL OF THESE ARE IDENTITY MAPS!
+//   // ALL OF THESE ARE IDENTITY MAPS!
 
-  // pre-install pages for heap
-  uint32_t i = 0;
-  for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += PAGE_SIZE)
-    get_page(i, 1, kernel_directory);
+//   // pre-install pages for heap
+//   uint32_t i = 0;
+//   for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += PAGE_SIZE)
+//     get_page(i, 1, kernel_directory);
 
-  i = 0;
-  // this is kinda weird. the first address it wants to give is 0x157000 but
-  // since the prev 0x156000 + PAGE_SIZE only reaches to 0x156fff, 0x157000 will
-  // be unmapped and we page fault on heap creation so just create an additional
-  // page as a workaround... i guess
-  while (i < placement_address + PAGE_SIZE) {
-    page_t *p = get_page(i, 1, kernel_directory);
-    alloc_frame(p, 0, 0);
-    i += PAGE_SIZE;
-  }
+//   i = 0;
+//   // this is kinda weird. the first address it wants to give is 0x157000 but
+//   // since the prev 0x156000 + PAGE_SIZE only reaches to 0x156fff, 0x157000
+//   will
+//   // be unmapped and we page fault on heap creation so just create an
+//   additional
+//   // page as a workaround... i guess
+//   while (i < placement_address + PAGE_SIZE) {
+//     page_t *p = get_page(i, 1, kernel_directory);
+//     alloc_frame(p, 0, 0);
+//     i += PAGE_SIZE;
+//   }
 
-  // alloc pages for heap
-  for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += PAGE_SIZE)
-    alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
+//   // alloc pages for heap
+//   for (i = KHEAP_START; i < KHEAP_START + KHEAP_INITIAL_SIZE; i += PAGE_SIZE)
+//     alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
 
-  // https://forum.osdev.org/viewtopic.php?t=57400
-  i = 0xC0040000; // qemu bios uses these addresses? otherwise i page fault
-  while (i < 0xC0050000) {
-    page_t *p = get_page(i, 1, kernel_directory);
-    alloc_frame(p, 0, 0);
-    i += PAGE_SIZE;
-  }
+//   // https://forum.osdev.org/viewtopic.php?t=57400
+//   i = 0xC0040000; // qemu bios uses these addresses? otherwise i page fault
+//   while (i < 0xC0050000) {
+//     page_t *p = get_page(i, 1, kernel_directory);
+//     alloc_frame(p, 0, 0);
+//     i += PAGE_SIZE;
+//   }
 
-  register_interrupt_handler(14, page_fault);
-  switch_page_directory(kernel_directory);
+//   register_interrupt_handler(14, page_fault);
+//   switch_page_directory(kernel_directory);
 
-  print_mapped_pages(kernel_directory);
-}
+//   print_mapped_pages(kernel_directory);
+// }
 
 void switch_page_directory(page_directory_t *dir) {
   current_directory = dir;

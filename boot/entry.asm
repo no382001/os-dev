@@ -1,25 +1,41 @@
 bits 32
-section .text ; mboot
-        align 4
-        dd 0x1BADB002
-        dd 0x00
-        dd - (0x1BADB002 + 0x00)
 
-%define STACK_BOTTOM 0x60000
-%define STACK_SIZE 0x40000 ; 256kb
-%define STACK_TOP (STACK_BOTTOM + STACK_SIZE)
+section .multiboot
+align 4
+    dd 0x1BADB002              ; magic
+    dd 0x07                    ; flags: align + meminfo + video
+    dd -(0x1BADB002 + 0x07)    ; checksum
+    
+    ; address fields (not used with ELF)
+    dd 0, 0, 0, 0, 0
+    
+    ; video mode request
+    dd 0                       ; mode_type: 0 = linear graphics
+    dd 800                     ; width
+    dd 600                     ; height
+    dd 32                      ; bpp
 
-extern _start
+section .text
+global _start
 extern kernel_main
+
 _start:
-    mov esp, STACK_TOP
-    mov ebp, esp
-
-    ; fill the stack xDEADBEEF
-    mov edi, STACK_TOP - STACK_SIZE
-    mov ecx, STACK_SIZE / 4
-    mov eax, 0xDEADBEEF
-    rep stosd
-
+    mov esp, stack_top
+    
+    ; ebx = multiboot info struct, pass to kernel
+    push ebx
+    ; eax = magic number
+    push eax
+    
     call kernel_main
-    jmp $
+    
+.hang:
+    cli
+    hlt
+    jmp .hang
+
+section .bss
+align 16
+stack_bottom:
+    resb 0x40000              ; 256KB stack
+stack_top:

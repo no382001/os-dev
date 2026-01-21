@@ -1,259 +1,122 @@
+#include "boot/multiboot.h"
+#include "drivers/mouse.h"
+#include "drivers/screen.h"
+#include "drivers/serial.h"
 
-#include "bits.h"
+static uint32_t total_memory = 0;
+static uint32_t usable_memory_start = 0;
+static uint32_t usable_memory_end = 0;
 
-void selftest(void);
-void fvm_test(void);
+typedef struct {
+  uint32_t size;
+  uint64_t addr;
+  uint64_t len;
+  uint32_t type;
+} __attribute__((packed)) mmap_entry_t;
 
-semaphore_t task_semaphore = {0};
+#define MMAP_TYPE_USABLE 1
+#define MMAP_TYPE_RESERVED 2
+#define MMAP_TYPE_ACPI 3
+#define MMAP_TYPE_ACPI_NVS 4
+#define MMAP_TYPE_BAD 5
 
-// task test helpers
-static volatile int task_test_counter = 0;
-static volatile int task1_ran = 0;
-static volatile int task2_ran = 0;
-static volatile int task3_ran = 0;
-static volatile uint32_t task_data_value = 0;
+uint32_t get_memory_size(void) { return total_memory; }
 
-static void sched_test_fn(void *data) {
-  (void)data;
-  task1_ran = 1;
-  task_test_counter++;
-  kernel_printf("  task1 executed\n");
+uint32_t get_usable_memory_start(void) { return usable_memory_start; }
+
+uint32_t get_usable_memory_end(void) { return usable_memory_end; }
+
+void init_memory_from_multiboot(multiboot_info_t *mbi) {
+  if (mbi->flags & MULTIBOOT_FLAG_MEM) {
+    // mem_lower: KB of memory below 1MB (typically 640KB)
+    // mem_upper: KB of memory above 1MB
+    total_memory = (mbi->mem_upper + 1024) * 1024;
+    serial_printff("Memory: %d MB detected", total_memory / (1024 * 1024));
+  }
+
+  // better method: parse memory map
+  if (mbi->flags & MULTIBOOT_FLAG_MMAP) {
+    serial_printff("Memory map:");
+
+    uint32_t highest_usable = 0;
+    uint32_t lowest_usable = 0xFFFFFFFF;
+
+    mmap_entry_t *entry = (mmap_entry_t *)mbi->mmap_addr;
+    uint32_t mmap_end = mbi->mmap_addr + mbi->mmap_length;
+
+    while ((uint32_t)entry < mmap_end) {
+      const char *type_str;
+      switch (entry->type) {
+      case MMAP_TYPE_USABLE:
+        type_str = "usable";
+        break;
+      case MMAP_TYPE_RESERVED:
+        type_str = "reserved";
+        break;
+      case MMAP_TYPE_ACPI:
+        type_str = "ACPI";
+        break;
+      case MMAP_TYPE_ACPI_NVS:
+        type_str = "ACPI NVS";
+        break;
+      case MMAP_TYPE_BAD:
+        type_str = "bad";
+        break;
+      default:
+        type_str = "unknown";
+        break;
+      }
+
+      // only print low 32 bits (we're 32-bit anyway)
+      uint32_t addr_lo = (uint32_t)entry->addr;
+      uint32_t len_lo = (uint32_t)entry->len;
+
+      serial_printff("  0x%x - 0x%x (%d KB) %s", addr_lo, addr_lo + len_lo,
+                     len_lo / 1024, type_str);
+
+      // track usable memory regions
+      if (entry->type == MMAP_TYPE_USABLE) {
+        uint32_t region_end = addr_lo + len_lo;
+
+        if (addr_lo < lowest_usable && addr_lo >= 0x100000) {
+          // ignore below 1MB, that's where kernel is
+          lowest_usable = addr_lo;
+        }
+
+        if (region_end > highest_usable) {
+          highest_usable = region_end;
+        }
+      }
+
+      // move to next entry (size field doesn't include itself)
+      entry =
+          (mmap_entry_t *)((uint32_t)entry + entry->size + sizeof(entry->size));
+    }
+
+    usable_memory_start = lowest_usable;
+    usable_memory_end = highest_usable;
+    total_memory = highest_usable;
+
+    serial_printff("Usable: 0x%x - 0x%x (%d MB)", usable_memory_start,
+                   usable_memory_end, total_memory / (1024 * 1024));
+  }
 }
 
-static void sched_test_fn2(void *data) {
-  (void)data;
-  task2_ran = 1;
-  task_test_counter++;
-  kernel_printf("  task2 executed\n");
-  serial_debug("task2 executed successfully");
-}
+void kernel_main(uint32_t magic, multiboot_info_t *mbi) {
+  if (magic != MULTIBOOT_MAGIC) {
+    return;
+  }
+  serial_init();
+  init_memory_from_multiboot(mbi);
 
-static void sched_test_fn3(void *data) {
-  uint32_t *value = (uint32_t *)data;
-  kernel_printf("  task3 started, data=%x, value=%x\n", data,
-                value ? *value : 0);
-  if (value && *value == 0xCAFEBABE) {
-    task_data_value = *value;
-    task3_ran = 1;
-    task_test_counter++;
-    kernel_printf("  task3 executed with data=%x\n", *value);
+  if (vesa_init(mbi) == 0) {
+    vesa_clear(0x001133);
+    vesa_fill_rect(100, 100, 200, 150, 0xFF0000);
+    vesa_draw_rect(100, 100, 200, 150, 0xFFFFFF);
+    vesa_draw_line(0, 0, vesa_get_width() - 1, vesa_get_height() - 1, 0x00FF00);
+
+    mouse_set_bounds(0, vesa_get_width() - 1, 0, vesa_get_height() - 1);
   } else {
-    kernel_printf("  task3 data check failed!\n");
-  }
-}
-
-static void task_destructor_with_free(void *df_data) {
-  if (df_data) {
-    kfree(df_data);
-  }
-}
-
-void selftest() {
-  kernel_printf("=== running kernel self-tests ===\n");
-
-  // test 1: basic heap allocation
-  void *p = kmalloc(26);
-  assert(p && "malloc does not work");
-  kfree(p);
-  void *p1 = kmalloc(26);
-  assert(p == p1 && "not the same address");
-  kernel_printf("- kmalloc/kfree looks good\n");
-  kfree(p1);
-
-  // test 2: multiple allocations and free ordering
-  void *a1 = kmalloc(128);
-  void *a2 = kmalloc(256);
-  void *a3 = kmalloc(64);
-  assert(a1 && a2 && a3 && "multiple allocs failed");
-  kfree(a2); // free middle block
-  kfree(a1);
-  kfree(a3);
-  kernel_printf("- multiple alloc/free works\n");
-
-  // test 3: aligned allocation
-  void *aligned = kmalloc_a(512);
-  assert(aligned && "aligned alloc failed");
-  assert(((uint32_t)aligned & 0xFFF) == 0 && "not page aligned");
-  // note: aligned allocations cannot be freed with current allocator
-  kernel_printf("- aligned allocation works\n");
-
-  // test 4: string operations
-  char str1[32] = "hello";
-  char str2[32] = "world";
-  assert(strlen(str1) == 5 && "strlen failed");
-  assert(strcmp(str1, "hello") == 0 && "strcmp failed");
-  assert(strcmp(str1, str2) != 0 && "strcmp should differ");
-  strcpy(str2, str1);
-  assert(strcmp(str1, str2) == 0 && "strcpy failed");
-  strcat(str2, "!");
-  assert(strlen(str2) == 6 && "strcat failed");
-  kernel_printf("- string operations work\n");
-
-  // test 5: memory operations
-  uint8_t buf1[64];
-  uint8_t buf2[64];
-  memset(buf1, 0xAA, 64);
-  memset(buf2, 0xBB, 64);
-  assert(buf1[0] == 0xAA && buf1[63] == 0xAA && "memset failed");
-  memcpy(buf2, buf1, 64);
-  assert(memcmp(buf1, buf2, 64) == 0 && "memcpy failed");
-  memset(buf2, 0xCC, 32);
-  assert(memcmp(buf1, buf2, 64) != 0 && "memcmp should differ");
-  kernel_printf("- memory operations work\n");
-
-  // test 6: sprintf/snprintf
-  char numstr[32];
-  int written = snprintf(numstr, sizeof(numstr), "num=%d hex=%x", 42, 0xDEAD);
-  assert(written > 0 && "snprintf failed");
-  assert((int)strlen(numstr) == written && "snprintf length mismatch");
-  kernel_printf("- sprintf/snprintf works\n");
-
-  // test 7: timer ticks
-  int t1 = get_tick();
-  sleep(100);
-  int t2 = get_tick();
-  assert(t1 != t2 && "ticks are the same");
-  assert(t2 > t1 && "ticks not incrementing");
-  kernel_printf("- timer ticks work\n");
-
-  // test 8: semaphore operations
-  semaphore_t test_sem;
-  semaphore_init(&test_sem, 1);
-  assert(semaphore_count(&test_sem) == 1 && "semaphore init failed");
-  semaphore_wait(&test_sem);
-  assert(semaphore_count(&test_sem) == 0 && "semaphore wait failed");
-  semaphore_signal(&test_sem);
-  assert(semaphore_count(&test_sem) == 1 && "semaphore signal failed");
-  kernel_printf("- semaphore operations work\n");
-
-  // test 9: paging functions
-  page_t *test_page = get_page(0xD0000000, 0, kernel_directory);
-  assert(test_page == 0 && "unmapped page should be null");
-  test_page = get_page(0xD0000000, 1, kernel_directory);
-  assert(test_page != 0 && "get_page with make=1 failed");
-  kernel_printf("- paging functions work\n");
-
-  // test 10: basic task scheduling
-  kernel_printf("- testing task scheduling...\n");
-  task_test_counter = 0;
-  task1_ran = 0;
-
-  uint32_t stack_size = 1024 * 10;
-  void *task_stack1 = kmalloc_a(stack_size);
-  assert(task_stack1 && "task stack allocation failed");
-
-  create_task("test_task1", &sched_test_fn, 0, &task_destructor_with_free,
-              task_stack1, task_stack1, stack_size);
-
-  // give scheduler time to start the task
-  sleep(50);
-
-  // wait for task to execute - sleep allows timer interrupts to trigger
-  // scheduler
-  int timeout = 50;
-  while (task1_ran == 0 && timeout-- > 0) {
-    sleep(20);
-  }
-  assert(task1_ran == 1 && "task1 did not execute");
-  assert(task_test_counter >= 1 && "task counter not incremented");
-  kernel_printf("  basic task scheduling works\n");
-
-  // give task1 time to fully cleanup and free its slot
-  sleep(100);
-
-  // test 11: multiple concurrent tasks
-  kernel_printf("- testing multiple tasks...\n");
-  task2_ran = 0;
-  task3_ran = 0;
-
-  void *task_stack2 = kmalloc_a(stack_size);
-  void *task_stack3 = kmalloc_a(stack_size);
-  assert(task_stack2 && task_stack3 && "multiple task stacks failed");
-
-  uint32_t *test_data = kmalloc(sizeof(uint32_t));
-  *test_data = 0xCAFEBABE;
-
-  serial_debug("creating test_task2...");
-  create_task("test_task2", &sched_test_fn2, 0, &task_destructor_with_free,
-              task_stack2, task_stack2, stack_size);
-  serial_debug("creating test_task3...");
-  create_task("test_task3", &sched_test_fn3, test_data, 0, 0, task_stack3,
-              stack_size);
-  serial_debug("both tasks created");
-
-  // give scheduler time to start the tasks
-  sleep(150);
-
-  // wait for both tasks - sleep allows timer interrupts to trigger scheduler
-  timeout = 250;
-  while ((task2_ran == 0 || task3_ran == 0) && timeout-- > 0) {
-    sleep(20);
-  }
-
-  assert(task2_ran == 1 && "task2 did not execute");
-  assert(task3_ran == 1 && "task3 did not execute");
-  assert(task_data_value == 0xCAFEBABE && "task data not passed correctly");
-  assert(task_test_counter >= 3 && "not all tasks ran");
-
-  kfree(test_data);
-  kernel_printf("  multiple tasks work\n");
-
-  // give tasks time to cleanup
-  sleep(50);
-  kernel_printf("- task scheduling tests passed\n");
-
-  // test 11: setjmp/longjmp
-  jmp_buf env = {0};
-  if (setjmp(env) == 0) {
-    longjmp(env, 42);
-    kernel_printf("jump failed!\n");
-  } else {
-    kernel_printf("- setjmp/longjmp works\n");
-  }
-
-  // test 12: large allocation
-  void *large = kmalloc(8192);
-  assert(large && "large allocation failed");
-  memset(large, 0x55, 8192);
-  assert(((uint8_t *)large)[0] == 0x55 && "large alloc write failed");
-  assert(((uint8_t *)large)[8191] == 0x55 && "large alloc boundary failed");
-  kfree(large);
-  kernel_printf("- large allocations work\n");
-
-  kernel_printf("=== all self-tests passed! ===\n");
-  serial_debug("selftest finished!");
-}
-
-vfs *init_vfs();
-void vfs_print_current_tree(vfs *fs);
-
-void kernel_main(void) {
-  // be very careful, sometimes un-inited modules work even in kvm, for some
-  // time, then they 3F
-  kernel_clear_screen();
-
-  isr_install();
-  irq_install();
-
-  initialise_paging();
-
-  serial_debug("paging done...");
-
-  kernel_printf("- initializing pci...\n");
-  pci_init();
-  serial_debug("pci done...");
-
-  xinit();
-  init_tasking();
-  selftest();
-
-  vfs *unified_vfs = init_vfs();
-
-  vfs_print_current_tree(unified_vfs);
-
-  vga13h_gradient_demo();
-
-  while (1) {
-    ;
+    serial_printff("no VESA framebuffer, using text mode");
   }
 }

@@ -3,27 +3,32 @@ ENTRY(_start)
 
 SECTIONS
 {
-  . = 0x10000;
-  
-  . = ALIGN(0x1000);
-  .text : ALIGN(0x1000) {
-      *(.text)
-  }
+    . = 0x100000;
 
-  . = ALIGN(0x1000);
-  .rodata : ALIGN(0x1000) {
-      *(.rodata)
-  }
+    .multiboot : ALIGN(4) {
+        *(.multiboot)
+    }
 
-  . = ALIGN(0x1000);
-  .data : ALIGN(0x1000) {
-      *(.data)
-  }
+    . = ALIGN(0x1000);
+    .text : {
+        *(.text)
+    }
 
-  . = ALIGN(0x1000);
-  .bss : ALIGN(0x1000) {
-      *(.bss)
-      *(COMMON)
-  }
-  _kernel_end = .;
+    . = ALIGN(0x1000);
+    .rodata : {
+        *(.rodata)
+    }
+
+    . = ALIGN(0x1000);
+    .data : {
+        *(.data)
+    }
+
+    . = ALIGN(0x1000);
+    .bss : {
+        *(.bss)
+        *(COMMON)
+    }
+    
+    _kernel_end = .;
 }

@@ -65,3 +65,17 @@ mountfat:
 
 umountfat:
 	sudo umount /mnt/fat16
+
+iso: $(BUILD_DIR)/kernel.elf
+	mkdir -p iso/boot/grub
+	cp $(BUILD_DIR)/kernel.elf iso/boot/
+	echo 'set timeout=0' > iso/boot/grub/grub.cfg
+	echo 'set default=0' >> iso/boot/grub/grub.cfg
+	echo 'menuentry "os-dev" {' >> iso/boot/grub/grub.cfg
+	echo '  multiboot /boot/kernel.elf' >> iso/boot/grub/grub.cfg
+	echo '  boot' >> iso/boot/grub/grub.cfg
+	echo '}' >> iso/boot/grub/grub.cfg
+	grub-mkrescue -o os.iso iso
+
+run-iso: iso
+	qemu-system-i386 $(QEMU_FLAGS) -m 128M -serial stdio -cdrom os.iso

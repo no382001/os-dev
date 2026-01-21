@@ -1,57 +1,74 @@
 #pragma once
 
-/*
-this should be the end of the loaded kernel binary
-used in:
-    initialise_paging/0
-        to identity map the whole kernel
-    kmalloc_int/3
-        this is the heap before page is set up, consequently this is where the
-page tables are
-*/
-#define PLACEMENT_ADDRESS 0x100000
+#include "libc/types.h"
 
 /*
-    heap things
-*/
-#define KHEAP_START 0xC0100000
-#define KHEAP_INITIAL_SIZE 0x100000
+ * GRUB loads kernel at 1MB (0x100000)
+ * stack is in .bss (defined in entry.asm)
+ */
+
+// kernel is loaded here by GRUB
+#define KERNEL_LOAD_ADDR 0x100000
+
+// placement allocator starts after kernel
+// _kernel_end is defined in linker script
+extern uint32_t _kernel_end;
+#define PLACEMENT_ADDRESS ((uint32_t) & _kernel_end)
+
+/*
+ * heap configuration
+ * we'll put heap after the placement allocator area
+ */
+#define KHEAP_START 0x400000        // 4MB - safe distance from kernel
+#define KHEAP_INITIAL_SIZE 0x100000 // 1MB initial
 #define HEAP_INDEX_SIZE 0x20000
 #define HEAP_MAGIC 0x123890AB
 #define HEAP_MIN_SIZE 0x70000
 
-// this is set up in kernel entry
-#define STACK_BOTTOM 0x60000
-#define STACK_SIZE 0x40000 //; 256kb
-#define STACK_TOP (STACK_BOTTOM + STACK_SIZE)
-
-// the available pagable RAM
-#define END_OF_MEMORY 0x4000000 // 4M
+// stack is now in .bss, defined in entry.asm
+// these are just for reference/stack guard checking
+#define STACK_SIZE 0x40000 // 256KB
 
 /*
-+----------------------+  0x00000
-| ...                  |
-+----------------------+  0x07C00
-| bootloader           |
-+----------------------+  0x07E00 (+512b)
-| ...                  |
-+----------------------+  0x10000
-| kernel               |
-|                      |
-|                      |
-+----------------------+  0x60000 (+320kb)
-| stack                |
-+----------------------+  0xa0000 (+256kb)
-| ...                  |
-+----------------------+  0x150000 (hard limit 1.25mb,
-| initial heap         |            i might not even load that much into ram)
-+----------------------+  0x158000 (this how much we id-map, why? to not crash)
-| ...                  |
-+----------------------+  0xc0040000
-| qemu magic sector    |
-+----------------------+  0xc0050000
-| ...                  |
-+----------------------+  0xc0100000
-| kernel heap          |
-+----------------------+  0xc0200000+ (dynamic)
-*/
+ * framebuffer address comes from multiboot info at runtime
+ * could be anywhere - often above 0xFD000000 on real hardware
+ */
+
+/*
+ * memory layout with GRUB multiboot:
+ *
+ * +----------------------+  0x00000
+ * | Real mode IVT, BDA   |
+ * +----------------------+  0x00500
+ * | Free                 |
+ * +----------------------+  0x07C00
+ * | (unused, was bootldr)|
+ * +----------------------+  0x80000
+ * | EBDA (varies)        |
+ * +----------------------+  0xA0000
+ * | VGA memory           |
+ * +----------------------+  0xC0000
+ * | ROM area             |
+ * +----------------------+  0x100000 (1MB)
+ * | Kernel .text         |
+ * | Kernel .rodata       |
+ * | Kernel .data         |
+ * | Kernel .bss (stack)  |
+ * +----------------------+  _kernel_end
+ * | Placement allocator  |
+ * +----------------------+  (dynamic)
+ * | ...                  |
+ * +----------------------+  0x400000 (4MB)
+ * | Kernel heap          |
+ * +----------------------+  0x500000+ (grows)
+ * | ...                  |
+ * +----------------------+  (from multiboot mmap)
+ * | Usable RAM end       |
+ * +----------------------+
+ *
+ * framebuffer is mapped by BIOS/UEFI, address from multiboot info
+ * often at 0xFD000000+ or similar high address
+ */
+
+uint32_t get_memory_size(void);
+void init_memory_from_multiboot(void *mbi);

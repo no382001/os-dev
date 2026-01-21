@@ -590,3 +590,147 @@ void vga13_draw_cursor(int x, int y, int clicked) {
   vga13_put_pixel(x + 1, y, 0);
   vga13_put_pixel(x, y + 8, 0);
 }
+
+/*******************************
+ * VESA
+ */
+
+static uint32_t *vesa_fb_addr = NULL;
+static uint32_t vesa_fb_width = 0;
+static uint32_t vesa_fb_height = 0;
+static uint32_t vesa_fb_pitch = 0;
+static uint8_t vesa_fb_bpp = 0;
+static int vesa_initialized = 0;
+
+int vesa_init(multiboot_info_t *mbi) {
+  if (!mbi) {
+    return -1;
+  }
+
+  if (!(mbi->flags & MULTIBOOT_FLAG_FB)) {
+    return -1; // no framebuffer available
+  }
+
+  vesa_fb_addr = (uint32_t *)(uint32_t)mbi->framebuffer_addr;
+  vesa_fb_width = mbi->framebuffer_width;
+  vesa_fb_height = mbi->framebuffer_height;
+  vesa_fb_pitch = mbi->framebuffer_pitch;
+  vesa_fb_bpp = mbi->framebuffer_bpp;
+  vesa_initialized = 1;
+
+  return 0;
+}
+
+int vesa_is_available(void) { return vesa_initialized; }
+
+uint32_t vesa_get_width(void) { return vesa_fb_width; }
+
+uint32_t vesa_get_height(void) { return vesa_fb_height; }
+
+uint8_t vesa_get_bpp(void) { return vesa_fb_bpp; }
+
+void vesa_put_pixel(int x, int y, uint32_t color) {
+  if (!vesa_fb_addr)
+    return;
+  if (x < 0 || x >= (int)vesa_fb_width || y < 0 || y >= (int)vesa_fb_height)
+    return;
+
+  if (vesa_fb_bpp == 32) {
+    vesa_fb_addr[y * (vesa_fb_pitch / 4) + x] = color;
+  } else if (vesa_fb_bpp == 24) {
+    uint8_t *pixel = (uint8_t *)vesa_fb_addr + y * vesa_fb_pitch + x * 3;
+    pixel[0] = color & 0xFF;
+    pixel[1] = (color >> 8) & 0xFF;
+    pixel[2] = (color >> 16) & 0xFF;
+  } else if (vesa_fb_bpp == 16) {
+    // RGB565
+    uint16_t *pixel =
+        (uint16_t *)((uint8_t *)vesa_fb_addr + y * vesa_fb_pitch + x * 2);
+    uint16_t r = ((color >> 16) & 0xFF) >> 3;
+    uint16_t g = ((color >> 8) & 0xFF) >> 2;
+    uint16_t b = (color & 0xFF) >> 3;
+    *pixel = (r << 11) | (g << 5) | b;
+  }
+}
+
+uint32_t vesa_get_pixel(int x, int y) {
+  if (!vesa_fb_addr)
+    return 0;
+  if (x < 0 || x >= (int)vesa_fb_width || y < 0 || y >= (int)vesa_fb_height)
+    return 0;
+
+  if (vesa_fb_bpp == 32) {
+    return vesa_fb_addr[y * (vesa_fb_pitch / 4) + x];
+  } else if (vesa_fb_bpp == 24) {
+    uint8_t *pixel = (uint8_t *)vesa_fb_addr + y * vesa_fb_pitch + x * 3;
+    return pixel[0] | (pixel[1] << 8) | (pixel[2] << 16);
+  }
+  return 0;
+}
+
+void vesa_clear(uint32_t color) {
+  if (!vesa_fb_addr)
+    return;
+
+  // fast path for 32bpp
+  if (vesa_fb_bpp == 32) {
+    uint32_t *row = vesa_fb_addr;
+    for (uint32_t y = 0; y < vesa_fb_height; y++) {
+      for (uint32_t x = 0; x < vesa_fb_width; x++) {
+        row[x] = color;
+      }
+      row = (uint32_t *)((uint8_t *)row + vesa_fb_pitch);
+    }
+  } else {
+    for (uint32_t y = 0; y < vesa_fb_height; y++) {
+      for (uint32_t x = 0; x < vesa_fb_width; x++) {
+        vesa_put_pixel(x, y, color);
+      }
+    }
+  }
+}
+
+void vesa_fill_rect(int x, int y, int w, int h, uint32_t color) {
+  for (int j = 0; j < h; j++) {
+    for (int i = 0; i < w; i++) {
+      vesa_put_pixel(x + i, y + j, color);
+    }
+  }
+}
+
+void vesa_draw_rect(int x, int y, int w, int h, uint32_t color) {
+  for (int i = 0; i < w; i++) {
+    vesa_put_pixel(x + i, y, color);
+    vesa_put_pixel(x + i, y + h - 1, color);
+  }
+  for (int j = 0; j < h; j++) {
+    vesa_put_pixel(x, y + j, color);
+    vesa_put_pixel(x + w - 1, y + j, color);
+  }
+}
+
+void vesa_draw_line(int x0, int y0, int x1, int y1, uint32_t color) {
+  int dx = x1 - x0;
+  int dy = y1 - y0;
+  int sx = dx > 0 ? 1 : -1;
+  int sy = dy > 0 ? 1 : -1;
+  dx = dx < 0 ? -dx : dx;
+  dy = dy < 0 ? -dy : dy;
+
+  int err = (dx > dy ? dx : -dy) / 2;
+
+  while (1) {
+    vesa_put_pixel(x0, y0, color);
+    if (x0 == x1 && y0 == y1)
+      break;
+    int e2 = err;
+    if (e2 > -dx) {
+      err -= dy;
+      x0 += sx;
+    }
+    if (e2 < dy) {
+      err += dx;
+      y0 += sy;
+    }
+  }
+}

@@ -27,8 +27,6 @@ static void serial_irq_handler(registers_t *regs) {
 }
 
 void serial_init() {
-  kernel_printf("- setting up serial\n");
-
   port_byte_out(SERIAL_COM1 + 1, 0x00); // disable interrupts
   port_byte_out(SERIAL_COM1 + 3, 0x80); // enable DLAB (set baud rate divisor)
   port_byte_out(SERIAL_COM1 + 0, 0x03); // set divisor to 3 (38400 baud)
