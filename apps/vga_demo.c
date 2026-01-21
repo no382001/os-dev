@@ -175,6 +175,7 @@ void vga13h_plasma_demo() {
 void vga13h_gradient_demo() {
   init_vga13h();
   set_vga_mode13();
+  mouse_set_bounds(0, VGA_MODE13_WIDTH - 1, 0, VGA_MODE13_HEIGHT - 1);
 
   for (int i = 0; i < 256; i++) {
     int r = (i * 4) % 256;
@@ -203,6 +204,7 @@ void vga13h_gradient_demo() {
                 {150, 80, -2, -1, 45, 25, 200}};
 
   while (1) {
+    // background
     for (int y = 0; y < VGA_MODE13_HEIGHT; y++) {
       for (int x = 0; x < VGA_MODE13_WIDTH; x++) {
         uint8_t color = ((x + offset) ^ (y + offset / 2)) & 0xFF;
@@ -210,6 +212,7 @@ void vga13h_gradient_demo() {
       }
     }
 
+    // boxes
     for (int i = 0; i < 4; i++) {
       boxes[i].x += boxes[i].dx;
       boxes[i].y += boxes[i].dy;
@@ -224,10 +227,15 @@ void vga13h_gradient_demo() {
       vga13_draw_rect(boxes[i].x, boxes[i].y, boxes[i].w, boxes[i].h, 255);
     }
 
+    // text
     vga13_draw_string(10, 10, string, &font);
     font.color = 128;
     vga13_draw_string(12, 12, string, &font);
     font.color = 255;
+
+    // mouse cursor - draw last so it's on top
+    mouse_state_t m = mouse_get_state();
+    vga13_draw_cursor(m.x, m.y, mouse_left_pressed());
 
     vga13_swap_buffers();
     offset++;

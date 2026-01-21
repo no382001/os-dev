@@ -244,11 +244,6 @@ void kernel_main(void) {
   pci_init();
   KLOG(LOG_MODULE_KERNEL, "pci done...");
 
-  // set_vga_mode12();
-  // init_vga12h();
-  // vga_demo_terminal();
-  // vga12h_gradient_demo();
-
   xinit();
   init_tasking();
   selftest();
@@ -261,6 +256,7 @@ void kernel_main(void) {
   ninep_server_init(unified_vfs);
 
   prolog_repl(unified_vfs);
+  // vga13h_gradient_demo();
 
   while (1) {
     ;
