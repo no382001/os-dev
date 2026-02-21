@@ -21,6 +21,11 @@ all: format bits $(BUILD_DIR)/kernel.elf disk/fat16.img
 $(BUILD_DIR)/kernel.elf: $(BUILD_DIR)/boot/entry.o ${OBJ}
 	${LD} -o $@ -T kernel.ld $^
 
+# prolog_demo.c is a unity build of third-party code; suppress warnings so the
+# strict kernel flags don't reject upstream prolog's source style.
+$(BUILD_DIR)/apps/prolog_demo.o: apps/prolog_demo.c ${HEADERS}
+	${CC} ${CFLAGS} ${CFLAGSNO} -w -c $< -o $@
+
 $(BUILD_DIR)/%.o: %.c ${HEADERS}
 	${CC} ${CFLAGS} ${CFLAGSNO} -c $< -o $@
 
@@ -47,12 +52,12 @@ clean:
 	rm -rf $(BUILD_DIR) bits.h disk/fat16.img kernel.elf
 
 format:
-	find . -name '*.h' -o -name '*.c' -not -path "./9p/*" | xargs clang-format -i
+	find . \( -name '*.h' -o -name '*.c' \) -not -path "./9p/*" -not -path "./apps/prolog/*" | xargs clang-format -i
 
 OUTPUT_FILE = bits.h
 bits:
 	echo "#pragma once" > $(OUTPUT_FILE)
-	find . -type f -name "*.h" -not -path "./9p/*" 2>/dev/null | sed 's|^./||' | awk '{print "#include \"" $$0 "\""}' >> $(OUTPUT_FILE)
+	find . -type f -name "*.h" -not -path "./9p/*" -not -path "./apps/prolog/*" 2>/dev/null | sed 's|^./||' | awk '{print "#include \"" $$0 "\""}' >> $(OUTPUT_FILE)
 
 debug: all
 	$(RUN) -s -S $(NETWORKING)

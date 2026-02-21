@@ -251,16 +251,17 @@ void kernel_main(void) {
   xinit();
   init_tasking();
   selftest();
+  prolog_demo();
 
   vfs *unified_vfs = init_vfs();
 
   vfs_print_current_tree(unified_vfs);
 
-  init_vga13h();
-  set_vga_mode13();
-  vga13_init_rgb_palette();
+  // init_vga13h();
+  // set_vga_mode13();
+  // vga13_init_rgb_palette();
 
-  vga13h_gradient_demo();
+  // vga13h_gradient_demo();
 
   while (1) {
     ;

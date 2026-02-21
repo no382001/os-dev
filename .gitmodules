@@ -1,0 +1,3 @@
+[submodule "apps/prolog"]
+	path = apps/prolog
+	url = git@github.com:no382001/prolog.git
