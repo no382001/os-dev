@@ -9,20 +9,20 @@ keyboard_ctx_t kb_ctx = {0};
 
 #define SC_MAX 57
 const char sc_ascii[] = {
-    '?', '?', '1', '2', '3', '4', '5', '6', '7', '8', '9',  '0', '-', '=',  '?',
-    '?', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p',  '[', ']', '?',  '?',
-    'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', '?', '\\', 'z',
-    'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', '?', '?',  '?', ' '};
+    0,   0,   '1', '2', '3', '4', '5', '6', '7', '8', '9',  '0', '-', '=',  0,
+    0,   'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p',  '[', ']', 0,    0,
+    'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', 0,   '\\', 'z',
+    'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 0,   0,    0,   ' '};
 
 const char sc_ascii_shifted[] = {
-    '?', '?', '!', '@', '#', '$', '%', '^', '&', '*', '(',  ')', '_', '+', '?',
-    '?', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',  '{', '}', '?', '?',
-    'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '\"', '~', '?', '|', 'Z',
-    'X', 'C', 'V', 'B', 'N', 'M', '<', '>', '?', '?', '?',  '?', ' '};
+    0,   0,   '!', '@', '#', '$', '%', '^', '&', '*', '(',  ')', '_', '+', 0,
+    0,   'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',  '{', '}', 0,   0,
+    'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '\"', '~', 0,   '|', 'Z',
+    'X', 'C', 'V', 'B', 'N', 'M', '<', '>', '?', 0,   0,    0,   ' '};
 
 static char scancode_to_ascii(uint8_t scancode, int shift_pressed) {
   if (scancode > SC_MAX)
-    return '?';
+    return 0;
 
   return shift_pressed ? sc_ascii_shifted[scancode] : sc_ascii[scancode];
 }
@@ -88,7 +88,7 @@ static void default_key_handler(uint8_t scancode, char ascii, int is_pressed) {
       kernel_puts("\n");
     }
     clear_key_buffer();
-  } else if (ascii != 0 && ascii != '?') {
+  } else if (ascii != 0) {
     if (kb_ctx.buffer_pos < sizeof(kb_ctx.key_buffer) - 1) {
       kb_ctx.key_buffer[kb_ctx.buffer_pos] = ascii;
       kb_ctx.buffer_pos++;

@@ -72,6 +72,7 @@ typedef enum {
 #define SEEK_END 2
 
 void vfs_init_fat16(vfs *fs, fat16_vfs_data *code);
+void vfs_print_tree(vfs *fs, const char *root_path);
 
 #define RAMDISK_MAX_FILES 128
 #define RAMDISK_MAX_FILENAME 64

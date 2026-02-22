@@ -21,9 +21,9 @@ all: format bits $(BUILD_DIR)/kernel.elf disk/fat16.img
 $(BUILD_DIR)/kernel.elf: $(BUILD_DIR)/boot/entry.o ${OBJ}
 	${LD} -o $@ -T kernel.ld $^
 
-# prolog_demo.c is a unity build of third-party code; suppress warnings so the
+# prolog_repl.c is a unity build of third-party code; suppress warnings so the
 # strict kernel flags don't reject upstream prolog's source style.
-$(BUILD_DIR)/apps/prolog_demo.o: apps/prolog_demo.c ${HEADERS}
+$(BUILD_DIR)/apps/prolog_repl.o: apps/prolog_repl.c ${HEADERS}
 	${CC} ${CFLAGS} ${CFLAGSNO} -w -c $< -o $@
 
 $(BUILD_DIR)/%.o: %.c ${HEADERS}
