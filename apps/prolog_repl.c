@@ -553,7 +553,7 @@ void prolog_repl(vfs *fs) {
 
   setup_io_hooks(ctx);
   register_os_builtins(ctx, fs);
-  load_prolog_from_vfs(ctx, fs, "/core.pl");
+  load_prolog_from_vfs(ctx, fs, "/fd/core.pl");
 
   keyboard_ctx_t *kb = get_kb_ctx();
   enter_handler_t old_handler = kb->enter_handler;
