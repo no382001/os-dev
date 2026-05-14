@@ -52,7 +52,7 @@ typedef struct dhcp_packet {
   uint8_t options[308]; // increase this size to ensure enough space
 } __attribute__((packed)) dhcp_packet_t;
 
-int gethostaddr(char *addr);
+int gethostaddr(uint8_t *addr);
 void dhcp_discover();
 void dhcp_request(uint8_t *requested_ip);
 void dhcp_handle_packet(dhcp_packet_t *packet);

@@ -6,11 +6,6 @@
 #include "libc/string.h"
 #include "network.h"
 
-/*
- */
-#undef serial_debug
-#define serial_debug(...)
-
 uint8_t my_ip[] = {0, 0, 0, 0};
 
 void get_ip_str(char *ip_str, uint8_t *ip) {
@@ -90,15 +85,15 @@ void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
   memcpy(packet->data, data, len);
 
   uint8_t dst_mac[6] = {0};
-  if (arp_lookup(dst_mac, dst_ip) == 0) {
+  uint8_t broadcast_ip[4] = {255, 255, 255, 255};
+  if (memcmp(dst_ip, broadcast_ip, 4) == 0) {
+    memset(dst_mac, 0xff, 6);
+  } else if (arp_lookup(dst_mac, dst_ip) == 0) {
     serial_debug("no MAC found for IP %d.%d.%d.%d - sending ARP request",
                  dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3]);
 
     uint8_t broadcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     arp_send_packet(broadcast_mac, dst_ip);
-    // TODO we could queue the packet here for later transmission
-    // cuz we miss a packet now
-    // also i should add the mac to the lut when it arrives
     kfree(packet);
     return;
   }
@@ -136,7 +131,7 @@ void ip_handle_packet(ethernet_frame_t *frame) {
     int data_len = ntohs(packet->length) - sizeof(ip_packet_t);
 
     if (packet->protocol == PROTOCOL_UDP) {
-      udp_handle_packet(data_ptr);
+      udp_handle_packet(data_ptr, packet->src_ip);
     } else if (packet->protocol == PROTOCOL_ICMP) {
       icmp_handle_packet((icmp_packet_t *)data_ptr, data_len, packet->src_ip);
     }

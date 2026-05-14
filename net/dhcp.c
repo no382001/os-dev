@@ -6,18 +6,13 @@
 #include "rtl8139.h"
 #include "udp.h"
 
-/*
- */
-#undef serial_debug
-#define serial_debug(...)
-
 extern uint8_t my_ip[4];
 int is_ip_allocated = 0;
 int is_ip_offered = 0;
 uint32_t dhcp_server_ip = 0;
 uint32_t prev_requested_ip = 0;
 
-int gethostaddr(char *addr) {
+int gethostaddr(uint8_t *addr) {
   memcpy(addr, my_ip, 4);
   return is_ip_allocated;
 }
@@ -214,7 +209,8 @@ void dhcp_handle_packet(dhcp_packet_t *packet) {
     }
     memcpy(my_ip, &packet->your_ip, 4);
     is_ip_allocated = 1;
-    serial_debug("we got an ip!");
+    serial_debug("we got an ip: %d.%d.%d.%d", my_ip[0], my_ip[1], my_ip[2],
+                 my_ip[3]);
 
     // process other configuration options (subnet, router, DNS)
     uint8_t *subnet_mask = get_dhcp_option(packet, DHCP_OPT_SUBNET_MASK);

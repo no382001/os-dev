@@ -6,11 +6,6 @@
 #include "libc/string.h"
 #include "net/network.h"
 
-/*
- */
-#undef serial_debug
-#define serial_debug(...)
-
 pci_dev_t pci_rtl8139_device;
 rtl8139_dev_t rtl8139_device;
 
@@ -50,8 +45,10 @@ void rtl8139_handler(registers_t *reg) {
     serial_debug("packet sent");
   }
   if (status & ROK) {
-    serial_debug("packet received");
-    receive_packet();
+    while (!(port_byte_in(rtl8139_device.io_base + ChipCmd) & RX_BUFE)) {
+      serial_debug("packet received");
+      receive_packet();
+    }
   }
 
   port_word_out(rtl8139_device.io_base + 0x3E, 0x5);

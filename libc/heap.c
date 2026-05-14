@@ -6,11 +6,11 @@
 // i have no idea what license it is
 
 /*
+ */
 #undef serial_debug
 #define serial_debug(...)
 #undef serial_printff
 #define serial_printff(...)
- */
 
 #undef offsetof
 #define offsetof(a, b) ((int)(&(((a *)(0))->b)))

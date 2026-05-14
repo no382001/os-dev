@@ -1,15 +1,11 @@
 #include "udp.h"
+#include "9p/server.h"
 #include "dhcp.h"
 #include "drivers/serial.h"
 #include "ip.h"
 #include "libc/heap.h"
 #include "libc/mem.h"
 #include "network.h"
-
-/*
- */
-#undef serial_debug
-#define serial_debug(...)
 
 uint16_t udp_calculate_checksum(udp_packet_t *packet) {
   (void)packet;
@@ -38,18 +34,21 @@ void udp_send_packet(uint8_t *dst_ip, uint16_t src_port, uint16_t dst_port,
   ip_send_packet(dst_ip, packet, length);
 }
 
-void udp_handle_packet(udp_packet_t *packet) {
-  // uint16_t src_port = ntohs(packet->src_port);
+void udp_handle_packet(udp_packet_t *packet, uint8_t *src_ip) {
+  uint16_t src_port = ntohs(packet->src_port);
   uint16_t dst_port = ntohs(packet->dst_port);
   uint16_t length = ntohs(packet->length);
 
   void *data_ptr = (void *)((uint8_t *)packet + sizeof(udp_packet_t));
+  uint32_t data_len = length > sizeof(udp_packet_t)
+                          ? length - (uint16_t)sizeof(udp_packet_t)
+                          : 0;
   serial_debug("received UDP packet, dst_port %d", dst_port);
 
   if (dst_port == DHCP_CLIENT) {
     serial_debug("dhcp!");
     dhcp_handle_packet(data_ptr);
   } else if (dst_port == 9999) {
-    // ninep_handle_packet(data_ptr, length);
+    ninep_server_handle(data_ptr, data_len, src_ip, src_port);
   }
 }

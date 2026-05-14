@@ -765,14 +765,29 @@ static int64_t unified_seek(vfs *fs, int fd, int64_t offset, int whence) {
 }
 
 static int unified_stat(vfs *fs, const char *path, vfs_stat *st) {
+  (void)fs;
   char mount_point[64], relative_path[512];
   if (unified_parse_path(path, mount_point, relative_path) != 0) {
     return VFS_ERROR;
   }
 
+  if (mount_point[0] == '\0') {
+    memset(st, 0, sizeof(vfs_stat));
+    st->type = FS_TYPE_DIRECTORY;
+    strcpy(st->name, "/");
+    return VFS_SUCCESS;
+  }
+
   vfs *target_vfs = unified_find_target_vfs(mount_point);
   if (!target_vfs)
     return VFS_ENOENT;
+
+  if (strcmp(relative_path, "/") == 0) {
+    memset(st, 0, sizeof(vfs_stat));
+    st->type = FS_TYPE_DIRECTORY;
+    strcpy(st->name, mount_point);
+    return VFS_SUCCESS;
+  }
 
   return target_vfs->stat(target_vfs, relative_path, st);
 }

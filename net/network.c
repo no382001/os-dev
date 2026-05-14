@@ -6,11 +6,6 @@
 #include "libc/mem.h"
 #include "rtl8139.h"
 
-/*
- */
-#undef serial_debug
-#define serial_debug(...)
-
 int ethernet_send_packet(uint8_t *dst_mac_addr, uint8_t *data, int len,
                          uint16_t protocol) {
   uint8_t src_mac_addr[6];

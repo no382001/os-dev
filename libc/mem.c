@@ -81,12 +81,13 @@ void *memmove(void *dest, const void *src, size_t num_bytes) {
   return dest;
 }
 
-uint32_t memcmp(uint8_t *data1, uint8_t *data2, uint32_t n) {
+int memcmp(const void *a, const void *b, size_t n) {
+  const uint8_t *p1 = a, *p2 = b;
   while (n--) {
-    if (*data1 != *data2)
-      return 1;
-    data1++;
-    data2++;
+    if (*p1 != *p2)
+      return *p1 < *p2 ? -1 : 1;
+    p1++;
+    p2++;
   }
   return 0;
 }

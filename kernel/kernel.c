@@ -1,4 +1,5 @@
 
+#include "9p/server.h"
 #include "bits.h"
 
 void selftest(void);
@@ -252,7 +253,19 @@ void kernel_main(void) {
   init_tasking();
   selftest();
 
+  kernel_printf("- initializing network...\n");
+  rtl8139_init();
+  dhcp_discover();
+  {
+    uint8_t ip[4];
+    while (!gethostaddr(ip))
+      ;
+    kernel_printf("- got ip: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+  }
+
   vfs *unified_vfs = init_vfs();
+
+  ninep_server_init(unified_vfs);
 
   prolog_repl(unified_vfs);
 

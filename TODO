@@ -93,3 +93,15 @@ CCPARMS= -Wall -Wextra -pedantic -O2 -Wshadow -Wpointer-arith -Wcast-align -Wwri
    -Wunknown-pragmas -Wno-pragmas -Wno-unused -Wunused-function -Wunused-label 
    -Wunused-parameter -Wunused-value -Wunused-variable -Wvariadic-macros 
    -Wvolatile-register-var -Wwrite-strings -Wdisabled-optimization -Werror
+
+
+NEW:
+- quickly finish the 9p and remaining vfs implementation
+- THEN port everything to grub or that lime whatever bootloader
+- maybe think about reproducibility and system testing first, after setting up 9p as the vfs i could tesst from prolog
+- the kernel should be ring0 and very minimal, just enough to be able to exec elf32s and recompile itself from some supplied tcc binary, even from the outside?
+
+
+im envisioning a haskell like curried script language based on prolog
+that when typing, if the function 'effect' is known would light up over it, so you would see in real time if you need to . or not
+this would replace piping, or is that actually in haskell? i dont remember

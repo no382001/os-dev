@@ -26,6 +26,7 @@ $(BUILD_DIR)/kernel.elf: $(BUILD_DIR)/boot/entry.o ${OBJ}
 $(BUILD_DIR)/apps/prolog_repl.o: apps/prolog_repl.c ${HEADERS}
 	${CC} ${CFLAGS} ${CFLAGSNO} -w -c $< -o $@
 
+
 $(BUILD_DIR)/%.o: %.c ${HEADERS}
 	${CC} ${CFLAGS} ${CFLAGSNO} -c $< -o $@
 

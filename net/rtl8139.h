@@ -10,6 +10,7 @@
 
 #define CAPR 0x38
 #define RX_READ_POINTER_MASK (~3)
+#define RX_BUFE (1 << 0) // ChipCmd bit: RX buffer empty
 #define ROK (1 << 0)
 #define RER (1 << 1)
 #define TOK (1 << 2)
