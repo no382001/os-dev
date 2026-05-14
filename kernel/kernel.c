@@ -257,9 +257,15 @@ void kernel_main(void) {
   rtl8139_init();
   dhcp_discover();
   {
+    extern uint32_t tick;
     uint8_t ip[4];
-    while (!gethostaddr(ip))
-      ;
+    uint32_t last_discover = tick;
+    while (!gethostaddr(ip)) {
+      if (tick - last_discover > 200) {
+        dhcp_discover();
+        last_discover = tick;
+      }
+    }
     kernel_printf("- got ip: %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
   }
 
