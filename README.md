@@ -1,24 +1,18 @@
-## features
-`+` done <br>
-`~` functional, could be improved
+## what has
 
-| category              | component                 | status |                           |
-| --------------------- | ------------------------- | ------ | ------------------------- |
-| **memory management** | paging                    | +      | virtual memory support    |
-|                       | dynamic memory allocation | ~      | heap management           |
-| **file system**       | fat16                     | +      |                           |
-| **input/output**      | keyboard                  | +      | keyboard input handling   |
-|                       | serial                    | +      | serial communication      |
-| **graphics**          | text mode (03h)           | +      | 80x25 text display        |
-|                       | vga mode (12h)            | +      | 640x480 16-color graphics |
-|                       | bdf font rendering        | ~      | bdf font support          |
-| **networking**        | arp protocol              | +      |                           |
-|                       | ip protocol               | +      |                           |
-|                       | dhcp                      | +      | can get dynamic ip        |
-|                       | icmp protocol             | +      | can be pinged             |
-|                       | udp protocol              | +      |                           |
-|                       | rtl8139 driver            | +      | network card              |
-| **system**            | multitasking              | ~      |                           |
+**memory** - paging, heap allocator, placement allocator for early boot
+
+**filesystem** - unified VFS, ramdisk, FAT16
+
+**networking** - RTL8139 driver, ARP, IP, ICMP, UDP, DHCP
+
+**9P server** - kernel VFS exposed over 9P2000/UDP on port 9999; host can mount and read/write it
+
+**multitasking** - preemptive round-robin scheduler, semaphores
+
+**prolog repl** - embedded [trilog](https://github.com/no382001/trilog) interpreter with FFI; with some predicates to interact with the system
+
+**display** - 80×25 text mode, VGA 640×480 16-color, BDF font rendering
 
 ## building
 ### locally
@@ -64,7 +58,7 @@ docker compose -f tools/c9/docker-compose.yml up
 The treewalk walks the entire VFS and prints the directory tree:
 
 ```
-connected — walking /
+connected - walking /
 
 d  fd  (0 bytes)
   -  CORE.PL  (1387 bytes)
