@@ -18,6 +18,8 @@
 ### locally
 ```bash
 apt install build-essential nasm qemu-system-x86 gdb clang-format tcpdump dnsmasq bridge-utils iproute2 net-tools procps mtools dosfstools
+git clone --recurse-submodules <repo>
+make
 ```
 ### docker
 ```bash
