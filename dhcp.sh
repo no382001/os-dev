@@ -2,4 +2,4 @@ ip tuntap add dev tap0 mode tap
 ip addr add 192.168.100.1/24 dev tap0
 ip link set tap0 up
 
-dnsmasq --interface=tap0 --dhcp-range=192.168.100.10,192.168.100.50,12h --log-dhcp --no-daemon --no-ping --dhcp-authoritative > /dev/null 2>&1 &
+dnsmasq --interface=tap0 --dhcp-range=192.168.100.10,192.168.100.50,12h --dhcp-host=52:54:00:12:34:56,192.168.100.10 --log-dhcp --no-daemon --no-ping --dhcp-authoritative > /dev/null 2>&1 &

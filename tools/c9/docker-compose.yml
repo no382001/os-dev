@@ -1,0 +1,45 @@
+services:
+  # os-dev kernel: TAP networking (real path), KVM, VNC on :1.
+  # dhcp.sh sets up tap0 + dnsmasq; VM gets 192.168.100.10.
+  # Port 7564 is exposed here because the bridge shares this
+  # network namespace and listens on it.
+  # Build the os-dev image first: docker build -t os-dev ../..
+  kernel:
+    image: os-dev
+    privileged: true
+    cap_add: [NET_ADMIN]
+    devices:
+      - /dev/kvm:/dev/kvm
+    ports:
+      - "5901:5901"
+      - "7564:7564"
+    volumes:
+      - ../..:/workspace
+    working_dir: /workspace
+    command: bash -c "bash dhcp.sh && exec make vnc"
+
+  # bridge shares the kernel container's network namespace so it
+  # can reach the VM at 192.168.100.10:9999 over tap0.
+  bridge:
+    build:
+      context: .
+      dockerfile: bridge/Dockerfile
+    network_mode: "service:kernel"
+    depends_on:
+      - kernel
+
+  # treewalk connects to the bridge on kernel:7564 and tells it
+  # to connect to the VM's 9P server at 192.168.100.10:9999.
+  treewalk:
+    image: swipl
+    depends_on:
+      - bridge
+    environment:
+      C9_BRIDGE_HOST: kernel
+      C9_BRIDGE_PORT: 7564
+      KERNEL_HOST: 192.168.100.10
+      KERNEL_PORT: 9999
+    volumes:
+      - ./prolog:/prolog
+      - ./examples/prolog:/examples
+    command: swipl -f /examples/treewalk.pl
