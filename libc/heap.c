@@ -12,6 +12,8 @@
 #undef serial_printff
 #define serial_printff(...)
 
+// TODO: debug prints needs to be reworked here, but the allcator is buggyy either way
+
 #undef offsetof
 #define offsetof(a, b) ((int)(&(((a *)(0))->b)))
 #define nil 0

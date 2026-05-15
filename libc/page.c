@@ -2,11 +2,6 @@
 #include "drivers/serial.h"
 // https://web.archive.org/web/20160326061042/http://jamesmolloy.co.uk/tutorial_html/6.-Paging.html
 
-/** /
-#undef serial_debug
-#define serial_debug(...)
-/**/
-
 #define kernel_panic(...)                                                      \
   do {                                                                         \
     serial_debug(__VA_ARGS__);                                                 \

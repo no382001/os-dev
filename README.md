@@ -71,8 +71,6 @@ d  fd  (0 bytes)
   d  FONTS  (0 bytes)
       -  VIII.BDF  (19389 bytes)
       -  tom-thumb.bdf  (19864 bytes)
-  -  HELLO.C  (86 bytes)
-  -  TCC  (1150388 bytes)
 d  ramdisk  (0 bytes)
 ```
 

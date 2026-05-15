@@ -4,11 +4,6 @@
 #include "libc/mem.h"
 #include "libc/string.h"
 
-/*
-#undef serial_debug
-#define serial_debug(...)
-*/
-
 /**
  * RAMDISK
  */

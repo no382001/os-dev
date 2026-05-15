@@ -2,6 +2,8 @@
 #include "9p/server.h"
 #include "bits.h"
 
+int log_enabled[LOG_MODULE_COUNT];
+
 void selftest(void);
 void fvm_test(void);
 
@@ -231,6 +233,9 @@ void vfs_print_current_tree(vfs *fs);
 void kernel_main(void) {
   // be very careful, sometimes un-inited modules work even in kvm, for some
   // time, then they 3F
+  for (int i = 0; i < LOG_MODULE_COUNT; i++)
+    log_enabled[i] = 1;
+
   kernel_clear_screen();
 
   isr_install();

@@ -126,6 +126,28 @@ static char *pl_fgets(char *s, int n, FILE *f) {
 #include "trilog/src/term.c"
 #include "trilog/src/unify.c"
 
+static volatile int repl_char_ready = 0;
+static volatile char repl_char_val = 0;
+
+static void repl_char_capture(uint8_t scancode, char ascii, int is_pressed) {
+  (void)scancode;
+  if (!is_pressed || !ascii)
+    return;
+  repl_char_val = ascii;
+  repl_char_ready = 1;
+}
+
+static int repl_read_key_hook(trilog_ctx_t *ctx, void *ud) {
+  (void)ctx;
+  (void)ud;
+  repl_char_ready = 0;
+  key_handler_t old = register_key_handler(repl_char_capture);
+  while (!repl_char_ready)
+    ;
+  register_key_handler(old);
+  return (int)(unsigned char)repl_char_val;
+}
+
 static void pl_write_str(trilog_ctx_t *ctx, const char *str, void *ud) {
   (void)ctx;
   (void)ud;
@@ -151,6 +173,7 @@ static void setup_io_hooks(trilog_ctx_t *ctx) {
   hooks.write_str = pl_write_str;
   hooks.writef = pl_writef;
   hooks.write_term = pl_write_term_hook;
+  hooks.read_char = repl_read_key_hook;
   io_hooks_set(ctx, &hooks);
 }
 
@@ -333,6 +356,60 @@ static int ffi_dhcp(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   return 1;
 }
 
+/* loglevel_pairs(-Pairs) — returns [udp-on, ip-off, ...] */
+static int ffi_loglevel_pairs(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
+  extern int log_enabled[];
+  term_t *list = make_const(ctx, "[]");
+  for (int i = LOG_MODULE_COUNT - 1; i >= 0; i--) {
+    const char *lvl = log_enabled[i] ? "on" : "off";
+    term_t *pair_args[2] = {make_const(ctx, log_module_name((log_module_t)i)),
+                            make_const(ctx, lvl)};
+    term_t *pair = make_func(ctx, "-", pair_args, 2);
+    term_t *largs[2] = {pair, list};
+    list = make_func(ctx, ".", largs, 2);
+  }
+  return unify(ctx, goal->args[0], list, env) ? 1 : -1;
+}
+
+/* setloglevel(Module, Level) — set log level for a module (on/off) */
+static int ffi_setloglevel(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
+  (void)ctx;
+  extern int log_enabled[];
+  term_t *mod_arg = deref(env, goal->args[0]);
+  term_t *lvl_arg = deref(env, goal->args[1]);
+  log_module_t m = log_module_from_name(mod_arg->name);
+  if (m == LOG_MODULE_COUNT)
+    return -1;
+  if (strcmp(lvl_arg->name, "on") == 0)
+    log_enabled[m] = 1;
+  else if (strcmp(lvl_arg->name, "off") == 0)
+    log_enabled[m] = 0;
+  else
+    return -1;
+  return 1;
+}
+
+/* ip(Ip) — unify Ip with current IP as [A,B,C,D] or [not_set] */
+static int ffi_ip(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
+  extern int gethostaddr(uint8_t * addr);
+  uint8_t addr[4];
+  term_t *empty = make_const(ctx, "[]");
+  term_t *list;
+  if (gethostaddr(addr)) {
+    list = empty;
+    for (int i = 3; i >= 0; i--) {
+      char buf[4];
+      snprintf(buf, sizeof(buf), "%d", addr[i]);
+      term_t *largs[2] = {make_const(ctx, buf), list};
+      list = make_func(ctx, ".", largs, 2);
+    }
+  } else {
+    term_t *largs[2] = {make_const(ctx, "not_set"), empty};
+    list = make_func(ctx, ".", largs, 2);
+  }
+  return unify(ctx, goal->args[0], list, env) ? 1 : -1;
+}
+
 /* listing/0 — show all clauses in the database */
 static int ffi_listing(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   (void)goal;
@@ -373,6 +450,11 @@ static void register_os_builtins(trilog_ctx_t *ctx, vfs *fs) {
   ffi_register_builtin(ctx, "tree", 1, ffi_tree, fs);
   ffi_register_builtin(ctx, "net_init", 0, ffi_net_init, NULL);
   ffi_register_builtin(ctx, "dhcp", 0, ffi_dhcp, NULL);
+  ffi_register_builtin(ctx, "loglevel_pairs", 1, ffi_loglevel_pairs, NULL);
+  ffi_register_builtin(ctx, "setloglevel", 2, ffi_setloglevel, NULL);
+  trilog_exec_query(
+      ctx, "assertz((loglevel(M,L) :- loglevel_pairs(Ps), member(M-L, Ps))).");
+  ffi_register_builtin(ctx, "ip", 1, ffi_ip, NULL);
   ffi_register_builtin(ctx, "help", 0, ffi_help, NULL);
   ffi_register_builtin(ctx, "listing", 0, ffi_listing, NULL);
 }
@@ -489,11 +571,44 @@ static void repl_process_line(trilog_ctx_t *ctx, const char *line) {
 
   parse_error_clear(ctx);
 
-  const char *query = line;
-  if (line[0] == '?' && line[1] == '-')
-    query = line + 2;
+  typedef struct {
+    bool first;
+    bool done;
+    bool want_more;
+  } istate_t;
 
-  trilog_exec_query(ctx, (char *)query);
+  bool icb(trilog_ctx_t * ictx, env_t * ienv, void *ud, bool has_more) {
+    istate_t *st = ud;
+    st->want_more = false;
+    io_write_str(ictx, st->first ? "   " : "\n;  ");
+    st->first = false;
+    print_bindings(ictx, ienv);
+    if (!has_more) {
+      io_write_str(ictx, ".\n");
+      st->done = true;
+      return false;
+    }
+    int c = io_read_char(ictx);
+    st->want_more = (c == ';' || c == ' ');
+    if (!st->want_more) {
+      io_write_str(ictx, ".\n");
+      st->done = true;
+    }
+    return st->want_more;
+  }
+
+  char *qptr = (char *)line;
+  if (line[0] == '?' && line[1] == '-')
+    qptr = (char *)line + 2;
+
+  istate_t st = {.first = true};
+  bool found = trilog_exec_query_multi(ctx, qptr, icb, &st);
+  if (!ctx->has_runtime_error && (!found || st.want_more))
+    kernel_printf("   false.\n");
+  else if (found && !st.done)
+    kernel_printf(".\n");
+  ctx->has_runtime_error = false;
+
   if (parse_has_error(ctx))
     kernel_printf("error: %s\n", ctx->error.message);
 }

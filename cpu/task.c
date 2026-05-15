@@ -7,11 +7,6 @@
 #include "libc/mem.h"
 #include "libc/utils.h"
 
-/**
- **/
-#undef serial_debug
-#define serial_debug(...)
-
 volatile int current_task_idx = 0;
 volatile int active_tasks = 0;
 task_t tasks[MAX_TASK] = {0};

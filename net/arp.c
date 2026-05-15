@@ -5,11 +5,6 @@
 #include "network.h"
 #include "rtl8139.h"
 
-/*
- */
-#undef serial_debug
-#define serial_debug(...)
-
 #define ARP_TABLE_MAX 16
 arp_table_entry_t arp_table[ARP_TABLE_MAX] = {0};
 int arp_table_curr = 0;
