@@ -15,7 +15,7 @@ page tables are
     heap things
 */
 #define KHEAP_START 0xC0100000
-#define KHEAP_INITIAL_SIZE 0x100000
+#define KHEAP_INITIAL_SIZE 0x1000000
 #define HEAP_INDEX_SIZE 0x20000
 #define HEAP_MAGIC 0x123890AB
 #define HEAP_MIN_SIZE 0x70000
@@ -26,7 +26,7 @@ page tables are
 #define STACK_TOP (STACK_BOTTOM + STACK_SIZE)
 
 // the available pagable RAM
-#define END_OF_MEMORY 0x4000000 // 4M
+#define END_OF_MEMORY 0x2000000 // 32MB physical
 
 /*
 +----------------------+  0x00000

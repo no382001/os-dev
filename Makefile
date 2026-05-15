@@ -12,7 +12,7 @@ USAN = -fsanitize=undefined -fno-sanitize=shift
 CFLAGS = -g -O0 -m32 -fno-pie -ffreestanding -nostdlib -fno-builtin -nodefaultlibs -nostartfiles -Werror -Wpedantic -Wall -Wextra -I$(shell pwd)
 NETWORKING = -netdev tap,id=net0,ifname=tap0,script=no,downscript=no -device rtl8139,netdev=net0
 QEMU_FLAGS=-no-shutdown -no-reboot
-RUN = qemu-system-i386  $(QEMU_FLAGS) -m 4 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -d int,cpu_reset,guest_errors -D qemu.log -trace kvm* -D kvm_trace.log
+RUN = qemu-system-i386  $(QEMU_FLAGS) -m 32 -serial stdio -kernel $(BUILD_DIR)/kernel.elf -drive file=disk/fat16.img,format=raw -d int,cpu_reset,guest_errors -D qemu.log -trace kvm* -D kvm_trace.log
 
 $(shell mkdir -p $(BUILD_DIR)/boot $(BUILD_DIR)/kernel $(BUILD_DIR)/drivers $(BUILD_DIR)/cpu $(BUILD_DIR)/libc $(BUILD_DIR)/apps $(BUILD_DIR)/net $(BUILD_DIR)/fs $(BUILD_DIR)/9p)
 
@@ -53,12 +53,12 @@ clean:
 	rm -rf $(BUILD_DIR) bits.h disk/fat16.img kernel.elf
 
 format:
-	find . \( -name '*.h' -o -name '*.c' \) -not -path "./9p/*" -not -path "./apps/prolog/*" | xargs clang-format -i
+	find . \( -name '*.h' -o -name '*.c' \) -not -path "./9p/*" -not -path "./apps/trilog/*" -not -path "./tools/c9/*" | xargs clang-format -i
 
 OUTPUT_FILE = bits.h
 bits:
 	echo "#pragma once" > $(OUTPUT_FILE)
-	find . -type f -name "*.h" -not -path "./9p/*" -not -path "./apps/prolog/*" 2>/dev/null | sed 's|^./||' | awk '{print "#include \"" $$0 "\""}' >> $(OUTPUT_FILE)
+	find . -type f -name "*.h" -not -path "./9p/*" -not -path "./apps/trilog/*" -not -path "./tools/c9/*" 2>/dev/null | sed 's|^./||' | awk '{print "#include \"" $$0 "\""}' >> $(OUTPUT_FILE)
 
 debug: all
 	$(RUN) -s -S $(NETWORKING)

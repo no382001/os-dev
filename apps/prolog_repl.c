@@ -1,4 +1,4 @@
-#define PROLOG_FREESTANDING
+#define TRILOG_FREESTANDING
 
 #include "bits.h"
 
@@ -112,24 +112,27 @@ static char *pl_fgets(char *s, int n, FILE *f) {
 }
 #define fgets pl_fgets
 
-#include "prolog/src/builtins.c"
-#include "prolog/src/debug.c"
-#include "prolog/src/env.c"
-#include "prolog/src/ffi.c"
-#include "prolog/src/io.c"
-#include "prolog/src/parse.c"
-#include "prolog/src/print.c"
-#include "prolog/src/solve.c"
-#include "prolog/src/term.c"
-#include "prolog/src/unify.c"
+#include "trilog/src/arith.c"
+#include "trilog/src/builtins.c"
+#include "trilog/src/debug.c"
+#include "trilog/src/env.c"
+#include "trilog/src/errors.c"
+#include "trilog/src/ffi.c"
+#include "trilog/src/io.c"
+#include "trilog/src/parse.c"
+#include "trilog/src/print.c"
+#include "trilog/src/solve.c"
+#include "trilog/src/streams.c"
+#include "trilog/src/term.c"
+#include "trilog/src/unify.c"
 
-static void pl_write_str(prolog_ctx_t *ctx, const char *str, void *ud) {
+static void pl_write_str(trilog_ctx_t *ctx, const char *str, void *ud) {
   (void)ctx;
   (void)ud;
   kernel_puts((char *)str);
 }
 
-static void pl_writef(prolog_ctx_t *ctx, const char *fmt, va_list args,
+static void pl_writef(trilog_ctx_t *ctx, const char *fmt, va_list args,
                       void *ud) {
   (void)ctx;
   (void)ud;
@@ -137,13 +140,13 @@ static void pl_writef(prolog_ctx_t *ctx, const char *fmt, va_list args,
     _vprintf(kernel_putc, fmt, args);
 }
 
-static void pl_write_term_hook(prolog_ctx_t *ctx, term_t *t, env_t *env,
+static void pl_write_term_hook(trilog_ctx_t *ctx, term_t *t, env_t *env,
                                void *ud) {
   (void)ud;
-  print_term(ctx, t, env);
+  print_term(ctx, t, env, false);
 }
 
-static void setup_io_hooks(prolog_ctx_t *ctx) {
+static void setup_io_hooks(trilog_ctx_t *ctx) {
   io_hooks_t hooks = {0};
   hooks.write_str = pl_write_str;
   hooks.writef = pl_writef;
@@ -154,13 +157,12 @@ static void setup_io_hooks(prolog_ctx_t *ctx) {
 /* ── OS FFI builtins ────────────────────────────────────────────────────── */
 
 /* ls(Path, Files) — unify Files with list of f(Name, dir|file) terms */
-static int ffi_ls(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
+static int ffi_ls(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   custom_builtin_t *cb = ffi_get_builtin_userdata(ctx, goal);
   vfs *fs = (vfs *)cb->userdata;
 
   term_t *path_arg = deref(env, goal->args[0]);
-  const char *path =
-      (path_arg->type == STRING) ? path_arg->string_data : path_arg->name;
+  const char *path = path_arg->name;
 
   int fd;
   if (fs->open(fs, path, VFS_READ, &fd) != VFS_SUCCESS)
@@ -188,13 +190,12 @@ static int ffi_ls(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
 }
 
 /* file_size(Path, Size) — unify Size with file size in bytes */
-static int ffi_file_size(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
+static int ffi_file_size(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   custom_builtin_t *cb = ffi_get_builtin_userdata(ctx, goal);
   vfs *fs = (vfs *)cb->userdata;
 
   term_t *path_arg = deref(env, goal->args[0]);
-  const char *path =
-      (path_arg->type == STRING) ? path_arg->string_data : path_arg->name;
+  const char *path = path_arg->name;
 
   vfs_stat st;
   if (fs->stat(fs, path, &st) != VFS_SUCCESS)
@@ -206,7 +207,7 @@ static int ffi_file_size(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
 }
 
 /* tick(T) — unify T with current timer tick count */
-static int ffi_tick(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
+static int ffi_tick(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   extern uint32_t tick;
   char buf[32];
   snprintf(buf, sizeof(buf), "%d", (int)tick);
@@ -214,7 +215,7 @@ static int ffi_tick(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
 }
 
 /* ksleep(N) — sleep for N timer ticks */
-static int ffi_ksleep(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
+static int ffi_ksleep(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   (void)ctx;
   term_t *arg = deref(env, goal->args[0]);
   int n = (int)pl_strtol(arg->name, 0, 10);
@@ -223,7 +224,7 @@ static int ffi_ksleep(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
 }
 
 /* assertz(Clause) — add clause to database at runtime */
-static int ffi_assertz(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
+static int ffi_assertz(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   if (ctx->db_count >= MAX_CLAUSES)
     return -1;
 
@@ -253,14 +254,12 @@ static int ffi_assertz(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
 }
 
 /* path_join(Base, Name, Result) — join path segments */
-static int ffi_path_join(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
+static int ffi_path_join(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   term_t *base_arg = deref(env, goal->args[0]);
   term_t *name_arg = deref(env, goal->args[1]);
 
-  const char *base =
-      (base_arg->type == STRING) ? base_arg->string_data : base_arg->name;
-  const char *name =
-      (name_arg->type == STRING) ? name_arg->string_data : name_arg->name;
+  const char *base = base_arg->name;
+  const char *name = name_arg->name;
 
   char buf[512];
   int base_len = strlen(base);
@@ -269,24 +268,24 @@ static int ffi_path_join(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
   else
     snprintf(buf, sizeof(buf), "%s/%s", base, name);
 
-  return unify(ctx, goal->args[2], make_string(ctx, buf), env) ? 1 : -1;
+  return unify(ctx, goal->args[2], make_str(ctx, buf, strlen(buf)), env) ? 1
+                                                                         : -1;
 }
 
 /* tree(Path) — print filesystem tree using the same renderer as boot */
-static int ffi_tree(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
+static int ffi_tree(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   (void)ctx;
   custom_builtin_t *cb = ffi_get_builtin_userdata(ctx, goal);
   vfs *fs = (vfs *)cb->userdata;
 
   term_t *path_arg = deref(env, goal->args[0]);
-  const char *path =
-      (path_arg->type == STRING) ? path_arg->string_data : path_arg->name;
+  const char *path = path_arg->name;
 
   vfs_print_tree(fs, path);
   return 1;
 }
 
-static int ffi_help(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
+static int ffi_help(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   (void)goal;
   (void)env;
 
@@ -314,8 +313,28 @@ static int ffi_help(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
   return 1;
 }
 
+/* net_init/0 — initialize the RTL8139 NIC */
+static int ffi_net_init(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
+  (void)ctx;
+  (void)goal;
+  (void)env;
+  extern void rtl8139_init(void);
+  rtl8139_init();
+  return 1;
+}
+
+/* dhcp/0 — send one DHCP discover (non-blocking) */
+static int ffi_dhcp(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
+  (void)ctx;
+  (void)goal;
+  (void)env;
+  extern void dhcp_discover(void);
+  dhcp_discover();
+  return 1;
+}
+
 /* listing/0 — show all clauses in the database */
-static int ffi_listing(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
+static int ffi_listing(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   (void)goal;
   (void)env;
 
@@ -344,7 +363,7 @@ static int ffi_listing(prolog_ctx_t *ctx, term_t *goal, env_t *env) {
   return 1;
 }
 
-static void register_os_builtins(prolog_ctx_t *ctx, vfs *fs) {
+static void register_os_builtins(trilog_ctx_t *ctx, vfs *fs) {
   ffi_register_builtin(ctx, "ls", 2, ffi_ls, fs);
   ffi_register_builtin(ctx, "file_size", 2, ffi_file_size, fs);
   ffi_register_builtin(ctx, "tick", 1, ffi_tick, NULL);
@@ -352,6 +371,8 @@ static void register_os_builtins(prolog_ctx_t *ctx, vfs *fs) {
   ffi_register_builtin(ctx, "assertz", 1, ffi_assertz, NULL);
   ffi_register_builtin(ctx, "path_join", 3, ffi_path_join, NULL);
   ffi_register_builtin(ctx, "tree", 1, ffi_tree, fs);
+  ffi_register_builtin(ctx, "net_init", 0, ffi_net_init, NULL);
+  ffi_register_builtin(ctx, "dhcp", 0, ffi_dhcp, NULL);
   ffi_register_builtin(ctx, "help", 0, ffi_help, NULL);
   ffi_register_builtin(ctx, "listing", 0, ffi_listing, NULL);
 }
@@ -453,7 +474,7 @@ static void repl_enter_handler(const char *line) {
   repl_line_ready = 1;
 }
 
-static void repl_process_line(prolog_ctx_t *ctx, const char *line) {
+static void repl_process_line(trilog_ctx_t *ctx, const char *line) {
   int len = 0;
   while (line[len])
     len++;
@@ -472,12 +493,12 @@ static void repl_process_line(prolog_ctx_t *ctx, const char *line) {
   if (line[0] == '?' && line[1] == '-')
     query = line + 2;
 
-  prolog_exec_query(ctx, (char *)query);
+  trilog_exec_query(ctx, (char *)query);
   if (parse_has_error(ctx))
     kernel_printf("error: %s\n", ctx->error.message);
 }
 
-static void load_prolog_from_vfs(prolog_ctx_t *ctx, vfs *fs, const char *path) {
+static void load_prolog_from_vfs(trilog_ctx_t *ctx, vfs *fs, const char *path) {
   vfs_stat st;
   if (fs->stat(fs, path, &st) != VFS_SUCCESS) {
     kernel_printf("prolog: %s not found\n", path);
@@ -533,7 +554,7 @@ static void load_prolog_from_vfs(prolog_ctx_t *ctx, vfs *fs, const char *path) {
 
     if (has_complete_clause(clause)) {
       if (strncmp(clause, "?-", 2) == 0)
-        prolog_exec_query(ctx, clause + 2);
+        trilog_exec_query(ctx, clause + 2);
       else
         parse_clause(ctx, clause);
       clause[0] = '\0';
@@ -548,8 +569,8 @@ static void load_prolog_from_vfs(prolog_ctx_t *ctx, vfs *fs, const char *path) {
 }
 
 void prolog_repl(vfs *fs) {
-  prolog_ctx_t *ctx = kmalloc(sizeof(prolog_ctx_t));
-  memset(ctx, 0, sizeof(prolog_ctx_t));
+  trilog_ctx_t *ctx = kmalloc(TRILOG_CTX_SIZE(TERM_POOL_BYTES));
+  trilog_ctx_init(ctx, TERM_POOL_BYTES);
 
   setup_io_hooks(ctx);
   register_os_builtins(ctx, fs);
