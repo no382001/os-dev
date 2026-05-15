@@ -331,27 +331,17 @@ void kheap_watchdog(void *data) {
     hole_t *h;
     int free_chunks = 0;
     uintptr_t free_memory = 0;
-    bool free_list_corrupted = false;
 
     for (h = xlists.table; h != NULL; h = h->link) {
       free_chunks++;
       free_memory += h->size;
 
-      if (h->addr + h->size != h->top) {
-        KLOG(LOG_MODULE_HEAP,
-             "FREE LIST CORRUPTION: Hole at %x has inconsistent "
-             "bounds (addr=%x, size=%d, top=%x)",
-             (uintptr_t)h, h->addr, h->size, h->top);
-        free_list_corrupted = true;
-      }
+      assert(h->addr + h->size == h->top && "heap: hole bounds inconsistent");
 
-      if (h->link != NULL &&
-          ((uintptr_t)h->link < KHEAP_START ||
-           (uintptr_t)h->link >= KHEAP_START + KHEAP_INITIAL_SIZE)) {
-        KLOG(LOG_MODULE_HEAP,
-             "FREE LIST CORRUPTION: Hole at %x has invalid link %x",
-             (uintptr_t)h, (uintptr_t)h->link);
-        free_list_corrupted = true;
+      if (h->link != NULL) {
+        assert((uintptr_t)h->link >= KHEAP_START &&
+               (uintptr_t)h->link < KHEAP_START + KHEAP_INITIAL_SIZE &&
+               "heap: hole link pointer outside heap");
       }
     }
 
@@ -371,7 +361,6 @@ void kheap_watchdog(void *data) {
     }
 
     uintptr_t current_addr = KHEAP_START;
-    int corrupted_blocks = 0;
     int valid_blocks = 0;
     uintptr_t allocated_memory = 0;
 
@@ -405,36 +394,20 @@ void kheap_watchdog(void *data) {
 
           current_addr += block->size;
         } else {
-          if ((block->size & 0x7) == 0 && // size should be aligned to BY2V
-              block->size > 0) {
-
-            KLOG(LOG_MODULE_HEAP,
-                 "POSSIBLE CORRUPTED BLOCK at %x: size=%d, magix=%x "
-                 "(expected %x)",
-                 current_addr, block->size, block->magix, magichole);
-
-            hexdump((const char *)current_addr - 16, 64, 16);
-            corrupted_blocks++;
-
-            current_addr += block->size;
+          if ((block->size & 0x7) == 0 && block->size > 0) {
+            assert(0 && "heap: corrupted block magic");
           } else {
-            current_addr += 4;
+            current_addr += 8;
           }
         }
       } else {
-        current_addr += 4;
+        current_addr += 8;
       }
     }
 
     KLOG(LOG_MODULE_HEAP,
-         "stats: %d valid blocks (%d bytes), %d corrupted, %d free holes (%d "
-         "bytes)",
-         valid_blocks, allocated_memory, corrupted_blocks, free_chunks,
-         free_memory);
-
-    if (free_list_corrupted) {
-      KLOG(LOG_MODULE_HEAP, "WARNING: free list integrity check failed!");
-    }
+         "stats: %d valid (%d bytes), %d free holes (%d bytes)", valid_blocks,
+         allocated_memory, free_chunks, free_memory);
 
     // xsummary();
 
