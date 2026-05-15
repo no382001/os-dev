@@ -16,7 +16,7 @@ services:
     volumes:
       - ../..:/workspace
     working_dir: /workspace
-    command: bash -c "bash dhcp.sh && exec make vnc"
+    command: bash -c "bash tools/dhcp.sh && exec make vnc"
 
   # bridge shares the kernel container's network namespace so it
   # can reach the VM at 192.168.100.10:9999 over tap0.

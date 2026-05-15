@@ -37,7 +37,7 @@ sudo docker run -it --privileged --cap-add=NET_ADMIN \
     os-dev bash
 
 # setup the network inside the container
-chmod +x ./dhcp.sh && ./dhcp.sh
+bash tools/dhcp.sh
 
 # build and run emulation
 make vnc
@@ -47,3 +47,33 @@ make vnc
 # attach from the outside
 vncviewer localhost:5901
 ```
+
+## vfs over 9p
+
+The kernel exposes its VFS over 9P2000 on UDP port 9999. `tools/c9` contains a
+C bridge and SWI-Prolog client library for talking to it from the host.
+
+```bash
+# build the os-dev image first (if not already done)
+docker build -t os-dev .
+
+# start the kernel, bridge, and a treewalk of the VFS
+docker compose -f tools/c9/docker-compose.yml up
+```
+
+The treewalk walks the entire VFS and prints the directory tree:
+
+```
+connected — walking /
+
+d  fd  (0 bytes)
+  -  CORE.PL  (1387 bytes)
+  d  FONTS  (0 bytes)
+      -  VIII.BDF  (19389 bytes)
+      -  tom-thumb.bdf  (19864 bytes)
+  -  HELLO.C  (86 bytes)
+  -  TCC  (1150388 bytes)
+d  ramdisk  (0 bytes)
+```
+
+See `tools/c9/prolog/p9.pl` for the Prolog API (`connect/4`, `ls/3`, `read_file/3`, `write_file/3`, `stat/3`).
