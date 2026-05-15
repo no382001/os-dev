@@ -6,9 +6,6 @@
 // https://git.9front.org/plan9front/plan9front/0861d0d0f283a9917721214fa3dc1c51a778213d/sys/src/9/port/xalloc.c/f.html
 // i have no idea what license it is
 
-// TODO: debug prints needs to be reworked here, but the allcator is buggyy
-// either way
-
 #undef offsetof
 #define offsetof(a, b) ((int)(&(((a *)(0))->b)))
 #define nil 0
@@ -34,7 +31,7 @@ void *kaddr(uintptr_t pa) {
 }
 
 enum {
-  nhole = 8,
+  nhole = 128,
   magichole = 0x454C4F48, /* HOLE */
 };
 
@@ -50,7 +47,7 @@ struct hole_t {
 };
 
 struct block_header_t {
-  uint16_t size;
+  uint32_t size;
   uint32_t magix;
   char data[]; // needs to be [] for offsetof
 };
@@ -90,18 +87,18 @@ void xinit(void) {
   // set this as our only table
   xlists.table = h;
 
-  KLOG(LOG_MODULE_MEM, "initial heap memory: paddr=%x vaddr=%x size=%x top=%x",
+  KLOG(LOG_MODULE_HEAP, "initial heap memory: paddr=%x vaddr=%x size=%x top=%x",
        h->addr, KHEAP_START, h->size, h->top);
   kheap = (void *)1;
 }
 
-void *xspanalloc(uint16_t size, int align, uint16_t span) {
+void *xspanalloc(uint32_t size, int align, uint32_t span) {
   uintptr_t a, v, t;
 
   a = (uintptr_t)xalloc(size + align + span);
   if (a == 0) {
   }
-  // KLOG(LOG_MODULE_MEM, "xspanalloc: %xd %d %xx", size, align, span);
+  KLOG(LOG_MODULE_HEAP, "xspanalloc: %xd %d %xx", size, align, span);
 
   if (span > 2) {
     v = (a + span) & ~((uintptr_t)span - 1);
@@ -120,7 +117,7 @@ void *xspanalloc(uint16_t size, int align, uint16_t span) {
   return (void *)v;
 }
 
-void *xallocz(uint16_t size, int zero) {
+void *xallocz(uint32_t size, int zero) {
   block_header_t *p;
   hole_t *h, **l;
 
@@ -128,7 +125,7 @@ void *xallocz(uint16_t size, int zero) {
   size += BY2V + offsetof(block_header_t, data[0]);
   size &= ~(BY2V - 1);
 
-  // ilock(&xlists);
+  cli();
   l = &xlists.table;
   for (h = *l; h; h = h->link) {
     if (h->size >= size) {
@@ -140,59 +137,23 @@ void *xallocz(uint16_t size, int zero) {
         h->link = xlists.flist;
         xlists.flist = h;
       }
-      // iunlock(&xlists);
+      sti();
       if (zero)
         memset(p, 0, size);
       p->magix = magichole;
       p->size = size;
-      xsummary();
-      // KLOG(LOG_MODULE_MEM, "returning %x", p->data);
+      KLOG(LOG_MODULE_HEAP, "xalloc %d bytes -> %x", size, p->data);
       return p->data;
     }
     l = &h->link;
   }
-  // iunlock(&xlists);
+  sti();
   assert(0 && "out of memory");
   return nil;
 }
 
-void *xalloc(uint16_t size) { return xallocz(size, 1); }
-/*
-    157    block_header_t *x;
-    158
-    159    x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t,
-data[0])); 160    if (x->magix != magichole) { 161      xsummary();
-                          // p=0xc0101350  →  [...]  →  0xbaadf00d, x=0xc010133c
-→  [...]  →  0xf000ff53 ●→  162      KLOG(LOG_MODULE_MEM, "corrupted magic(%x)
-%x != %x", p, magichole, x->magix); 163      // x is 0 ?????? 164 hexdump((const
-char *)p - offsetof(block_header_t, data[0]) - 16, 64, 8); 165    } 166
-xhole(paddr(x), x->size); 167    KLOG(LOG_MODULE_MEM, "freed %x", p);
-───────────────────────────────────────────────────────────────────────────────────────────────────────────────
-threads ────
-[#0] Id 1, stopped 0x13bd9 in xfree (), reason: BREAKPOINT
-─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-trace ────
-[#0] 0x13bd9 → xfree(p=0xc0101000)
-[#1] 0x141a7 → kfree(addr=0xc0101000)
-[#2] 0x1005f → sched_test_dfn(df_data=0xc0101000)
-[#3] 0x12f7e → task_wrapper(f=0x0)
-[#4] 0x0 → push ebx
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-(remote) gef➤  p/x x
-$1 = 0xc0100ff8
-(remote) gef➤  p/x *x
-$2 = {
-  size = 0x0,
-  magix = 0x0,
-  data = 0xc0101000
-}
-(remote) gef➤
+void *xalloc(uint32_t size) { return xallocz(size, 1); }
 
-
-yet it complains
-libc/heap.c:162 corrupted magic(0xc0101000) 0x484f4c45 != 0x084f4c45
-what the hell?
-*/
 void xfree(void *p) {
   cli();
   block_header_t *x;
@@ -207,7 +168,7 @@ void xfree(void *p) {
   // validate that x is within heap bounds
   if ((uintptr_t)x < KHEAP_START ||
       (uintptr_t)x >= KHEAP_START + KHEAP_INITIAL_SIZE) {
-    KLOG(LOG_MODULE_MEM, "xfree: block header %x outside heap bounds [%x-%x]",
+    KLOG(LOG_MODULE_HEAP, "xfree: block header %x outside heap bounds [%x-%x]",
          x, KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE);
     sti();
     return;
@@ -216,51 +177,20 @@ void xfree(void *p) {
   if (x->magix != magichole) {
     // this might be an aligned allocation from xspanalloc
     // aligned allocations should not be freed via kfree
-    KLOG(LOG_MODULE_MEM,
+    KLOG(LOG_MODULE_HEAP,
          "xfree: invalid block header at %x (data=%x), possibly "
          "aligned allocation",
          x, p);
-    KLOG(LOG_MODULE_MEM,
+    KLOG(LOG_MODULE_HEAP,
          "  aligned allocations from kmalloc_a cannot be freed");
     sti();
     return;
   }
 
   xhole(paddr(x), x->size);
-  KLOG(LOG_MODULE_MEM, "freed %x (block at %x, size %d)", p, x, x->size);
+  KLOG(LOG_MODULE_HEAP, "freed %x (block at %x, size %d)", p, x, x->size);
   sti();
 }
-/*
-int xmerge(void *vp, void *vq) {
-  block_header_t *p, *q;
-
-  p = (block_header_t *)(((uintptr_t)vp - offsetof(block_header_t, data[0])));
-  q = (block_header_t *)(((uintptr_t)vq - offsetof(block_header_t, data[0])));
-  if (p->magix != magichole || q->magix != magichole) {
-    int i;
-    uint16_t *wd;
-    void *badp;
-
-    xsummary();
-    badp = (p->magix != magichole ? p : q);
-    wd = (uint16_t *)badp - 12;
-    for (i = 24; i-- > 0;) {
-      KLOG(LOG_MODULE_MEM, "%x: %xx", wd, *wd);
-      if (wd == badp)
-      KLOG(LOG_MODULE_MEM, " <-");
-      KLOG(LOG_MODULE_MEM, "");
-      wd++;
-    }
-    KLOG(LOG_MODULE_MEM, "xmerge(%x, %x) bad magic %xx, %xx", vp, vq, p->magix,
-    q->magix);
-  }
-  if ((uint8_t *)p + p->size == (uint8_t *)q) {
-    p->size += q->size;
-    return 1;
-  }
-  return 0;
-}
-*/
 
 void xhole(uintptr_t addr, uintptr_t size) {
   hole_t *h, *c, **l;
@@ -270,7 +200,7 @@ void xhole(uintptr_t addr, uintptr_t size) {
     return;
 
   top = addr + size;
-  // ilock(&xlists);
+  cli();
   l = &xlists.table;
   for (h = *l; h; h = h->link) {
     if (h->top == addr) {
@@ -284,7 +214,7 @@ void xhole(uintptr_t addr, uintptr_t size) {
         c->link = xlists.flist;
         xlists.flist = c;
       }
-      // iunlock(&xlists);
+      sti();
       return;
     }
     if (h->addr > addr)
@@ -294,13 +224,13 @@ void xhole(uintptr_t addr, uintptr_t size) {
   if (h && top == h->addr) {
     h->addr -= size;
     h->size += size;
-    // iunlock(&xlists);
+    sti();
     return;
   }
 
   if (xlists.flist == nil) {
-    // iunlock(&xlists);
-    KLOG(LOG_MODULE_MEM, "xfree: no free holes, leaked %dd bytes", size);
+    sti();
+    KLOG(LOG_MODULE_HEAP, "xfree: no free holes, leaked %d bytes", size);
     return;
   }
 
@@ -311,7 +241,7 @@ void xhole(uintptr_t addr, uintptr_t size) {
   h->size = size;
   h->link = *l;
   *l = h;
-  // iunlock(&xlists);
+  sti();
 }
 
 void xsummary(void) {
@@ -319,24 +249,24 @@ void xsummary(void) {
   hole_t *h;
   uintptr_t s;
 
-  serial_printff("xsummary:");
   i = 0;
   for (h = xlists.flist; h; h = h->link)
     i++;
-  serial_printff(" %d holes free", i);
+  KLOG(LOG_MODULE_HEAP, "xsummary: %d holes free", i);
 
   s = 0;
   for (h = xlists.table; h; h = h->link) {
-    serial_printff(" %x %x %dd", h->addr, h->top, h->size);
+    KLOG(LOG_MODULE_HEAP, "  hole: addr=%x top=%x size=%d", h->addr, h->top,
+         h->size);
     s += h->size;
   }
-  serial_printff(" %d bytes free", s);
+  KLOG(LOG_MODULE_HEAP, "  total free: %d bytes", s);
 }
 
 int placement_address = PLACEMENT_ADDRESS;
 
 void *kmalloc_int(uint32_t size, int align, uint32_t *phys) {
-  KLOG(LOG_MODULE_MEM, "somebody wants %d bytes aligned: %d w/ phys %x", size,
+  KLOG(LOG_MODULE_HEAP, "somebody wants %d bytes aligned: %d w/ phys %x", size,
        align, phys);
   uint32_t addr = 0;
   if (kheap == NULL) {
@@ -365,16 +295,16 @@ void *kmalloc_int(uint32_t size, int align, uint32_t *phys) {
       *phys = virt2phys((void *)addr);
     }
   }
-  KLOG(LOG_MODULE_MEM, "giving them the address %x", addr);
+  KLOG(LOG_MODULE_HEAP, "giving them the address %x", addr);
   return (void *)addr;
 }
 
 void kfree(void *addr) {
   if (addr == NULL) {
-    KLOG(LOG_MODULE_MEM, "nothing to free");
+    KLOG(LOG_MODULE_HEAP, "nothing to free");
     return;
   } else if (kheap == NULL) {
-    KLOG(LOG_MODULE_MEM, "kheap is not active");
+    KLOG(LOG_MODULE_HEAP, "kheap is not active");
     return;
   }
   xfree(addr);
@@ -394,7 +324,7 @@ void *kmalloc(uint32_t size) { return kmalloc_int(size, 0, 0); }
 
 void kheap_watchdog(void *data) {
   (void)data;
-  KLOG(LOG_MODULE_MEM, "heap watchdog started");
+  KLOG(LOG_MODULE_HEAP, "heap watchdog started");
 
   while (1) {
 
@@ -408,17 +338,19 @@ void kheap_watchdog(void *data) {
       free_memory += h->size;
 
       if (h->addr + h->size != h->top) {
-        serial_printff("FREE LIST CORRUPTION: Hole at %x has inconsistent "
-                       "bounds (addr=%x, size=%d, top=%x)",
-                       (uintptr_t)h, h->addr, h->size, h->top);
+        KLOG(LOG_MODULE_HEAP,
+             "FREE LIST CORRUPTION: Hole at %x has inconsistent "
+             "bounds (addr=%x, size=%d, top=%x)",
+             (uintptr_t)h, h->addr, h->size, h->top);
         free_list_corrupted = true;
       }
 
       if (h->link != NULL &&
           ((uintptr_t)h->link < KHEAP_START ||
            (uintptr_t)h->link >= KHEAP_START + KHEAP_INITIAL_SIZE)) {
-        serial_printff("FREE LIST CORRUPTION: Hole at %x has invalid link %x",
-                       (uintptr_t)h, (uintptr_t)h->link);
+        KLOG(LOG_MODULE_HEAP,
+             "FREE LIST CORRUPTION: Hole at %x has invalid link %x",
+             (uintptr_t)h, (uintptr_t)h->link);
         free_list_corrupted = true;
       }
     }
@@ -464,22 +396,22 @@ void kheap_watchdog(void *data) {
 
       // Basic validation for what might be a block header
       if (block->size >= sizeof(block_header_t) &&
-          block->size < 65535 && // Max reasonable block size for uint16_t
+          block->size < KHEAP_INITIAL_SIZE &&
           (current_addr + block->size) <= (KHEAP_START + KHEAP_INITIAL_SIZE)) {
 
         if (block->magix == magichole) {
-          // this looks like a valid block
           valid_blocks++;
           allocated_memory += block->size;
 
           current_addr += block->size;
         } else {
-          if ((block->size & 0x3) == 0 && // size should be aligned to 4 bytes
+          if ((block->size & 0x7) == 0 && // size should be aligned to BY2V
               block->size > 0) {
 
-            serial_printff("POSSIBLE CORRUPTED BLOCK at %x: size=%d, magix=%x "
-                           "(expected %x)",
-                           current_addr, block->size, block->magix, magichole);
+            KLOG(LOG_MODULE_HEAP,
+                 "POSSIBLE CORRUPTED BLOCK at %x: size=%d, magix=%x "
+                 "(expected %x)",
+                 current_addr, block->size, block->magix, magichole);
 
             hexdump((const char *)current_addr - 16, 64, 16);
             corrupted_blocks++;
@@ -494,17 +426,17 @@ void kheap_watchdog(void *data) {
       }
     }
 
-    serial_printff("heap watchdog stats: %d valid blocks (%d bytes), %d "
-                   "corrupted blocks, %d free holes (%d bytes)",
-                   valid_blocks, allocated_memory, corrupted_blocks,
-                   free_chunks, free_memory);
+    KLOG(LOG_MODULE_HEAP,
+         "stats: %d valid blocks (%d bytes), %d corrupted, %d free holes (%d "
+         "bytes)",
+         valid_blocks, allocated_memory, corrupted_blocks, free_chunks,
+         free_memory);
 
     if (free_list_corrupted) {
-      serial_printff("WARNING: Free list integrity check failed!");
+      KLOG(LOG_MODULE_HEAP, "WARNING: free list integrity check failed!");
     }
 
-    serial_printff("heap summary from xlists:");
-    xsummary();
+    // xsummary();
 
     for (volatile int i = 0; i < 5000000; i++) {
       asm volatile("nop");

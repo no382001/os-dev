@@ -8,12 +8,12 @@
 #define nelem(x) (sizeof(x) / sizeof((x)[0]))
 
 #define BY2PG PAGE_SIZE // bytes per page
-#define BY2V 2          // boundary align
+#define BY2V 8          // boundary align
 
 void xinit(void);
-void *xspanalloc(uint16_t size, int align, uint16_t span);
-void *xallocz(uint16_t size, int zero);
-void *xalloc(uint16_t size);
+void *xspanalloc(uint32_t size, int align, uint32_t span);
+void *xallocz(uint32_t size, int zero);
+void *xalloc(uint32_t size);
 void xfree(void *p);
 int xmerge(void *vp, void *vq);
 void xhole(uintptr_t addr, uintptr_t size);

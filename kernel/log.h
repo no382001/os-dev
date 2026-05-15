@@ -16,6 +16,7 @@ typedef enum {
   LOG_MODULE_TASK,
   LOG_MODULE_MEM,
   LOG_MODULE_PCI,
+  LOG_MODULE_HEAP,
   LOG_MODULE_COUNT
 } log_module_t;
 
@@ -49,6 +50,8 @@ static inline const char *log_module_name(log_module_t m) {
     return "mem";
   case LOG_MODULE_PCI:
     return "pci";
+  case LOG_MODULE_HEAP:
+    return "heap";
   default:
     return "unknown";
   }

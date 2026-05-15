@@ -29,14 +29,14 @@
 [x] trilog embedded freestanding
 [x] core.pl loaded from /fd/core.pl at REPL startup
 [x] OS FFI: ls/2 file_size/2 tick/1 ksleep/1 path_join/3 tree/1 net_init/0 dhcp/0 help/0 listing/0
-[ ] ip/1 — unify with current DHCP-assigned IP (or fail if not acquired)
+[x] ip/1 — unify with current DHCP-assigned IP (or fail if not acquired)
 [ ] system testing from prolog over 9P
 [ ] reproducible test harness
 
 == misc ==
 [ ] kfree corruption (heap debug), port the heap alloc from trilog
 [ ] asan
-[ ] log groups for debugging
+[x] log groups for debugging
 [ ] BFD font letter misalignment
 [ ] inconsistent type usage cleanup
 
