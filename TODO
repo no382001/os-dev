@@ -1,107 +1,46 @@
 
+== kernel / boot ==
+[x] paging, heap allocator, selftests
+[x] task scheduling, semaphores
+[x] PCI, RTL8139, ARP, UDP, IP, DHCP
+[x] FAT16 + ramdisk, unified VFS
+[x] 9P/2000 server over UDP (port 9999)
+[x] trilog (prolog) REPL - core.pl loads from VFS, FFI builtins for ls/tree/tick/sleep/path_join/net_init/dhcp
+[ ] FAT16 file write (open/write)
+[ ] ELF32 binary loading + exec
+[ ] switch bootloader from --kernel to GRUB/limine
+[ ] ring0 minimal kernel - exec elf32, recompile from tcc
 
-FEATURES:
-  - crc and loading dynamic kernel size
+== 9p / vfs ==
+[x] 9P server serves unified VFS over UDP
+[x] c9 client + SWI-Prolog treewalk working end-to-end (tools/c9/)
+[ ] use 9P as the kernel-side VFS backend (interact with 9P not VFS directly)
+[ ] kernel reaches out to 9P config server on boot (bootstrap/persistence)
+[ ] FAT16 map exposed cleanly over 9P
+[ ] DNS / outside 9P config server
 
-fileio:
-  - open/ write
+== networking ==
+[x] net_init/0 and dhcp/0 as non-blocking prolog FFI
+[ ] thread ethernet packet handling
+[ ] IP path inefficiency (works but suboptimal)
+[ ] UDP sockets API
 
-fs:
-  - fat16 long filename
-  - ext2 support?
-  - elf files
+== prolog ==
+[x] trilog embedded freestanding
+[x] core.pl loaded from /fd/core.pl at REPL startup
+[x] OS FFI: ls/2 file_size/2 tick/1 ksleep/1 path_join/3 tree/1 net_init/0 dhcp/0 help/0 listing/0
+[ ] ip/1 — unify with current DHCP-assigned IP (or fail if not acquired)
+[ ] system testing from prolog over 9P
+[ ] reproducible test harness
 
-adjustments:
- - adjust the linker file, put heap on _end
- - inconsistent type usage
+== misc ==
+[ ] kfree corruption (heap debug), port the heap alloc from trilog
+[ ] asan
+[ ] log groups for debugging
+[ ] BFD font letter misalignment
+[ ] inconsistent type usage cleanup
 
-multitaskin:
- - im not confident that semaphore actually does what it should, and the interruption logic could be improved with a better model like having priorities, placing currently io-blocked tasks to top-prio, right now its just a hack, wasting some cycles for sure
- - signalling, recovery strategies
-
-forking should work now?
-
-bfd font:
-  - some letters are misaligned
-
-runtime dynamic linker for binaries, instead of implementing userland and syscalls
- - when a binary is loaded, the linker would resolve the syscalls or whatever, but how, id need my own exec format, so i can know when and where something unresolved would be called, this can bite me in the back later, and i will need to replace it further down the line. but it seems like a quick and easy way to get `outside` programs running from fs
- https://forum.osdev.org/viewtopic.php?t=57631
- - this guy did something, and can exec shit right away, maybe it would be useful if i could actually run things not specifically compiled for my os only, POSIX compliance? there has to be more than that
-
-
-TODO:
-  [ ] asan
-  [ ] kfree corruption
-  [ ] thread the ehternet packets
-  [ ] add some log groups for debugging
-  [ ] ip packets are inefficient, it works but...
-  [ ] vfs based on 9p
-  [ ] sockets, for udp
-
-c9:
-  - port client server code
-  - map the fat16 and create the p9 vfs
-  - sockets for udp
-  - the client and server is stateless, if the udp cant handle the file size, the client will have to request by offset
-  - comm in/out with plain udp to the s9 P92000 implementation
-  - connect with forth to test
-  - setup a dns service the outside server
-
-the os should reach out to a 9p configuration server, could serve the bootstrap code
-  besides being cool, could useful for testing
-
-bootloader:
-  switch to that other one instead of loading with --kernel
-
-- error when you could have too much words, and `words` fails
-make it navigate the vfs
-
-complang.tuwien.ac.at/schani/oldstuff/#schemeinforth
-
-
-navigating vfs with forth, make syscalls for the basic operations
-detach the unified vfs, make instances, so multipole programs dont use the same
-
-or. well, forth does not need to know the current dir or change it, it could use absolute paths saved in `cwd`
-
-fix printin in zforth
-
-some way to work with presistency on the os
-restart-vm word, preload ini file, or i could use .f and include to have some form of bootstrapping, thing is, if im inside an include syscall, can i eval again? 
-
-
-i could do the 9p to gain persistence?
-
-and btw i should be interacting with the 9p not the vfs directly
-
-clang-analyze
-or just do
-
-CCPARMS= -Wall -Wextra -pedantic -O2 -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings 
-   -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -std=c99 
-   -Wnested-externs -Winline -Wstrict-prototypes -Wno-attributes -Wc++-compat 
-   -Wchar-subscripts -Wcomment -Wno-deprecated-declarations -Wno-div-by-zero 
-   -Wno-endif-labels -Wfloat-equal -Wformat=2 -Wno-format-extra-args -Wformat-nonliteral 
-   -Wformat-security -Wformat-y2k -Wimplicit -Wimplicit-function-declaration -Wimplicit-int 
-   -Winit-self -Winline -Wno-int-to-pointer-cast -Winvalid-pch -Wmain -Wmissing-braces
-   -Wmissing-field-initializers -Wmissing-format-attribute -Wmissing-include-dirs 
-   -Wmissing-noreturn -Wno-multichar -Wnonnull -Wpacked -Wparentheses -Wpointer-arith
-   -Wno-pointer-to-int-cast -Wredundant-decls -Wreturn-type -Wsequence-point 
-   -Wshadow -Wno-sign-compare -Wstack-protector -Wstrict-aliasing -Wswitch 
-   -Wswitch-default -Wswitch-enum -Wsystem-headers -Wtrigraphs -Wundef -Wuninitialized
-   -Wunknown-pragmas -Wno-pragmas -Wno-unused -Wunused-function -Wunused-label 
-   -Wunused-parameter -Wunused-value -Wunused-variable -Wvariadic-macros 
-   -Wvolatile-register-var -Wwrite-strings -Wdisabled-optimization -Werror
-
-
-NEW:
-- quickly finish the 9p and remaining vfs implementation
-- THEN port everything to grub or that lime whatever bootloader
-- maybe think about reproducibility and system testing first, after setting up 9p as the vfs i could tesst from prolog
-- the kernel should be ring0 and very minimal, just enough to be able to exec elf32s and recompile itself from some supplied tcc binary, even from the outside?
-
-
-im envisioning a haskell like curried script language based on prolog
-that when typing, if the function 'effect' is known would light up over it, so you would see in real time if you need to . or not
-this would replace piping, or is that actually in haskell? i dont remember
+== ideas ==
+- haskell-like curried language on top of prolog, real-time effect inference while typing
+- runtime dynamic linker (resolve calls at load time, avoid full syscall ABI)
+  ref: https://forum.osdev.org/viewtopic.php?t=57631

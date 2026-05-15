@@ -100,9 +100,13 @@ void rtl8139_send_packet(void *data, uint32_t len) {
     rtl8139_device.tx_cur = 0;
 }
 
-void rtl8139_init() {
+int rtl8139_init() {
   // first get the network device using PCI
   pci_rtl8139_device = pci_get_device(RTL8139_VENDOR_ID, RTL8139_DEVICE_ID, -1);
+  if (pci_read(pci_rtl8139_device, PCI_VENDOR_ID) != RTL8139_VENDOR_ID) {
+    serial_debug("rtl8139: no device found, skipping init");
+    return 0;
+  }
   uint32_t ret = pci_read(pci_rtl8139_device, PCI_BAR0);
 
   rtl8139_device.bar_type = ret & 0x1;
@@ -164,4 +168,5 @@ void rtl8139_init() {
   kernel_printf("[] rtl8139 registered on irq = %d\n", irq_num);
 
   read_mac_addr();
+  return 1;
 }

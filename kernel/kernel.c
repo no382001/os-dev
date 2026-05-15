@@ -253,6 +253,9 @@ void kernel_main(void) {
   init_tasking();
   selftest();
 
+  if (rtl8139_init())
+    dhcp_discover();
+
   vfs *unified_vfs = init_vfs();
 
   ninep_server_init(unified_vfs);

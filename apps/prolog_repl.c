@@ -318,7 +318,7 @@ static int ffi_net_init(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
   (void)ctx;
   (void)goal;
   (void)env;
-  extern void rtl8139_init(void);
+  extern int rtl8139_init(void);
   rtl8139_init();
   return 1;
 }

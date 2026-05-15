@@ -37,7 +37,7 @@ treewalk(Conn, Path, Depth) :-
     ).
 
 main :-
-    connect_with_retry(Conn, 10),
+    connect_with_retry(Conn, 60),
     format("connected — walking /~n~n"),
     treewalk(Conn, '', 0),
     disconnect(Conn).
