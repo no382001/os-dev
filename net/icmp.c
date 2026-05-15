@@ -29,14 +29,14 @@ static uint16_t icmp_calculate_checksum(void *buffer, uint16_t size) {
 
 void icmp_send_packet(uint8_t *dst_ip, uint8_t type, uint8_t code, uint16_t id,
                       uint16_t sequence, void *data, uint32_t data_len) {
-  serial_debug("sending icmp packet %d to %d.%d.%d.%d", type, dst_ip[0],
-               dst_ip[1], dst_ip[2], dst_ip[3]);
+  KLOG(LOG_MODULE_IP, "sending icmp packet %d to %d.%d.%d.%d", type, dst_ip[0],
+       dst_ip[1], dst_ip[2], dst_ip[3]);
 
   uint32_t icmp_size = sizeof(icmp_packet_t) + data_len;
 
   icmp_packet_t *packet = (icmp_packet_t *)kmalloc(icmp_size);
   if (!packet) {
-    serial_debug("failed to allocate memory for ICMP packet");
+    KLOG(LOG_MODULE_IP, "failed to allocate memory for ICMP packet");
     return;
   }
 
@@ -72,16 +72,17 @@ void icmp_handle_packet(icmp_packet_t *packet, uint16_t length,
   packet->checksum = received_checksum;
 
   if (received_checksum != calculated_checksum) {
-    serial_debug("icmp checksum mismatch: received=%x, calculated=%x",
-                 received_checksum, calculated_checksum);
+    KLOG(LOG_MODULE_IP, "icmp checksum mismatch: received=%x, calculated=%x",
+         received_checksum, calculated_checksum);
     return;
   }
 
   switch (packet->type) {
   case ICMP_ECHO_REQUEST:
-    serial_debug("received echo request from %d.%d.%d.%d (id=%d, seq=%d)",
-                 src_ip[0], src_ip[1], src_ip[2], src_ip[3], ntohs(packet->id),
-                 ntohs(packet->sequence));
+    KLOG(LOG_MODULE_IP,
+         "received echo request from %d.%d.%d.%d (id=%d, seq=%d)", src_ip[0],
+         src_ip[1], src_ip[2], src_ip[3], ntohs(packet->id),
+         ntohs(packet->sequence));
 
     // TODO i could use the same packet and send it back
     // what the fuck is wrong with the destination mac tho?
@@ -90,9 +91,9 @@ void icmp_handle_packet(icmp_packet_t *packet, uint16_t length,
     break;
 
   case ICMP_ECHO_REPLY:
-    serial_debug("received echo reply from %d.%d.%d.%d (id=%d, seq=%d)",
-                 src_ip[0], src_ip[1], src_ip[2], src_ip[3], ntohs(packet->id),
-                 ntohs(packet->sequence));
+    KLOG(LOG_MODULE_IP, "received echo reply from %d.%d.%d.%d (id=%d, seq=%d)",
+         src_ip[0], src_ip[1], src_ip[2], src_ip[3], ntohs(packet->id),
+         ntohs(packet->sequence));
 
     // calculate round-trip time,
     // update ping statistics, or notify a waiting ping process
@@ -101,17 +102,18 @@ void icmp_handle_packet(icmp_packet_t *packet, uint16_t length,
     break;
 
   case ICMP_DEST_UNREACHABLE:
-    serial_debug("destination unreachable message from %d.%d.%d.%d, code=%d",
-                 src_ip[0], src_ip[1], src_ip[2], src_ip[3], packet->code);
+    KLOG(LOG_MODULE_IP,
+         "destination unreachable message from %d.%d.%d.%d, code=%d", src_ip[0],
+         src_ip[1], src_ip[2], src_ip[3], packet->code);
     break;
 
   case ICMP_TIME_EXCEEDED:
-    serial_debug("time exceeded message from %d.%d.%d.%d, code=%d", src_ip[0],
-                 src_ip[1], src_ip[2], src_ip[3], packet->code);
+    KLOG(LOG_MODULE_IP, "time exceeded message from %d.%d.%d.%d, code=%d",
+         src_ip[0], src_ip[1], src_ip[2], src_ip[3], packet->code);
     break;
 
   default:
-    serial_debug("unhandled ICMP type: %d", packet->type);
+    KLOG(LOG_MODULE_IP, "unhandled ICMP type: %d", packet->type);
     break;
   }
 }

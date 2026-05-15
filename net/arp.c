@@ -47,18 +47,17 @@ void arp_handle_packet(arp_packet_t *arp_packet) {
       // now send it with ethernet
       ethernet_send_packet(dst_hardware_addr, (uint8_t *)arp_packet,
                            sizeof(arp_packet_t), ETHERNET_TYPE_ARP);
-      serial_debug(
-          "sent an arp reply to %d.%d.%d.%d %x:%x:%x:%x",
-          arp_packet->dst_protocol_addr[0], arp_packet->dst_protocol_addr[1],
-          arp_packet->dst_protocol_addr[2], arp_packet->dst_protocol_addr[3],
-          arp_packet->dst_hardware_addr[0], arp_packet->dst_hardware_addr[1],
-          arp_packet->dst_hardware_addr[2], arp_packet->dst_hardware_addr[3]);
+      KLOG(LOG_MODULE_ARP, "sent an arp reply to %d.%d.%d.%d %x:%x:%x:%x",
+           arp_packet->dst_protocol_addr[0], arp_packet->dst_protocol_addr[1],
+           arp_packet->dst_protocol_addr[2], arp_packet->dst_protocol_addr[3],
+           arp_packet->dst_hardware_addr[0], arp_packet->dst_hardware_addr[1],
+           arp_packet->dst_hardware_addr[2], arp_packet->dst_hardware_addr[3]);
     }
   } else if (ntohs(arp_packet->opcode) == ARP_REPLY) {
-    serial_debug("arp reply");
+    KLOG(LOG_MODULE_ARP, "arp reply");
     // reply
   } else {
-    serial_debug("arp not for us");
+    KLOG(LOG_MODULE_ARP, "arp not for us");
     return; // not for us
   }
   uint8_t _[6] = {0};
@@ -106,10 +105,10 @@ void arp_lookup_add(uint8_t *hardware_addr, uint8_t *ip_addr) {
   memcpy(&arp_table[arp_table_curr].ip_addr, ip_addr, 4);
   memcpy(&arp_table[arp_table_curr].mac_addr, hardware_addr, 6);
 
-  serial_debug("new entry in arp table: %d.%d.%d.%d %x:%x:%x:%x:%x:%x",
-               ip_addr[0], ip_addr[1], ip_addr[2], ip_addr[3], hardware_addr[0],
-               hardware_addr[1], hardware_addr[2], hardware_addr[3],
-               hardware_addr[4], hardware_addr[5]);
+  KLOG(LOG_MODULE_ARP, "new entry in arp table: %d.%d.%d.%d %x:%x:%x:%x:%x:%x",
+       ip_addr[0], ip_addr[1], ip_addr[2], ip_addr[3], hardware_addr[0],
+       hardware_addr[1], hardware_addr[2], hardware_addr[3], hardware_addr[4],
+       hardware_addr[5]);
 
   arp_table_curr++;
   // wrap around

@@ -26,7 +26,7 @@ uint8_t *add_dhcp_option(uint8_t *options, uint8_t option, uint8_t len,
 }
 
 void dhcp_discover() {
-  serial_debug("dhcp discover...");
+  KLOG(LOG_MODULE_DHCP, "dhcp discover...");
   uint8_t dst_ip[4] = {255, 255, 255, 255};
 
   dhcp_packet_t packet = {0};
@@ -167,18 +167,18 @@ void *get_dhcp_option(dhcp_packet_t *packet, uint8_t type) {
 
 void dhcp_handle_packet(dhcp_packet_t *packet) {
   if (packet->op != DHCP_REPLY) {
-    serial_debug("not a reply! its %x", packet->op);
+    KLOG(LOG_MODULE_DHCP, "not a reply! its %x", packet->op);
     return;
   }
 
   if (ntohl(packet->xid) != DHCP_TRANSACTION_IDENTIFIER) {
-    serial_debug("not our xid!");
+    KLOG(LOG_MODULE_DHCP, "not our xid!");
     return;
   }
 
   uint8_t *type_ptr = get_dhcp_option(packet, DHCP_OPT_MSG_TYPE);
   if (!type_ptr) {
-    serial_debug("invalid msg type!");
+    KLOG(LOG_MODULE_DHCP, "invalid msg type!");
     return;
   }
 
@@ -188,16 +188,15 @@ void dhcp_handle_packet(dhcp_packet_t *packet) {
   case DHCP_MSG_OFFER: {
     is_ip_offered = 1;
     memcpy(&prev_requested_ip, &packet->your_ip, 4);
-    serial_debug("offer! of %d.%d.%d.%d", ((uint8_t *)&packet->your_ip)[0],
-                 ((uint8_t *)&packet->your_ip)[1],
-                 ((uint8_t *)&packet->your_ip)[2],
-                 ((uint8_t *)&packet->your_ip)[3]);
+    KLOG(LOG_MODULE_DHCP, "offer! of %d.%d.%d.%d",
+         ((uint8_t *)&packet->your_ip)[0], ((uint8_t *)&packet->your_ip)[1],
+         ((uint8_t *)&packet->your_ip)[2], ((uint8_t *)&packet->your_ip)[3]);
 
     uint8_t *server_id = get_dhcp_option(packet, 54); // 54 = Server ID
     if (server_id) {
       memcpy(&dhcp_server_ip, server_id, 4);
-      serial_debug("dhcp server: %d.%d.%d.%d", server_id[0], server_id[1],
-                   server_id[2], server_id[3]);
+      KLOG(LOG_MODULE_DHCP, "dhcp server: %d.%d.%d.%d", server_id[0],
+           server_id[1], server_id[2], server_id[3]);
     }
 
     dhcp_request((uint8_t *)&packet->your_ip);
@@ -209,8 +208,8 @@ void dhcp_handle_packet(dhcp_packet_t *packet) {
     }
     memcpy(my_ip, &packet->your_ip, 4);
     is_ip_allocated = 1;
-    serial_debug("we got an ip: %d.%d.%d.%d", my_ip[0], my_ip[1], my_ip[2],
-                 my_ip[3]);
+    KLOG(LOG_MODULE_DHCP, "we got an ip: %d.%d.%d.%d", my_ip[0], my_ip[1],
+         my_ip[2], my_ip[3]);
 
     // process other configuration options (subnet, router, DNS)
     uint8_t *subnet_mask = get_dhcp_option(packet, DHCP_OPT_SUBNET_MASK);
@@ -232,7 +231,7 @@ void dhcp_handle_packet(dhcp_packet_t *packet) {
     break;
 
   case DHCP_MSG_NAK:
-    serial_debug("nack!");
+    KLOG(LOG_MODULE_DHCP, "nack!");
     // start over with DISCOVER
     is_ip_allocated = 0;
     is_ip_offered = 0;

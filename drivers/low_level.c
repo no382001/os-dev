@@ -40,23 +40,24 @@ void ata_read_sector(uint32_t lba, uint8_t *buffer) {
   port_byte_out(0x1F5, (uint8_t)(lba >> 16));
   port_byte_out(0x1F7, 0x20); // READ SECTOR
 
-  // serial_debug(" trying to read sector %d", lba);
+  // KLOG(LOG_MODULE_PCI, " trying to read sector %d", lba);
   int timeout = 100000;
   while (timeout--) {
     uint8_t status = port_byte_in(0x1F7);
     if (status & 0x01) {
-      serial_debug("disk read error at LBA %d\n", lba);
+      KLOG(LOG_MODULE_PCI, "disk read error at LBA %d\n", lba);
       return;
     }
     if (status & 0x08) // data ready
       break;
   }
   if (timeout <= 0) {
-    serial_debug("ERROR: ata_read_sector() - timeout waiting for drive!\n");
+    KLOG(LOG_MODULE_PCI,
+         "ERROR: ata_read_sector() - timeout waiting for drive!\n");
     return;
   }
 
-  // serial_debug(" found sector %d", lba);
+  // KLOG(LOG_MODULE_PCI, " found sector %d", lba);
   for (int i = 0; i < 512 / 2; i++) { // we read 2 bytes
     ((uint16_t *)buffer)[i] = port_word_in(0x1F0);
   }
@@ -74,14 +75,15 @@ void ata_write_sector(uint32_t lba, uint8_t *buffer) {
   while (timeout--) {
     uint8_t status = port_byte_in(0x1F7);
     if (status & 0x01) {
-      serial_debug("disk write error at LBA %d\n", lba);
+      KLOG(LOG_MODULE_PCI, "disk write error at LBA %d\n", lba);
       return;
     }
     if (status & 0x08) // data ready
       break;
   }
   if (timeout <= 0) {
-    serial_debug("ERROR: ata_write_sector() - timeout waiting for drive!\n");
+    KLOG(LOG_MODULE_PCI,
+         "ERROR: ata_write_sector() - timeout waiting for drive!\n");
     return;
   }
 

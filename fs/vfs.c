@@ -61,12 +61,12 @@ static int ramdisk_create(vfs *fs, const char *path, int perm) {
   file->capacity = 0;
   file->data = NULL;
 
-  serial_debug("ramdisk: created file '%s'", path);
+  KLOG(LOG_MODULE_VFS, "ramdisk: created file '%s'", path);
   return VFS_SUCCESS;
 }
 static int ramdisk_open(vfs *fs, const char *name, vfs_mode mode, int *fd) {
   if (!fs || !name || !fd) {
-    serial_debug("ramdisk: preliminary checks failed on `%s`", name);
+    KLOG(LOG_MODULE_VFS, "ramdisk: preliminary checks failed on `%s`", name);
     return VFS_ERROR;
   }
 
@@ -82,13 +82,13 @@ static int ramdisk_open(vfs *fs, const char *name, vfs_mode mode, int *fd) {
     data->fd_table[*fd].mode = mode;
     data->fd_table[*fd].position = 0;
 
-    serial_debug("ramdisk: opened directory '/' on fd %d", *fd);
+    KLOG(LOG_MODULE_VFS, "ramdisk: opened directory '/' on fd %d", *fd);
     return VFS_SUCCESS;
   }
 
   ramdisk_file_t *file = ramdisk_find_file(data, name);
   if (!file) {
-    serial_debug("ramdisk: file not found `%s`", name);
+    KLOG(LOG_MODULE_VFS, "ramdisk: file not found `%s`", name);
     return VFS_ENOENT;
   }
 
@@ -101,7 +101,7 @@ static int ramdisk_open(vfs *fs, const char *name, vfs_mode mode, int *fd) {
   data->fd_table[*fd].mode = mode;
   data->fd_table[*fd].position = 0;
 
-  serial_debug("ramdisk: opened '%s' on fd %d", name, *fd);
+  KLOG(LOG_MODULE_VFS, "ramdisk: opened '%s' on fd %d", name, *fd);
   return VFS_SUCCESS;
 }
 
@@ -119,7 +119,7 @@ static int ramdisk_close(vfs *fs, int fd) {
   data->fd_table[fd].file = NULL;
   data->fd_table[fd].position = 0;
 
-  serial_debug("ramdisk: closed fd %d", fd);
+  KLOG(LOG_MODULE_VFS, "ramdisk: closed fd %d", fd);
   return VFS_SUCCESS;
 }
 
@@ -154,7 +154,7 @@ static int64_t ramdisk_read(vfs *fs, int fd, void *buf, uint64_t count,
   }
 
   *bytes_read = count;
-  serial_debug("ramdisk: read %d bytes from fd %d", (int)count, fd);
+  KLOG(LOG_MODULE_VFS, "ramdisk: read %d bytes from fd %d", (int)count, fd);
   return VFS_SUCCESS;
 }
 
@@ -214,7 +214,7 @@ static int64_t ramdisk_write(vfs *fs, int fd, const void *buf, uint64_t count) {
     file->size = file_desc->position;
   }
 
-  serial_debug("ramdisk: wrote %d bytes to fd %d", (int)count, fd);
+  KLOG(LOG_MODULE_VFS, "ramdisk: wrote %d bytes to fd %d", (int)count, fd);
   return count;
 }
 
@@ -256,7 +256,7 @@ static int64_t ramdisk_seek(vfs *fs, int fd, int64_t offset, int whence) {
     new_pos = file->size;
 
   file_desc->position = new_pos;
-  serial_debug("ramdisk: seek fd %d to position %d", fd, (int)new_pos);
+  KLOG(LOG_MODULE_VFS, "ramdisk: seek fd %d to position %d", fd, (int)new_pos);
   return new_pos;
 }
 
@@ -296,12 +296,12 @@ static int ramdisk_remove(vfs *fs, const char *name) {
 
   file->in_use = 0;
 
-  serial_debug("ramdisk: removed file '%s'", name);
+  KLOG(LOG_MODULE_VFS, "ramdisk: removed file '%s'", name);
   return VFS_SUCCESS;
 }
 
 static int ramdisk_chdir(vfs *fs, const char *path) {
-  serial_debug("ramdisk: chdir unimplemented, this fs is flat!");
+  KLOG(LOG_MODULE_VFS, "ramdisk: chdir unimplemented, this fs is flat!");
   return VFS_SUCCESS; // its flat
 }
 
@@ -327,7 +327,8 @@ static int64_t ramdisk_readdir(vfs *fs, int fd, vfs_stat *st, int nst) {
     }
   }
 
-  serial_debug("ramdisk: readdir returned %d entries", entries_returned);
+  KLOG(LOG_MODULE_VFS, "ramdisk: readdir returned %d entries",
+       entries_returned);
   return entries_returned;
 }
 
@@ -351,8 +352,8 @@ static int ramdisk_fstat(vfs *fs, int fd, vfs_stat *st) {
   st->cluster = 0;
   strcpy(st->name, file->name);
 
-  serial_debug("ramdisk: fstat for fd %d: '%s', size=%d", fd, file->name,
-               file->size);
+  KLOG(LOG_MODULE_VFS, "ramdisk: fstat for fd %d: '%s', size=%d", fd,
+       file->name, file->size);
   return VFS_SUCCESS;
 }
 
@@ -364,23 +365,24 @@ static int ramdisk_rename(vfs *fs, const char *oldpath, const char *newpath) {
 
   ramdisk_file_t *file = ramdisk_find_file(data, oldpath);
   if (!file) {
-    serial_debug("ramdisk: rename failed - '%s' not found", oldpath);
+    KLOG(LOG_MODULE_VFS, "ramdisk: rename failed - '%s' not found", oldpath);
     return VFS_ENOENT;
   }
 
   if (ramdisk_find_file(data, newpath)) {
-    serial_debug("ramdisk: rename failed - '%s' already exists", newpath);
+    KLOG(LOG_MODULE_VFS, "ramdisk: rename failed - '%s' already exists",
+         newpath);
     return VFS_EEXIST;
   }
 
   if (strlen(newpath) >= RAMDISK_MAX_FILENAME) {
-    serial_debug("ramdisk: rename failed - new name too long");
+    KLOG(LOG_MODULE_VFS, "ramdisk: rename failed - new name too long");
     return VFS_ERROR;
   }
 
   strcpy(file->name, newpath);
 
-  serial_debug("ramdisk: renamed '%s' to '%s'", oldpath, newpath);
+  KLOG(LOG_MODULE_VFS, "ramdisk: renamed '%s' to '%s'", oldpath, newpath);
   return VFS_SUCCESS;
 }
 
@@ -408,7 +410,7 @@ void vfs_init_ramdisk(vfs *fs, ramdisk_vfs_data *data) {
   fs->remove = ramdisk_remove;
   fs->rename = ramdisk_rename;
 
-  serial_debug("ramdisk: initialized");
+  KLOG(LOG_MODULE_VFS, "ramdisk: initialized");
 }
 
 void ramdisk_demo() {
@@ -492,7 +494,7 @@ static unified_vfs_data_t g_unified_data = {0};
 static int unified_parse_path(const char *path, char *mount_point,
                               char *relative_path) {
   if (!path || path[0] != '/') {
-    serial_debug("unified: invalid path '%s'", path ? path : "NULL");
+    KLOG(LOG_MODULE_VFS, "unified: invalid path '%s'", path ? path : "NULL");
     return -1;
   }
 
@@ -518,8 +520,8 @@ static int unified_parse_path(const char *path, char *mount_point,
 
   strcpy(relative_path, slash);
 
-  serial_debug("unified: parsed '%s' -> mount='%s', path='%s'", path - 1,
-               mount_point, relative_path);
+  KLOG(LOG_MODULE_VFS, "unified: parsed '%s' -> mount='%s', path='%s'",
+       path - 1, mount_point, relative_path);
   return 0;
 }
 
@@ -550,7 +552,7 @@ static int unified_chdir(vfs *fs, const char *path) {
   if (!fs || !path)
     return VFS_ERROR;
 
-  serial_debug("unified: chdir to '%s'", path);
+  KLOG(LOG_MODULE_VFS, "unified: chdir to '%s'", path);
 
   if (strcmp(path, "/") == 0) {
     strcpy(fs->current_path, "/");
@@ -566,7 +568,7 @@ static int unified_chdir(vfs *fs, const char *path) {
   if (strcmp(relative_path, "/") == 0) {
     vfs *target_vfs = unified_find_target_vfs(mount_point);
     if (!target_vfs) {
-      serial_debug("unified: mount point '%s' not found", mount_point);
+      KLOG(LOG_MODULE_VFS, "unified: mount point '%s' not found", mount_point);
       return VFS_ENOTDIR;
     }
 
@@ -577,7 +579,7 @@ static int unified_chdir(vfs *fs, const char *path) {
 
   vfs *target_vfs = unified_find_target_vfs(mount_point);
   if (!target_vfs) {
-    serial_debug("unified: mount point '%s' not found", mount_point);
+    KLOG(LOG_MODULE_VFS, "unified: mount point '%s' not found", mount_point);
     return VFS_ENOTDIR;
   }
 
@@ -594,7 +596,7 @@ static int unified_open(vfs *fs, const char *name, vfs_mode mode, int *fd) {
   if (!fs || !name || !fd)
     return VFS_ERROR;
 
-  serial_debug("unified: open '%s'", name);
+  KLOG(LOG_MODULE_VFS, "unified: open '%s'", name);
 
   char mount_point[64], relative_path[512];
   if (unified_parse_path(name, mount_point, relative_path) != 0) {
@@ -606,13 +608,13 @@ static int unified_open(vfs *fs, const char *name, vfs_mode mode, int *fd) {
     if (*fd < 0)
       return VFS_EMFILE;
 
-    serial_debug("unified: opened root directory on fd %d", *fd);
+    KLOG(LOG_MODULE_VFS, "unified: opened root directory on fd %d", *fd);
     return VFS_SUCCESS;
   }
 
   vfs *target_vfs = unified_find_target_vfs(mount_point);
   if (!target_vfs) {
-    serial_debug("unified: mount point '%s' not found", mount_point);
+    KLOG(LOG_MODULE_VFS, "unified: mount point '%s' not found", mount_point);
     return VFS_ENOENT;
   }
 
@@ -628,8 +630,9 @@ static int unified_open(vfs *fs, const char *name, vfs_mode mode, int *fd) {
     return VFS_EMFILE;
   }
 
-  serial_debug("unified: opened '%s' -> %s:%s (unified_fd=%d, target_fd=%d)",
-               name, mount_point, relative_path, *fd, target_fd);
+  KLOG(LOG_MODULE_VFS,
+       "unified: opened '%s' -> %s:%s (unified_fd=%d, target_fd=%d)", name,
+       mount_point, relative_path, *fd, target_fd);
   return VFS_SUCCESS;
 }
 
@@ -637,7 +640,7 @@ static int unified_create(vfs *fs, const char *path, int perm) {
   if (!fs || !path)
     return VFS_ERROR;
 
-  serial_debug("unified: create '%s'", path);
+  KLOG(LOG_MODULE_VFS, "unified: create '%s'", path);
 
   char mount_point[64], relative_path[512];
   if (unified_parse_path(path, mount_point, relative_path) != 0) {
@@ -646,7 +649,7 @@ static int unified_create(vfs *fs, const char *path, int perm) {
 
   vfs *target_vfs = unified_find_target_vfs(mount_point);
   if (!target_vfs) {
-    serial_debug("unified: mount point '%s' not found", mount_point);
+    KLOG(LOG_MODULE_VFS, "unified: mount point '%s' not found", mount_point);
     return VFS_ENOTDIR;
   }
 
@@ -714,7 +717,8 @@ static int64_t unified_readdir(vfs *fs, int fd, vfs_stat *st, int nst) {
         entries++;
       }
     }
-    serial_debug("unified: root readdir returned %d mount points", entries);
+    KLOG(LOG_MODULE_VFS, "unified: root readdir returned %d mount points",
+         entries);
     return entries;
   }
 
@@ -742,7 +746,7 @@ static int unified_close(vfs *fs, int fd) {
   g_unified_data.fd_map[fd].target_vfs = NULL;
   g_unified_data.fd_map[fd].target_fd = -1;
 
-  serial_debug("unified: closed fd %d", fd);
+  KLOG(LOG_MODULE_VFS, "unified: closed fd %d", fd);
   return result;
 }
 
@@ -821,7 +825,7 @@ void unified_vfs_init(void) {
   g_unified_vfs.remove = NULL; // TODO: implement
   g_unified_vfs.rename = NULL; // TODO: implement
 
-  serial_debug("unified: VFS initialized");
+  KLOG(LOG_MODULE_VFS, "unified: VFS initialized");
 }
 
 int unified_mount(const char *mount_point, vfs *target_vfs) {
@@ -838,7 +842,8 @@ int unified_mount(const char *mount_point, vfs *target_vfs) {
   g_unified_data.mounts[g_unified_data.mount_count].active = 1;
   g_unified_data.mount_count++;
 
-  serial_debug("unified: mounted '%s' -> %s", mount_point, target_vfs->name);
+  KLOG(LOG_MODULE_VFS, "unified: mounted '%s' -> %s", mount_point,
+       target_vfs->name);
   return VFS_SUCCESS;
 }
 

@@ -1,10 +1,11 @@
 #include "libc/page.h"
 #include "drivers/serial.h"
+#include "kernel/log.h"
 // https://web.archive.org/web/20160326061042/http://jamesmolloy.co.uk/tutorial_html/6.-Paging.html
 
 #define kernel_panic(...)                                                      \
   do {                                                                         \
-    serial_debug(__VA_ARGS__);                                                 \
+    KLOG(LOG_MODULE_MEM, __VA_ARGS__);                                         \
     while (1) {                                                                \
     }                                                                          \
   } while (0)
@@ -57,11 +58,11 @@ void alloc_frame(page_t *page, int is_kernel, int is_writeable) {
   (void)is_writeable;
 
   if (!page) {
-    serial_debug("nullptr page");
+    KLOG(LOG_MODULE_MEM, "nullptr page");
     return;
   }
   if (page->frame != 0) {
-    serial_debug("frame already occupied! %x", page);
+    KLOG(LOG_MODULE_MEM, "frame already occupied! %x", page);
     return;
   } else {
     uint32_t idx = first_frame();

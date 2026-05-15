@@ -1,18 +1,13 @@
 #include "heap.h"
+#include "kernel/log.h"
 #include "page.h"
 
 // adapted from
 // https://git.9front.org/plan9front/plan9front/0861d0d0f283a9917721214fa3dc1c51a778213d/sys/src/9/port/xalloc.c/f.html
 // i have no idea what license it is
 
-/*
- */
-#undef serial_debug
-#define serial_debug(...)
-#undef serial_printff
-#define serial_printff(...)
-
-// TODO: debug prints needs to be reworked here, but the allcator is buggyy either way
+// TODO: debug prints needs to be reworked here, but the allcator is buggyy
+// either way
 
 #undef offsetof
 #define offsetof(a, b) ((int)(&(((a *)(0))->b)))
@@ -95,8 +90,8 @@ void xinit(void) {
   // set this as our only table
   xlists.table = h;
 
-  serial_debug("initial heap memory: paddr=%x vaddr=%x size=%x top=%x", h->addr,
-               KHEAP_START, h->size, h->top);
+  KLOG(LOG_MODULE_MEM, "initial heap memory: paddr=%x vaddr=%x size=%x top=%x",
+       h->addr, KHEAP_START, h->size, h->top);
   kheap = (void *)1;
 }
 
@@ -106,7 +101,7 @@ void *xspanalloc(uint16_t size, int align, uint16_t span) {
   a = (uintptr_t)xalloc(size + align + span);
   if (a == 0) {
   }
-  // serial_debug("xspanalloc: %xd %d %xx", size, align, span);
+  // KLOG(LOG_MODULE_MEM, "xspanalloc: %xd %d %xx", size, align, span);
 
   if (span > 2) {
     v = (a + span) & ~((uintptr_t)span - 1);
@@ -151,7 +146,7 @@ void *xallocz(uint16_t size, int zero) {
       p->magix = magichole;
       p->size = size;
       xsummary();
-      // serial_debug("returning %x", p->data);
+      // KLOG(LOG_MODULE_MEM, "returning %x", p->data);
       return p->data;
     }
     l = &h->link;
@@ -168,10 +163,10 @@ void *xalloc(uint16_t size) { return xallocz(size, 1); }
     159    x = (block_header_t *)((uintptr_t)p - offsetof(block_header_t,
 data[0])); 160    if (x->magix != magichole) { 161      xsummary();
                           // p=0xc0101350  →  [...]  →  0xbaadf00d, x=0xc010133c
-→  [...]  →  0xf000ff53 ●→  162      serial_debug("corrupted magic(%x) %x !=
-%x", p, magichole, x->magix); 163      // x is 0 ?????? 164      hexdump((const
+→  [...]  →  0xf000ff53 ●→  162      KLOG(LOG_MODULE_MEM, "corrupted magic(%x)
+%x != %x", p, magichole, x->magix); 163      // x is 0 ?????? 164 hexdump((const
 char *)p - offsetof(block_header_t, data[0]) - 16, 64, 8); 165    } 166
-xhole(paddr(x), x->size); 167    serial_debug("freed %x", p);
+xhole(paddr(x), x->size); 167    KLOG(LOG_MODULE_MEM, "freed %x", p);
 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────
 threads ────
 [#0] Id 1, stopped 0x13bd9 in xfree (), reason: BREAKPOINT
@@ -212,8 +207,8 @@ void xfree(void *p) {
   // validate that x is within heap bounds
   if ((uintptr_t)x < KHEAP_START ||
       (uintptr_t)x >= KHEAP_START + KHEAP_INITIAL_SIZE) {
-    serial_debug("xfree: block header %x outside heap bounds [%x-%x]", x,
-                 KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE);
+    KLOG(LOG_MODULE_MEM, "xfree: block header %x outside heap bounds [%x-%x]",
+         x, KHEAP_START, KHEAP_START + KHEAP_INITIAL_SIZE);
     sti();
     return;
   }
@@ -221,16 +216,18 @@ void xfree(void *p) {
   if (x->magix != magichole) {
     // this might be an aligned allocation from xspanalloc
     // aligned allocations should not be freed via kfree
-    serial_debug("xfree: invalid block header at %x (data=%x), possibly "
-                 "aligned allocation",
-                 x, p);
-    serial_debug("  aligned allocations from kmalloc_a cannot be freed");
+    KLOG(LOG_MODULE_MEM,
+         "xfree: invalid block header at %x (data=%x), possibly "
+         "aligned allocation",
+         x, p);
+    KLOG(LOG_MODULE_MEM,
+         "  aligned allocations from kmalloc_a cannot be freed");
     sti();
     return;
   }
 
   xhole(paddr(x), x->size);
-  serial_debug("freed %x (block at %x, size %d)", p, x, x->size);
+  KLOG(LOG_MODULE_MEM, "freed %x (block at %x, size %d)", p, x, x->size);
   sti();
 }
 /*
@@ -248,13 +245,13 @@ int xmerge(void *vp, void *vq) {
     badp = (p->magix != magichole ? p : q);
     wd = (uint16_t *)badp - 12;
     for (i = 24; i-- > 0;) {
-      serial_debug("%x: %xx", wd, *wd);
+      KLOG(LOG_MODULE_MEM, "%x: %xx", wd, *wd);
       if (wd == badp)
-      serial_debug(" <-");
-      serial_debug("");
+      KLOG(LOG_MODULE_MEM, " <-");
+      KLOG(LOG_MODULE_MEM, "");
       wd++;
     }
-    serial_debug("xmerge(%x, %x) bad magic %xx, %xx", vp, vq, p->magix,
+    KLOG(LOG_MODULE_MEM, "xmerge(%x, %x) bad magic %xx, %xx", vp, vq, p->magix,
     q->magix);
   }
   if ((uint8_t *)p + p->size == (uint8_t *)q) {
@@ -303,7 +300,7 @@ void xhole(uintptr_t addr, uintptr_t size) {
 
   if (xlists.flist == nil) {
     // iunlock(&xlists);
-    serial_debug("xfree: no free holes, leaked %dd bytes", size);
+    KLOG(LOG_MODULE_MEM, "xfree: no free holes, leaked %dd bytes", size);
     return;
   }
 
@@ -339,8 +336,8 @@ void xsummary(void) {
 int placement_address = PLACEMENT_ADDRESS;
 
 void *kmalloc_int(uint32_t size, int align, uint32_t *phys) {
-  serial_debug("somebody wants %d bytes aligned: %d w/ phys %x", size, align,
-               phys);
+  KLOG(LOG_MODULE_MEM, "somebody wants %d bytes aligned: %d w/ phys %x", size,
+       align, phys);
   uint32_t addr = 0;
   if (kheap == NULL) {
     // early allocations before heap is initialized
@@ -368,16 +365,16 @@ void *kmalloc_int(uint32_t size, int align, uint32_t *phys) {
       *phys = virt2phys((void *)addr);
     }
   }
-  serial_debug("giving them the address %x", addr);
+  KLOG(LOG_MODULE_MEM, "giving them the address %x", addr);
   return (void *)addr;
 }
 
 void kfree(void *addr) {
   if (addr == NULL) {
-    serial_debug("nothing to free");
+    KLOG(LOG_MODULE_MEM, "nothing to free");
     return;
   } else if (kheap == NULL) {
-    serial_debug("kheap is not active");
+    KLOG(LOG_MODULE_MEM, "kheap is not active");
     return;
   }
   xfree(addr);
@@ -397,7 +394,7 @@ void *kmalloc(uint32_t size) { return kmalloc_int(size, 0, 0); }
 
 void kheap_watchdog(void *data) {
   (void)data;
-  serial_debug("heap watchdog started");
+  KLOG(LOG_MODULE_MEM, "heap watchdog started");
 
   while (1) {
 

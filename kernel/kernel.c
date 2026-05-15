@@ -2,8 +2,6 @@
 #include "9p/server.h"
 #include "bits.h"
 
-int log_enabled[LOG_MODULE_COUNT];
-
 void selftest(void);
 void fvm_test(void);
 
@@ -28,7 +26,7 @@ static void sched_test_fn2(void *data) {
   task2_ran = 1;
   task_test_counter++;
   kernel_printf("  task2 executed\n");
-  serial_debug("task2 executed successfully");
+  KLOG(LOG_MODULE_KERNEL, "task2 executed successfully");
 }
 
 static void sched_test_fn3(void *data) {
@@ -176,13 +174,13 @@ void selftest() {
   uint32_t *test_data = kmalloc(sizeof(uint32_t));
   *test_data = 0xCAFEBABE;
 
-  serial_debug("creating test_task2...");
+  KLOG(LOG_MODULE_KERNEL, "creating test_task2...");
   create_task("test_task2", &sched_test_fn2, 0, &task_destructor_with_free,
               task_stack2, task_stack2, stack_size);
-  serial_debug("creating test_task3...");
+  KLOG(LOG_MODULE_KERNEL, "creating test_task3...");
   create_task("test_task3", &sched_test_fn3, test_data, 0, 0, task_stack3,
               stack_size);
-  serial_debug("both tasks created");
+  KLOG(LOG_MODULE_KERNEL, "both tasks created");
 
   // give scheduler time to start the tasks
   sleep(150);
@@ -224,7 +222,7 @@ void selftest() {
   kernel_printf("- large allocations work\n");
 
   kernel_printf("=== all self-tests passed! ===\n");
-  serial_debug("selftest finished!");
+  KLOG(LOG_MODULE_KERNEL, "selftest finished!");
 }
 
 vfs *init_vfs();
@@ -233,9 +231,6 @@ void vfs_print_current_tree(vfs *fs);
 void kernel_main(void) {
   // be very careful, sometimes un-inited modules work even in kvm, for some
   // time, then they 3F
-  for (int i = 0; i < LOG_MODULE_COUNT; i++)
-    log_enabled[i] = 1;
-
   kernel_clear_screen();
 
   isr_install();
@@ -243,11 +238,11 @@ void kernel_main(void) {
 
   initialise_paging();
 
-  serial_debug("paging done...");
+  KLOG(LOG_MODULE_KERNEL, "paging done...");
 
   kernel_printf("- initializing pci...\n");
   pci_init();
-  serial_debug("pci done...");
+  KLOG(LOG_MODULE_KERNEL, "pci done...");
 
   // set_vga_mode12();
   // init_vga12h();

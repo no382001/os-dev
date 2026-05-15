@@ -1,6 +1,7 @@
 #include "keyboard.h"
 #include "apps/hexdump.h"
 #include "cpu/isr.h"
+#include "kernel/log.h"
 #include "libc/string.h"
 #include "low_level.h"
 #include "screen.h"
@@ -35,7 +36,7 @@ static void keyboard_callback(registers_t *regs) {
   int is_pressed = !(scancode & 0x80);
   uint8_t normalized_scancode = is_pressed ? scancode : (scancode & 0x7F);
 
-  // serial_debug("%x,%x", is_pressed, normalized_scancode);
+  // KLOG(LOG_MODULE_PCI, "%x,%x", is_pressed, normalized_scancode);
   if (normalized_scancode == KEY_LSHIFT || normalized_scancode == KEY_RSHIFT) {
     kb_ctx.shift_pressed = is_pressed;
     return;
@@ -81,8 +82,8 @@ static void default_key_handler(uint8_t scancode, char ascii, int is_pressed) {
     kb_ctx.key_buffer[kb_ctx.buffer_pos] = '\0';
 
     if (kb_ctx.enter_handler) {
-      // serial_debug("buffer contents: '%s' (length: %d)", kb_ctx.key_buffer,
-      // kb_ctx.buffer_pos);
+      // KLOG(LOG_MODULE_PCI, "buffer contents: '%s' (length: %d)",
+      // kb_ctx.key_buffer, kb_ctx.buffer_pos);
       kb_ctx.enter_handler(kb_ctx.key_buffer);
     } else {
       kernel_puts("\n");
@@ -97,10 +98,10 @@ static void default_key_handler(uint8_t scancode, char ascii, int is_pressed) {
       char str[2] = {ascii, '\0'};
       kernel_puts(str);
 
-      // serial_debug("added '%c' to buffer, pos now %d", ascii,
+      // KLOG(LOG_MODULE_PCI, "added '%c' to buffer, pos now %d", ascii,
       // kb_ctx.buffer_pos);
     } else {
-      // serial_debug("buffer full! Cannot add '%c'", ascii);
+      // KLOG(LOG_MODULE_PCI, "buffer full! Cannot add '%c'", ascii);
     }
   }
 }

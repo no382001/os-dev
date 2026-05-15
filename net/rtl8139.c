@@ -42,11 +42,11 @@ void rtl8139_handler(registers_t *reg) {
   uint16_t status = port_word_in(rtl8139_device.io_base + 0x3e);
 
   if (status & TOK) {
-    serial_debug("packet sent");
+    KLOG(LOG_MODULE_RTL8139, "packet sent");
   }
   if (status & ROK) {
     while (!(port_byte_in(rtl8139_device.io_base + ChipCmd) & RX_BUFE)) {
-      serial_debug("packet received");
+      KLOG(LOG_MODULE_RTL8139, "packet received");
       receive_packet();
     }
   }
@@ -74,9 +74,9 @@ void read_mac_addr() {
   memcpy(rtl8139_device.mac_addr, cached_mac, 6);
 
   mac_read = true;
-  serial_debug("our mac is %02x:%02x:%02x:%02x:%02x:%02x", cached_mac[0],
-               cached_mac[1], cached_mac[2], cached_mac[3], cached_mac[4],
-               cached_mac[5]);
+  KLOG(LOG_MODULE_RTL8139, "our mac is %02x:%02x:%02x:%02x:%02x:%02x",
+       cached_mac[0], cached_mac[1], cached_mac[2], cached_mac[3],
+       cached_mac[4], cached_mac[5]);
 }
 
 void get_mac_addr(uint8_t *addr) {
@@ -104,7 +104,7 @@ int rtl8139_init() {
   // first get the network device using PCI
   pci_rtl8139_device = pci_get_device(RTL8139_VENDOR_ID, RTL8139_DEVICE_ID, -1);
   if (pci_read(pci_rtl8139_device, PCI_VENDOR_ID) != RTL8139_VENDOR_ID) {
-    serial_debug("rtl8139: no device found, skipping init");
+    KLOG(LOG_MODULE_RTL8139, "rtl8139: no device found, skipping init");
     return 0;
   }
   uint32_t ret = pci_read(pci_rtl8139_device, PCI_BAR0);
@@ -113,10 +113,10 @@ int rtl8139_init() {
   // get io base or mem base by extracting the high 28/30 bits
   rtl8139_device.io_base = ret & (~0x3);
   rtl8139_device.mem_base = ret & (~0xf);
-  serial_debug("rtl8139 use %s access (base: %x)",
-               (rtl8139_device.bar_type == 0) ? "mem based" : "port based",
-               (rtl8139_device.bar_type != 0) ? rtl8139_device.io_base
-                                              : rtl8139_device.mem_base);
+  KLOG(LOG_MODULE_RTL8139, "rtl8139 use %s access (base: %x)",
+       (rtl8139_device.bar_type == 0) ? "mem based" : "port based",
+       (rtl8139_device.bar_type != 0) ? rtl8139_device.io_base
+                                      : rtl8139_device.mem_base);
 
   // set current TSAD
   rtl8139_device.tx_cur = 0;
@@ -162,7 +162,7 @@ int rtl8139_init() {
     pci_write(pci_rtl8139_device, PCI_LATENCY_TIMER, 64);
 
     latency_timer = pci_read(pci_rtl8139_device, PCI_LATENCY_TIMER);
-    serial_debug("updated PCI latency timer: %d", latency_timer);
+    KLOG(LOG_MODULE_RTL8139, "updated PCI latency timer: %d", latency_timer);
   }
 
   kernel_printf("[] rtl8139 registered on irq = %d\n", irq_num);

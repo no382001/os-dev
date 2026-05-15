@@ -1,11 +1,12 @@
+#include "kernel/log.h"
 
-#include "task.h"
 #include "apps/hexdump.h"
 #include "cpu/semaphore.h"
 #include "drivers/keyboard.h"
 #include "drivers/serial.h"
 #include "libc/mem.h"
 #include "libc/utils.h"
+#include "task.h"
 
 volatile int current_task_idx = 0;
 volatile int active_tasks = 0;
@@ -17,7 +18,7 @@ extern semaphore_t task_semaphore;
 
 void task_wrapper(task_fn_t f) {
   (void)f;
-  serial_debug("task %d fired!", current_task_idx);
+  KLOG(LOG_MODULE_TASK, "task %d fired!", current_task_idx);
   task_fn_t fn = tasks[current_task_idx].f;
   fn(tasks[current_task_idx].data);
 
@@ -30,8 +31,8 @@ void task_wrapper(task_fn_t f) {
 
   tasks[current_task_idx].status = TASK_DEAD;
   active_tasks--;
-  serial_debug("task %d completed, now %d active tasks", current_task_idx,
-               active_tasks - 1);
+  KLOG(LOG_MODULE_TASK, "task %d completed, now %d active tasks",
+       current_task_idx, active_tasks - 1);
 
   sti();
 
@@ -65,20 +66,20 @@ void schedule(registers_t *regs) {
       continue;
     }
 
-    serial_debug("schedule: switching to task %d:%s (status=%d)",
-                 current_task_idx, task_to_run->name, task_to_run->status);
+    KLOG(LOG_MODULE_TASK, "schedule: switching to task %d:%s (status=%d)",
+         current_task_idx, task_to_run->name, task_to_run->status);
 
     if (task_to_run->status == TASK_WAITING_FOR_START) {
       task_to_run->status = TASK_RUNNING;
-      serial_debug("starting new task %d", current_task_idx);
+      KLOG(LOG_MODULE_TASK, "starting new task %d", current_task_idx);
       exit_interrupt_context();
       switch_stack_and_jump(task_to_run->esp, (uint32_t)task_wrapper);
       // we never return
       return;
     } else if (task_to_run->status == TASK_RUNNING) {
-      serial_debug("schedule pass from %d:%s to %d:%s", old_task_idx,
-                   tasks[old_task_idx].name, current_task_idx,
-                   tasks[current_task_idx].name);
+      KLOG(LOG_MODULE_TASK, "schedule pass from %d:%s to %d:%s", old_task_idx,
+           tasks[old_task_idx].name, current_task_idx,
+           tasks[current_task_idx].name);
       memcpy(regs, &task_to_run->ctx, sizeof(registers_t));
       return;
     }
@@ -87,7 +88,7 @@ void schedule(registers_t *regs) {
   }
 
   // no runnable task found, stay with current
-  serial_debug("no runnable task found, staying at %d", old_task_idx);
+  KLOG(LOG_MODULE_TASK, "no runnable task found, staying at %d", old_task_idx);
   current_task_idx = old_task_idx;
 }
 
@@ -100,11 +101,12 @@ bool check_stack_overflow(int task_id) {
 int find_next_task_slot() {
   for (int i = 1; i < MAX_TASK; i++) {
     if (tasks[i].status == TASK_INACTIVE || tasks[i].status == TASK_DEAD) {
-      serial_debug("found task slot %d (status=%d)", i, tasks[i].status);
+      KLOG(LOG_MODULE_TASK, "found task slot %d (status=%d)", i,
+           tasks[i].status);
       return i;
     }
   }
-  serial_debug("no free task slots!");
+  KLOG(LOG_MODULE_TASK, "no free task slots!");
   return -1;
 }
 
@@ -153,10 +155,11 @@ void create_task(char *name, task_fn_t f, void *data, task_destructor_fn_t df,
   memcpy((void *)&tasks[task_id], (void *)&task, sizeof(task_t));
   active_tasks++;
 
-  serial_debug("task %d created: name='%s', status=%d, function=%x, "
-               "stack=%x-%x, esp=%x, ebp=%x, stack_size=%d, canary=%x",
-               task_id, task.name, task.status, (uint32_t)task.f, stack_bottom,
-               stack_top, task.esp, task.ebp, task.stack_size, CANARY);
+  KLOG(LOG_MODULE_TASK,
+       "task %d created: name='%s', status=%d, function=%x, "
+       "stack=%x-%x, esp=%x, ebp=%x, stack_size=%d, canary=%x",
+       task_id, task.name, task.status, (uint32_t)task.f, stack_bottom,
+       stack_top, task.esp, task.ebp, task.stack_size, CANARY);
   // maybe the heap struct gets overwritten...
   sti();
 }

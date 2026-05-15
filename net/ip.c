@@ -48,21 +48,21 @@ void ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len) {
 
 void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
                      uint8_t protocol) {
-  serial_debug("sending ip packet to %d.%d.%d.%d with data length %d",
-               dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], len);
+  KLOG(LOG_MODULE_IP, "sending ip packet to %d.%d.%d.%d with data length %d",
+       dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], len);
 
   ip_packet_t *packet = (ip_packet_t *)kmalloc(sizeof(ip_packet_t) + len);
 
   packet->version_ihl =
       (IP_IPV4 << 4) | 5; // IPv4, header length 5 words (20 bytes)
-  serial_debug("version_ihl = %x", packet->version_ihl);
+  KLOG(LOG_MODULE_IP, "version_ihl = %x", packet->version_ihl);
 
   packet->tos = 0;
 
   uint16_t total_length = sizeof(ip_packet_t) + len;
   packet->length = htons(total_length);
-  // serial_debug("total length = %d (%x in network order)", total_length,
-  // packet->length);
+  // KLOG(LOG_MODULE_IP, "total length = %d (%x in network order)",
+  // total_length, packet->length);
 
   static uint16_t ip_packet_id = 0;
 
@@ -80,7 +80,7 @@ void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
 
   packet->header_checksum = 0;
   packet->header_checksum = ip_calculate_checksum(packet);
-  // serial_debug("ip checksum = %x", ntohs(packet->header_checksum));
+  // KLOG(LOG_MODULE_IP, "ip checksum = %x", ntohs(packet->header_checksum));
 
   memcpy(packet->data, data, len);
 
@@ -89,8 +89,8 @@ void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
   if (memcmp(dst_ip, broadcast_ip, 4) == 0) {
     memset(dst_mac, 0xff, 6);
   } else if (arp_lookup(dst_mac, dst_ip) == 0) {
-    serial_debug("no MAC found for IP %d.%d.%d.%d - sending ARP request",
-                 dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3]);
+    KLOG(LOG_MODULE_IP, "no MAC found for IP %d.%d.%d.%d - sending ARP request",
+         dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3]);
 
     uint8_t broadcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     arp_send_packet(broadcast_mac, dst_ip);
@@ -98,8 +98,8 @@ void _ip_send_packet(uint8_t *dst_ip, void *data, uint32_t len,
     return;
   }
   // arp_print_table();
-  serial_debug("sending to mac %x:%x:%x:%x:%x:%x", dst_mac[0], dst_mac[1],
-               dst_mac[2], dst_mac[3], dst_mac[4], dst_mac[5]);
+  KLOG(LOG_MODULE_IP, "sending to mac %x:%x:%x:%x:%x:%x", dst_mac[0],
+       dst_mac[1], dst_mac[2], dst_mac[3], dst_mac[4], dst_mac[5]);
 
   ethernet_send_packet(dst_mac, (void *)packet, total_length, ETHERNET_TYPE_IP);
 
@@ -117,8 +117,8 @@ void ip_handle_packet(ethernet_frame_t *frame) {
     }
   }
 
-  serial_debug("got ip packet w/ type %x ver %x", packet->protocol,
-               (packet->version_ihl >> 4));
+  KLOG(LOG_MODULE_IP, "got ip packet w/ type %x ver %x", packet->protocol,
+       (packet->version_ihl >> 4));
 
   char src_ip[20];
 
@@ -142,7 +142,8 @@ void ip_handle_packet(ethernet_frame_t *frame) {
     // can handle one ip packet first
   } else {
     uint8_t *bytes = (uint8_t *)packet;
-    serial_debug("we dont know what this is: %02x %02x %02x %02x %02x %02x",
-                 bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]);
+    KLOG(LOG_MODULE_IP,
+         "we dont know what this is: %02x %02x %02x %02x %02x %02x", bytes[0],
+         bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]);
   }
 }

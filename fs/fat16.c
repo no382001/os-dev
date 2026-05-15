@@ -12,19 +12,20 @@ void fat16_read_bpb(fat_bpb_t *bpb) {
   ata_read_sector(0, buffer); // fda
   memcpy((char *)bpb, (char *)buffer, sizeof(fat_bpb_t));
 
-  serial_debug(" FAT16 info - %d sectors, %d bytes per sector, thats ~%dMB",
-               bpb->total_sectors, bpb->bytes_per_sector,
-               ((bpb->total_sectors * bpb->bytes_per_sector) / (1024 * 1024)));
+  KLOG(LOG_MODULE_FAT16,
+       " FAT16 info - %d sectors, %d bytes per sector, thats ~%dMB",
+       bpb->total_sectors, bpb->bytes_per_sector,
+       ((bpb->total_sectors * bpb->bytes_per_sector) / (1024 * 1024)));
 }
 
 static uint32_t fat16_cluster_to_lba(fat_bpb_t *bpb, uint16_t cluster) {
   if (bpb->bytes_per_sector == 0) {
-    serial_debug("fd-fat16: bytes_per_sector is 0!");
+    KLOG(LOG_MODULE_FAT16, "fd-fat16: bytes_per_sector is 0!");
     return 0;
   }
 
   if (cluster == 0) {
-    serial_debug("fd-fat16: invalid cluster 0!");
+    KLOG(LOG_MODULE_FAT16, "fd-fat16: invalid cluster 0!");
     return 0;
   }
 
@@ -35,27 +36,28 @@ static uint32_t fat16_cluster_to_lba(fat_bpb_t *bpb, uint16_t cluster) {
 }
 
 void fs_read_file(fat_bpb_t *bpb, fs_node_t *file, uint8_t *out) {
-  serial_debug("fd-fat16: reading file: size=%d, start_cluster=%d", file->size,
-               file->start_cluster);
+  KLOG(LOG_MODULE_FAT16, "fd-fat16: reading file: size=%d, start_cluster=%d",
+       file->size, file->start_cluster);
 
   if (file->size == 0) {
-    serial_debug("fd-fat16: file is empty, nothing to read");
+    KLOG(LOG_MODULE_FAT16, "fd-fat16: file is empty, nothing to read");
     return;
   }
 
   if (file->start_cluster == 0) {
-    serial_debug("fd-fat16: file has no allocated clusters!");
+    KLOG(LOG_MODULE_FAT16, "fd-fat16: file has no allocated clusters!");
     return;
   }
 
   uint16_t lba = fat16_cluster_to_lba(bpb, file->start_cluster);
   if (lba == 0) {
-    serial_debug("fd-fat16: invalid LBA calculated!");
+    KLOG(LOG_MODULE_FAT16, "fd-fat16: invalid LBA calculated!");
     return;
   }
 
   int read = (file->size / 512) + 1;
-  serial_debug("fd-fat16: reading %d sectors starting at LBA %d", read, lba);
+  KLOG(LOG_MODULE_FAT16, "fd-fat16: reading %d sectors starting at LBA %d",
+       read, lba);
 
   for (uint8_t i = 0; i < read; i++) {
     ata_read_sector(lba + i, (uint8_t *)(out + (i * 512)));
@@ -442,7 +444,7 @@ static fs_node_t *fat16_find_child(fs_node_t *parent, const char *name) {
 static fs_node_t *fat16_resolve_path(fat16_vfs_data *data, const char *path) {
   if (!data || !path)
     return NULL;
-  // serial_debug("resolving path: '%s'", path);
+  // KLOG(LOG_MODULE_FAT16, "resolving path: '%s'", path);
 
   fs_node_t *current;
 
@@ -474,7 +476,7 @@ static fs_node_t *fat16_resolve_path(fat16_vfs_data *data, const char *path) {
     token = strtok(NULL, "/");
   }
   if (!current) {
-    serial_debug("fd-fat16: could not find `%s`", path);
+    KLOG(LOG_MODULE_FAT16, "fd-fat16: could not find `%s`", path);
   }
 
   return current;
@@ -488,17 +490,17 @@ static int fat16_chdir(vfs *fs, const char *path) {
   fs_node_t *target = fat16_resolve_path(data, path);
 
   if (!target) {
-    serial_debug("nothing found named %s", path);
+    KLOG(LOG_MODULE_FAT16, "nothing found named %s", path);
     return VFS_ENOENT;
   }
   if (target->type != FS_TYPE_DIRECTORY) {
-    serial_debug("not a directory %s", path);
+    KLOG(LOG_MODULE_FAT16, "not a directory %s", path);
     return VFS_ENOTDIR;
   }
 
   data->current_dir = target;
 
-  serial_debug("from `%s`", fs->current_path);
+  KLOG(LOG_MODULE_FAT16, "from `%s`", fs->current_path);
   if (path[0] == '/') {
     strcpy(fs->current_path, path);
   } else {
@@ -507,7 +509,7 @@ static int fat16_chdir(vfs *fs, const char *path) {
     }
     strcat(fs->current_path, path);
   }
-  serial_debug("chdir'd to `%s`", fs->current_path);
+  KLOG(LOG_MODULE_FAT16, "chdir'd to `%s`", fs->current_path);
   return VFS_SUCCESS;
 }
 
@@ -533,7 +535,7 @@ static int fat16_open(vfs *fs, const char *name, vfs_mode mode, int *fd) {
   data->fd_table[*fd].mode = mode;
   data->fd_table[*fd].position = 0;
 
-  serial_debug("fd-fat16: opened %s on fd %d", name, *fd);
+  KLOG(LOG_MODULE_FAT16, "fd-fat16: opened %s on fd %d", name, *fd);
   return VFS_SUCCESS;
 }
 
@@ -550,7 +552,7 @@ static int fat16_close(vfs *fs, int fd) {
   data->fd_table[fd].node = NULL;
   data->fd_table[fd].position = 0;
 
-  serial_debug("fd-fat16: closed fd %d", fd);
+  KLOG(LOG_MODULE_FAT16, "fd-fat16: closed fd %d", fd);
   return VFS_SUCCESS;
 }
 
@@ -591,7 +593,7 @@ static int64_t fat16_readdir(vfs *fs, int fd, vfs_stat *st, int nst) {
     entries_read++;
   }
 
-  serial_debug("fd-fat16: readdir returned %d entries", entries_read);
+  KLOG(LOG_MODULE_FAT16, "fd-fat16: readdir returned %d entries", entries_read);
   return entries_read;
 }
 
@@ -650,9 +652,9 @@ static int fat16_stat(vfs *fs, const char *path, vfs_stat *st) {
   } else {
     strcpy(st->name, file->name);
   }
-  serial_debug(
-      "fd-fat16: stat'd `%s` name:`%s` size: %d, type: %d, cluster: %d", path,
-      st->name, st->size, st->size, st->cluster);
+  KLOG(LOG_MODULE_FAT16,
+       "fd-fat16: stat'd `%s` name:`%s` size: %d, type: %d, cluster: %d", path,
+       st->name, st->size, st->size, st->cluster);
 
   return VFS_SUCCESS;
 }
@@ -693,7 +695,8 @@ static int64_t fat16_seek(vfs *fs, int fd, int64_t offset, int whence) {
     new_pos = file->size;
 
   file_desc->position = new_pos;
-  serial_debug("fd-fat16: seek'd fd %d to position %d", fd, (int)new_pos);
+  KLOG(LOG_MODULE_FAT16, "fd-fat16: seek'd fd %d to position %d", fd,
+       (int)new_pos);
   return new_pos;
 }
 
@@ -718,8 +721,8 @@ static int fat16_fstat(vfs *fs, int fd, vfs_stat *st) {
     strcpy(st->name, file->name);
   }
 
-  serial_debug("fd-fat16: fstat'd fd %d: name='%s', size=%d", fd, st->name,
-               st->size);
+  KLOG(LOG_MODULE_FAT16, "fd-fat16: fstat'd fd %d: name='%s', size=%d", fd,
+       st->name, st->size);
   return VFS_SUCCESS;
 }
 
@@ -805,5 +808,5 @@ void vfs_init_fat16(vfs *fs, fat16_vfs_data *code) {
   fs->remove = 0; // reqs wriritng to disk
   fs->rename = 0; // reqs wriritng to disk
 
-  serial_debug("fd-fat16:  initialized");
+  KLOG(LOG_MODULE_FAT16, "fd-fat16:  initialized");
 }

@@ -29,7 +29,8 @@ void *memcpy(void *dest, const void *src, size_t num_bytes) {
 }
 
 void memset(void *dest, int val, uint32_t len) {
-  serial_debug("memset called on %x, value=%d, size=%d", dest, val, len);
+  KLOG(LOG_MODULE_MEM, "memset called on %x, value=%d, size=%d", dest, val,
+       len);
   uint8_t *temp = (uint8_t *)dest;
   for (; len != 0; len--) {
     *temp++ = val;

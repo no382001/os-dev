@@ -5,10 +5,7 @@ void sleep(uint32_t milliseconds);
 #define assert(c)                                                              \
   do {                                                                         \
     if (!(c)) {                                                                \
-      serial_debug("========================================");                \
-      serial_debug("[ASSERT FAILED] %s", #c);                                  \
-      serial_debug("  at %s:%d", __FILE__, __LINE__);                          \
-      serial_debug("========================================\n");              \
+      serial_printf(0, __FILE__, __LINE__, "ASSERT FAILED: %s", #c);           \
       kernel_printf("\n[ASSERT FAILED] %s at %s:%d\n", #c, __FILE__,           \
                     __LINE__);                                                 \
       while (1) {                                                              \

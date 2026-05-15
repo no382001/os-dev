@@ -429,7 +429,7 @@ void ninep_server_init(vfs *v) {
   srv_ctx.t = srv_handle_t;
   srv_ctx.error = srv_error;
   srv_ctx.aux = &srv_aux;
-  serial_debug("9p: server ready on udp port %d", SRV_PORT);
+  KLOG(LOG_MODULE_9P, "9p: server ready on udp port %d", SRV_PORT);
 }
 
 void ninep_server_handle(void *data, uint32_t len, uint8_t *src_ip,
