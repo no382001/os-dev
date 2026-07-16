@@ -1,6 +1,6 @@
+#include "mouse.h"
 #include "cpu/isr.h"
 #include "low_level.h"
-#include "mouse.h"
 #include "screen.h"
 
 #define MOUSE_PORT_DATA 0x60

@@ -391,7 +391,7 @@ static int ffi_setloglevel(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
 
 /* ip(Ip) — unify Ip with current IP as [A,B,C,D] or [not_set] */
 static int ffi_ip(trilog_ctx_t *ctx, term_t *goal, env_t *env) {
-  extern int gethostaddr(uint8_t * addr);
+  extern int gethostaddr(uint8_t *addr);
   uint8_t addr[4];
   term_t *empty = make_const(ctx, "[]");
   term_t *list;
